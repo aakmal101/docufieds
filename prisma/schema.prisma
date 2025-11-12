@@ -1,0 +1,190 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enums are not supported in SQLite, using String instead
+
+model User {
+  id                String      @id @default(cuid())
+  email             String?     @unique
+  phone             String?     @unique
+  userId            String?     @unique
+  role              String      @default("INDIVIDUAL")
+  status            String      @default("PENDING")
+  memberId          String?     @unique
+  isVerified        Boolean     @default(false)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Profile information
+  fullName          String?
+  dateOfBirth       DateTime?
+  placeOfBirth      String?
+  photoUrl          String?
+  birthCertificateNumber String?
+  nidNumber         String?
+  passportNumber    String?
+  
+  // Address information (stored as text in SQLite)
+  presentAddress    String?
+  permanentAddress  String?
+  
+  // Agency specific
+  agencyName        String?
+  agencyLicense     String?
+  creditLimit       Float?      @default(0)
+  outstandingAmount Float?      @default(0)
+  documentLimit     Int?        @default(10)
+  
+  // Relations
+  applications      Application[]
+  payments          Payment[]
+  documents         Document[]
+  notifications     Notification[]
+  sessions          Session[]
+  
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  sessionToken String @unique
+  userId    String
+  expires   DateTime
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model Application {
+  id                String            @id @default(cuid())
+  userId            String
+  country           String
+  processType       String
+  profession        String?
+  consultancyFee    Float
+  status            String            @default("DRAFT")
+  memberId          String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents         Document[]
+  payments          Payment[]
+  statusUpdates     StatusUpdate[]
+  
+  @@map("applications")
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  applicationId String
+  userId        String
+  fileName      String
+  fileUrl       String
+  fileType      String
+  fileSize      Int
+  documentType  String
+  isRequired    Boolean  @default(false)
+  uploadedAt    DateTime @default(now())
+  
+  // Relations
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("documents")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  applicationId String?
+  userId        String
+  amount        Float
+  status        String        @default("PENDING")
+  method        String
+  transactionId String?
+  gatewayResponse String?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  application   Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("payments")
+}
+
+model StatusUpdate {
+  id            String            @id @default(cuid())
+  applicationId String
+  status        String
+  message       String?
+  updatedBy     String?
+  createdAt     DateTime          @default(now())
+  
+  // Relations
+  application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  @@map("status_updates")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("notifications")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  phone     String?
+  email     String?
+  code      String
+  expiresAt DateTime
+  isUsed    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  
+  @@map("otps")
+}
+
+model Country {
+  id          String @id @default(cuid())
+  name        String
+  code        String @unique
+  continent   String
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  
+  @@map("countries")
+}
+
+model DocumentRequirement {
+  id          String @id @default(cuid())
+  country     String
+  processType String
+  profession  String?
+  documentType String
+  isRequired  Boolean @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  
+  @@map("document_requirements")
+}

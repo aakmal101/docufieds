@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 0 72% 51%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 0 72% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Custom styles for Docufieds */
+.gradient-bg {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+/* Brand Colors */
+:root {
+  --brand-primary: #dc2626;
+  --brand-secondary: #ef4444;
+  --brand-accent: #f59e0b;
+  --brand-dark: #991b1b;
+  --docufieds-50: #fef2f2;
+  --docufieds-100: #fee2e2;
+  --docufieds-200: #fecaca;
+  --docufieds-300: #fca5a5;
+  --docufieds-400: #f87171;
+  --docufieds-500: #ef4444;
+  --docufieds-600: #dc2626;
+  --docufieds-700: #b91c1c;
+  --docufieds-800: #991b1b;
+  --docufieds-900: #7f1d1d;
+}
+
+.brand-primary {
+  color: var(--brand-primary);
+}
+
+.bg-brand-primary {
+  background-color: var(--brand-primary);
+}
+
+.hover\:bg-brand-primary:hover {
+  background-color: var(--brand-primary);
+}
+
+.hover\:bg-brand-secondary:hover {
+  background-color: var(--brand-secondary);
+}
+
+.text-brand-primary {
+  color: var(--brand-primary);
+}
+
+.text-brand-secondary {
+  color: var(--brand-secondary);
+}
+
+.text-brand-accent {
+  color: var(--brand-accent);
+}
+
+.text-brand-dark {
+  color: var(--brand-dark);
+}
+
+.bg-brand-accent {
+  background-color: var(--brand-accent);
+}
+
+.bg-brand-dark {
+  background-color: var(--brand-dark);
+}
+
+.bg-docufieds-50 {
+  background-color: var(--docufieds-50);
+}
+
+.bg-docufieds-100 {
+  background-color: var(--docufieds-100);
+}
+
+.text-docufieds-100 {
+  color: var(--docufieds-100);
+}
+
+.map-container {
+  height: 500px;
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.document-upload-area {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.document-upload-area:hover {
+  border-color: #3b82f6;
+  background-color: #f8fafc;
+}
+
+.status-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.status-pending {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.status-approved {
+  @apply bg-green-100 text-green-800;
+}
+
+.status-declined {
+  @apply bg-red-100 text-red-800;
+}
+
+.status-processing {
+  @apply bg-blue-100 text-blue-800;
+}
+
+.progress-bar {
+  @apply w-full bg-gray-200 rounded-full h-2.5;
+}
+
+.progress-fill {
+  @apply bg-blue-600 h-2.5 rounded-full transition-all duration-300;
+}
+
