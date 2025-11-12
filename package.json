@@ -28,8 +28,6 @@
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
     "@radix-ui/react-toast": "^1.1.5",
-    "@react-three/drei": "^10.7.6",
-    "@react-three/fiber": "^9.4.0",
     "@tanstack/react-query": "^5.14.2",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.0",
@@ -43,7 +41,6 @@
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.48.2",
     "react-hot-toast": "^2.4.1",
-    "react-three-fiber": "^6.0.13",
     "tailwind-merge": "^2.2.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.159.0",
@@ -65,14 +62,3 @@
     "typescript": "^5"
   }
 }
-
-
-
-
-
-
-
-
-
-
-
