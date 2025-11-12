@@ -14,33 +14,33 @@ model User {
   id                String      @id @default(cuid())
   email             String?     @unique
   phone             String?     @unique
-  userId            String?     @unique
+  userId            String?     @unique @map("user_id")
   role              String      @default("INDIVIDUAL")
   status            String      @default("PENDING")
-  memberId          String?     @unique
-  isVerified        Boolean     @default(false)
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  memberId          String?     @unique @map("member_id")
+  isVerified        Boolean     @default(false) @map("is_verified")
+  createdAt         DateTime    @default(now()) @map("created_at")
+  updatedAt         DateTime    @updatedAt @map("updated_at")
 
   // Profile information
-  fullName          String?
-  dateOfBirth       DateTime?
-  placeOfBirth      String?
-  photoUrl          String?
-  birthCertificateNumber String?
-  nidNumber         String?
-  passportNumber    String?
+  fullName          String?     @map("full_name")
+  dateOfBirth       DateTime?   @map("date_of_birth")
+  placeOfBirth      String?     @map("place_of_birth")
+  photoUrl          String?     @map("photo_url")
+  birthCertificateNumber String? @map("birth_certificate_number")
+  nidNumber         String?     @map("nid_number")
+  passportNumber    String?     @map("passport_number")
   
   // Address information (stored as text in SQLite)
-  presentAddress    String?
-  permanentAddress  String?
+  presentAddress    String?     @map("present_address")
+  permanentAddress  String?     @map("permanent_address")
   
   // Agency specific
-  agencyName        String?
-  agencyLicense     String?
-  creditLimit       Float?      @default(0)
-  outstandingAmount Float?      @default(0)
-  documentLimit     Int?        @default(10)
+  agencyName        String?     @map("agency_name")
+  agencyLicense     String?     @map("agency_license")
+  creditLimit       Float?      @default(0) @map("credit_limit")
+  outstandingAmount Float?      @default(0) @map("outstanding_amount")
+  documentLimit     Int?        @default(10) @map("document_limit")
   
   // Relations
   applications      Application[]
@@ -54,8 +54,8 @@ model User {
 
 model Session {
   id        String   @id @default(cuid())
-  sessionToken String @unique
-  userId    String
+  sessionToken String @unique @map("session_token")
+  userId    String @map("user_id")
   expires   DateTime
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
@@ -64,15 +64,15 @@ model Session {
 
 model Application {
   id                String            @id @default(cuid())
-  userId            String
+  userId            String            @map("user_id")
   country           String
-  processType       String
+  processType       String            @map("process_type")
   profession        String?
-  consultancyFee    Float
+  consultancyFee    Float             @map("consultancy_fee")
   status            String            @default("DRAFT")
-  memberId          String?
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  memberId          String?           @map("member_id")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
   
   // Relations
   user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -85,15 +85,15 @@ model Application {
 
 model Document {
   id            String   @id @default(cuid())
-  applicationId String
-  userId        String
-  fileName      String
-  fileUrl       String
-  fileType      String
-  fileSize      Int
-  documentType  String
-  isRequired    Boolean  @default(false)
-  uploadedAt    DateTime @default(now())
+  applicationId String   @map("application_id")
+  userId        String   @map("user_id")
+  fileName      String   @map("file_name")
+  fileUrl       String   @map("file_url")
+  fileType      String   @map("file_type")
+  fileSize      Int      @map("file_size")
+  documentType  String   @map("document_type")
+  isRequired    Boolean  @default(false) @map("is_required")
+  uploadedAt    DateTime @default(now()) @map("uploaded_at")
   
   // Relations
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -104,16 +104,16 @@ model Document {
 
 model Payment {
   id            String        @id @default(cuid())
-  applicationId String?
-  userId        String
+  applicationId String?       @map("application_id")
+  userId        String        @map("user_id")
   amount        Float
   status        String        @default("PENDING")
   method        String
-  transactionId String?
-  gatewayResponse String?
-  paidAt        DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  transactionId String?       @map("transaction_id")
+  gatewayResponse String?     @map("gateway_response")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
   
   // Relations
   application   Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
@@ -124,11 +124,11 @@ model Payment {
 
 model StatusUpdate {
   id            String            @id @default(cuid())
-  applicationId String
+  applicationId String            @map("application_id")
   status        String
   message       String?
-  updatedBy     String?
-  createdAt     DateTime          @default(now())
+  updatedBy     String?           @map("updated_by")
+  createdAt     DateTime          @default(now()) @map("created_at")
   
   // Relations
   application   Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -138,12 +138,12 @@ model StatusUpdate {
 
 model Notification {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String   @map("user_id")
   title     String
   message   String
   type      String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
   
   // Relations
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -156,9 +156,9 @@ model OTP {
   phone     String?
   email     String?
   code      String
-  expiresAt DateTime
-  isUsed    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+  createdAt DateTime @default(now()) @map("created_at")
   
   @@map("otps")
 }
@@ -168,8 +168,8 @@ model Country {
   name        String
   code        String @unique
   continent   String
-  isActive    Boolean @default(true)
-  createdAt   DateTime @default(now())
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
   
   @@map("countries")
 }
@@ -177,12 +177,12 @@ model Country {
 model DocumentRequirement {
   id          String @id @default(cuid())
   country     String
-  processType String
+  processType String @map("process_type")
   profession  String?
   documentType String
-  isRequired  Boolean @default(true)
+  isRequired  Boolean @default(true) @map("is_required")
   description String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime @default(now()) @map("created_at")
   
   @@map("document_requirements")
 }
