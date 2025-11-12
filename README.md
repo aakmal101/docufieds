@@ -29,7 +29,7 @@ A comprehensive visa document processing service portal supporting two distinct 
 
 - **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
 - **Backend**: Next.js API Routes, Prisma ORM
-- **Database**: SQLite (development), PostgreSQL (production)
+- **Database**: Supabase (PostgreSQL)
 - **Authentication**: NextAuth.js with OTP verification
 - **3D Graphics**: React Three Fiber, Three.js
 - **UI Components**: Radix UI, Lucide React Icons
@@ -63,8 +63,8 @@ A comprehensive visa document processing service portal supporting two distinct 
    
    Update the `.env.local` file with your configuration:
    ```env
-   # Database
-   DATABASE_URL="file:./dev.db"
+   # Database (Supabase connection string - service role recommended for migrations)
+   DATABASE_URL="postgresql://postgres:postgres@db.supabase.co:5432/postgres?sslmode=require"
    
    # NextAuth
    NEXTAUTH_URL="http://localhost:3000"
