@@ -5,7 +5,55 @@ import { verifyOTP } from './otp'
 import { generateMemberId } from './utils'
 import bcrypt from 'bcryptjs'
 
+/**
+ * NextAuth Configuration
+ * 
+ * REQUIRED ENVIRONMENT VARIABLES (must be set in Vercel):
+ * - NEXTAUTH_SECRET: A random secret string used to encrypt JWT tokens and session cookies.
+ *   Generate one using: openssl rand -base64 32
+ *   Or use: https://generate-secret.vercel.app/32
+ * 
+ * - NEXTAUTH_URL: The canonical URL of your site (e.g., https://yourdomain.com)
+ *   For local development: http://localhost:3000
+ *   For production: Your production domain
+ * 
+ * IMPORTANT: Never commit these values to the repository.
+ * Set them in Vercel Dashboard → Settings → Environment Variables
+ */
+
+// Validate required environment variables
+const getNextAuthSecret = (): string => {
+  const secret = process.env.NEXTAUTH_SECRET
+  
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        '[NextAuth] Missing NEXTAUTH_SECRET. ' +
+        'Please set NEXTAUTH_SECRET in your Vercel environment variables. ' +
+        'Generate one at: https://generate-secret.vercel.app/32'
+      )
+    } else {
+      // Development mode: use a fallback but warn
+      console.warn(
+        '[NextAuth] WARNING: NEXTAUTH_SECRET is not set. ' +
+        'Using a development fallback. This will NOT work in production. ' +
+        'Set NEXTAUTH_SECRET in your .env.local file.'
+      )
+      return 'development-secret-change-in-production'
+    }
+  }
+  
+  return secret
+}
+
+const getNextAuthUrl = (): string => {
+  return process.env.NEXTAUTH_URL || 'http://localhost:3000'
+}
+
 export const authOptions: NextAuthOptions = {
+  secret: getNextAuthSecret(),
+  // NEXTAUTH_URL is automatically used by NextAuth, but we can also set it explicitly
+  // NextAuth will use process.env.NEXTAUTH_URL automatically
   providers: [
     CredentialsProvider({
       name: 'credentials',
