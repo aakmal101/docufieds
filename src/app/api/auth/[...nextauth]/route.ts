@@ -16,6 +16,10 @@ import { authOptions } from '@/lib/auth'
  * - NEXTAUTH_URL: Automatically detected in Vercel, but can be set explicitly
  */
 
+// Force dynamic rendering for Vercel serverless
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 // Validate environment before initializing NextAuth
 if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
   throw new Error(
@@ -27,6 +31,11 @@ if (process.env.NODE_ENV === 'production' && !process.env.NEXTAUTH_SECRET) {
 const handler = NextAuth(authOptions)
 
 export { handler as GET, handler as POST }
+
+
+
+
+
 
 
 

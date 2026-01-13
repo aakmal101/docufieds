@@ -274,7 +274,7 @@ export default function SupportDashboard() {
                             </div>
                             <div className="flex items-center">
                               <CreditCard className="h-4 w-4 mr-1" />
-                              ${application.consultancyFee}
+                              {application.consultancyFee} BDT
                             </div>
                           </div>
                         </div>

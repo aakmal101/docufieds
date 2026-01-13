@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: session.user.id,
         title: 'Payment Created',
-        message: `Payment of $${amount} has been created for your application. Please complete the payment to proceed.`,
+        message: `Payment of ${amount} BDT has been created for your application. Please complete the payment to proceed.`,
         type: 'payment_created',
       },
     })
@@ -132,6 +132,11 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+
+
+
+
+
 
 
 

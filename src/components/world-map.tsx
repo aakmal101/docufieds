@@ -56,17 +56,17 @@ function SimpleCountryList({ countries, onCountrySelect, selectedCountry }: {
   selectedCountry?: string
 }) {
   return (
-    <div className="w-full h-96 border rounded-lg bg-gradient-to-b from-blue-900 to-blue-700 p-4">
-      <div className="text-white text-center mb-4">
+    <div className="w-full h-96 border rounded-lg bg-gradient-to-b from-blue-900 to-blue-700 p-4 overflow-hidden flex flex-col">
+      <div className="text-white text-center mb-4 flex-shrink-0">
         <h3 className="text-lg font-semibold">Select a Country</h3>
         <p className="text-sm opacity-80">Choose your destination country</p>
       </div>
-      <div className="grid grid-cols-2 gap-2 max-h-80 overflow-y-auto">
+      <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 pr-2">
         {countries.map((country) => (
           <button
             key={country.id}
             onClick={() => onCountrySelect(country)}
-            className={`p-2 rounded text-sm text-left transition-colors ${
+            className={`p-2 rounded text-sm text-left transition-colors flex-shrink-0 ${
               selectedCountry === country.id
                 ? 'bg-yellow-400 text-black'
                 : 'bg-white bg-opacity-20 text-white hover:bg-opacity-30'
@@ -74,7 +74,7 @@ function SimpleCountryList({ countries, onCountrySelect, selectedCountry }: {
           >
             <div className="flex items-center">
               <div 
-                className="w-3 h-3 rounded-full mr-2"
+                className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
                 style={{ backgroundColor: country.color }}
               />
               <span className="font-medium">{country.name}</span>
@@ -125,32 +125,6 @@ export default function WorldMap({ onCountrySelect, selectedCountry }: WorldMapP
         onCountrySelect={onCountrySelect}
         selectedCountry={selectedCountry}
       />
-
-      {/* Country List */}
-      <div className="mt-4">
-        <h3 className="text-lg font-semibold mb-2">Available Countries</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {filteredCountries.map((country) => (
-            <button
-              key={country.id}
-              onClick={() => onCountrySelect(country)}
-              className={`p-2 rounded text-sm text-left transition-colors ${
-                selectedCountry === country.id
-                  ? 'bg-red-100 border-2 border-red-500'
-                  : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-              }`}
-            >
-              <div className="flex items-center">
-                <div 
-                  className="w-3 h-3 rounded-full mr-2"
-                  style={{ backgroundColor: country.color }}
-                />
-                <span className="font-medium">{country.name}</span>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

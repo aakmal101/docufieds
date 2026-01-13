@@ -213,8 +213,11 @@ export default function NewApplicationPage() {
               Back
             </Button>
             <div className="flex items-center">
-              <Globe className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-2xl font-bold text-gray-900">Docufieds</span>
+              <img 
+                src="/logo.png" 
+                alt="Docufieds Logo" 
+                className="h-16 w-36 object-contain"
+              />
             </div>
           </div>
         </div>
@@ -312,7 +315,7 @@ export default function NewApplicationPage() {
                             <p className="text-sm text-gray-600 mt-1">{type.description}</p>
                           </div>
                           <Badge variant="secondary">
-                            ${consultancyFees[type.value as ProcessType]}
+                            {consultancyFees[type.value as ProcessType]} BDT
                           </Badge>
                         </div>
                       </div>
@@ -367,7 +370,7 @@ export default function NewApplicationPage() {
                         <h3 className="font-medium text-gray-900 mb-2">Consultancy Fee</h3>
                         <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                           <CreditCard className="h-5 w-5 text-purple-600 mr-2" />
-                          <span className="font-medium">${getCurrentFee()}</span>
+                          <span className="font-medium">{getCurrentFee()} BDT</span>
                         </div>
                       </div>
                     </div>
@@ -452,7 +455,7 @@ export default function NewApplicationPage() {
                 <div className="border-t pt-4">
                   <div className="flex justify-between items-center">
                     <span className="font-medium text-gray-900">Consultancy Fee</span>
-                    <span className="font-bold text-lg text-blue-600">${getCurrentFee()}</span>
+                    <span className="font-bold text-lg text-blue-600">{getCurrentFee()} BDT</span>
                   </div>
                 </div>
               </CardContent>

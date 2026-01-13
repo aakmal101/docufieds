@@ -185,7 +185,7 @@ export default function AgencyDashboard() {
                 Credit Utilization
               </CardTitle>
               <CardDescription className="text-red-700">
-                Outstanding: ${user.outstandingAmount || 0} / ${user.creditLimit || 0}
+                Outstanding: {user.outstandingAmount || 0} / {user.creditLimit || 0} BDT
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -285,7 +285,7 @@ export default function AgencyDashboard() {
                 <TrendingUp className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
                   <p className="text-2xl font-bold text-gray-900">
-                    ${applications.reduce((sum, app) => sum + app.consultancyFee, 0)}
+                    {applications.reduce((sum, app) => sum + app.consultancyFee, 0)} BDT
                   </p>
                   <p className="text-sm text-gray-600">Total Revenue</p>
                 </div>
@@ -343,7 +343,7 @@ export default function AgencyDashboard() {
                           </div>
                           <div className="flex items-center">
                             <CreditCard className="h-4 w-4 mr-1" />
-                            ${application.consultancyFee}
+                            {application.consultancyFee} BDT
                           </div>
                           {application.memberId && (
                             <div className="flex items-center">
@@ -419,7 +419,7 @@ export default function AgencyDashboard() {
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Credit Limit</label>
-                  <p className="text-gray-900">${user.creditLimit || 0}</p>
+                  <p className="text-gray-900">{user.creditLimit || 0} BDT</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-700">Member Since</label>

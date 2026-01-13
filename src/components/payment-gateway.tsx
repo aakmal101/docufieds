@@ -148,7 +148,7 @@ export default function PaymentGateway({
         <CardContent className="space-y-6">
           {/* Payment Amount */}
           <div className="text-center p-6 bg-gray-50 rounded-lg">
-            <h3 className="text-2xl font-bold text-gray-900">${amount}</h3>
+            <h3 className="text-2xl font-bold text-gray-900">{amount} BDT</h3>
             <p className="text-gray-600">Consultancy Fee</p>
           </div>
 
@@ -218,7 +218,7 @@ export default function PaymentGateway({
                 Processing...
               </>
             ) : (
-              `Pay $${amount}`
+              `Pay ${amount} BDT`
             )}
           </Button>
 
@@ -284,6 +284,11 @@ export default function PaymentGateway({
     </div>
   )
 }
+
+
+
+
+
 
 
 

@@ -285,7 +285,7 @@ export default function IndividualDashboard() {
                 <CreditCard className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
                   <p className="text-2xl font-bold text-gray-900">
-                    ${applications.reduce((sum, app) => sum + app.consultancyFee, 0)}
+                    {applications.reduce((sum, app) => sum + app.consultancyFee, 0)} BDT
                   </p>
                   <p className="text-sm text-gray-600">Total Spent</p>
                 </div>
@@ -338,7 +338,7 @@ export default function IndividualDashboard() {
                           </div>
                           <div className="flex items-center">
                             <CreditCard className="h-4 w-4 mr-1" />
-                            ${application.consultancyFee}
+                            {application.consultancyFee} BDT
                           </div>
                           {application.memberId && (
                             <div className="flex items-center">

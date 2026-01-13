@@ -159,7 +159,7 @@ export default function AdminDashboard() {
               <div className="flex items-center">
                 <DollarSign className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.totalRevenue.toLocaleString()} BDT</p>
                   <p className="text-sm text-gray-600">Total Revenue</p>
                 </div>
               </div>
@@ -285,6 +285,9 @@ export default function AdminDashboard() {
     </div>
   )
 }
+
+
+
 
 
 

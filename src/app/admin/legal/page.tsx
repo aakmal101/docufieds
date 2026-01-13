@@ -227,7 +227,7 @@ export default function LegalDashboard() {
                           </div>
                           <div className="flex items-center">
                             <CreditCard className="h-4 w-4 mr-1" />
-                            ${application.consultancyFee}
+                            {application.consultancyFee} BDT
                           </div>
                         </div>
                         <div className="mt-2">
@@ -255,6 +255,9 @@ export default function LegalDashboard() {
     </div>
   )
 }
+
+
+
 
 
 

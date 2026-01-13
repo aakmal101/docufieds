@@ -167,7 +167,7 @@ export default function AccountsDashboard() {
               <div className="flex items-center">
                 <Clock className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">${pendingAmount.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">{pendingAmount.toLocaleString()} BDT</p>
                   <p className="text-sm text-gray-600">Pending Payments</p>
                 </div>
               </div>
@@ -221,7 +221,7 @@ export default function AccountsDashboard() {
                     <div key={method} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium">{method}</span>
                       <div className="text-right">
-                        <p className="font-semibold">${amount.toLocaleString()}</p>
+                        <p className="font-semibold">{amount.toLocaleString()} BDT</p>
                         <p className="text-sm text-gray-600">{count} transactions</p>
                       </div>
                     </div>
@@ -247,7 +247,7 @@ export default function AccountsDashboard() {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">${payment.amount}</p>
+                      <p className="font-semibold">{payment.amount} BDT</p>
                       <Badge className={getStatusColor(payment.status)}>
                         {payment.status}
                       </Badge>
@@ -302,7 +302,7 @@ export default function AccountsDashboard() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-gray-900">${payment.amount}</p>
+                        <p className="text-2xl font-bold text-gray-900">{payment.amount} BDT</p>
                         {payment.paidAt && (
                           <p className="text-sm text-gray-600">
                             Paid: {new Date(payment.paidAt).toLocaleDateString()}
@@ -320,6 +320,9 @@ export default function AccountsDashboard() {
     </div>
   )
 }
+
+
+
 
 
 
