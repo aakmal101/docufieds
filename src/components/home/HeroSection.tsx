@@ -56,7 +56,7 @@ export function HeroSection() {
                 </Button>
               </Link>
             </div>
-            
+
             <div className="mt-10 flex items-center gap-x-6">
               <div className="flex items-center gap-x-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -74,39 +74,12 @@ export function HeroSection() {
           </div>
 
           <div className="relative lg:h-[600px] hidden lg:block">
-            {/* Abstract Document Visuals */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[500px] max-h-[500px]">
-              {/* Main Card */}
-              <div className="absolute top-10 left-10 right-10 bottom-10 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 z-20">
-                <div className="h-4 w-32 bg-gray-100 rounded mb-8"></div>
-                <div className="space-y-4">
-                  <div className="h-3 w-full bg-gray-50 rounded"></div>
-                  <div className="h-3 w-5/6 bg-gray-50 rounded"></div>
-                  <div className="h-3 w-4/6 bg-gray-50 rounded"></div>
-                </div>
-                <div className="mt-8 flex gap-4">
-                  <div className="h-20 w-20 bg-brand-50 rounded-lg flex items-center justify-center">
-                    <svg className="w-8 h-8 text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 space-y-3 pt-2">
-                    <div className="h-2 w-full bg-gray-50 rounded"></div>
-                    <div className="h-2 w-2/3 bg-gray-50 rounded"></div>
-                  </div>
-                </div>
-                {/* Floating Badge */}
-                <div className="absolute -right-6 top-20 bg-white p-4 rounded-xl shadow-xl border border-gray-100 animate-bounce z-30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                    <span className="font-semibold text-gray-700">Verified</span>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Background Cards for Depth */}
-              <div className="absolute top-0 left-20 right-0 bottom-20 bg-gray-50 rounded-2xl -z-10 transform rotate-6 border border-gray-100"></div>
-              <div className="absolute top-20 left-0 right-20 bottom-0 bg-brand-50 rounded-2xl -z-20 transform -rotate-3 border border-brand-100"></div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[600px] flex items-center justify-center">
+              <img
+                src="/hero-image.png"
+                alt="Visa Document Processing"
+                className="w-full h-auto object-contain drop-shadow-2xl rounded-lg transform hover:scale-105 transition-transform duration-500"
+              />
             </div>
           </div>
         </div>
