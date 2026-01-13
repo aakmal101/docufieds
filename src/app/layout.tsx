@@ -1,10 +1,10 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Outfit } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { Toaster } from 'react-hot-toast'
 
-const inter = Inter({ subsets: ['latin'] })
+const outfit = Outfit({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Docufieds - Visa Document Processing Portal',
@@ -19,10 +19,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={outfit.className}>
         <Providers>
           {children}
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
