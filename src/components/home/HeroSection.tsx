@@ -82,7 +82,7 @@ export function HeroSection() {
               />
 
               {/* Floating Module 1: Documents Notarized */}
-              <div className="absolute -left-4 top-12 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce shadow-brand-100/50" style={{ animationDuration: '3s' }}>
+              <div className="absolute -left-4 top-12 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '5s', animationDelay: '0s' }}>
                 <div className="bg-blue-100 p-2 rounded-lg">
                   <Stamp className="h-6 w-6 text-blue-600" />
                 </div>
@@ -93,7 +93,7 @@ export function HeroSection() {
               </div>
 
               {/* Floating Module 2: Documents Merged */}
-              <div className="absolute -left-8 bottom-20 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce shadow-brand-100/50" style={{ animationDuration: '4s', animationDelay: '1s' }}>
+              <div className="absolute -left-8 bottom-20 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '7s', animationDelay: '1s' }}>
                 <div className="bg-purple-100 p-2 rounded-lg">
                   <Files className="h-6 w-6 text-purple-600" />
                 </div>
@@ -104,7 +104,7 @@ export function HeroSection() {
               </div>
 
               {/* Floating Module 3: Application Ready */}
-              <div className="absolute -right-6 top-1/2 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce shadow-brand-100/50" style={{ animationDuration: '3.5s', animationDelay: '0.5s' }}>
+              <div className="absolute -right-6 top-1/2 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '6s', animationDelay: '2s' }}>
                 <div className="bg-green-100 p-2 rounded-lg">
                   <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
