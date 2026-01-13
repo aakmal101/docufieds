@@ -21,4 +21,9 @@ pnpm-debug.log*
 cookies.txt
 tsconfig.tsbuildinfo
 
+# Database files
+*.db
+*.db-journal
+prisma/dev.db
+
 

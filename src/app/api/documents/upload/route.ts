@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { createClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,9 +42,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // In a real application, you would upload the file to cloud storage
-    // For now, we'll simulate the upload and store metadata
-    const fileUrl = `/uploads/${Date.now()}-${file.name}`
+    // Upload file to Supabase Storage
+    const supabase = await createClient()
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${session.user.id}/${applicationId}/${Date.now()}.${fileExt}`
+    const fileBuffer = await file.arrayBuffer()
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: false,
+      })
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError)
+      return NextResponse.json(
+        { success: false, message: 'Failed to upload file to storage' },
+        { status: 500 }
+      )
+    }
+
+    // Get public URL for the uploaded file
+    const { data: { publicUrl } } = supabase.storage
+      .from('documents')
+      .getPublicUrl(fileName)
+
+    const fileUrl = publicUrl
 
     // Create document record
     const document = await prisma.document.create({

@@ -13,6 +13,7 @@ import {
   Loader2
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
+import { useNotificationsRealtime } from '@/lib/supabase/realtime'
 
 interface Notification {
   id: string
@@ -34,12 +35,20 @@ export default function NotificationSystem({ userId }: NotificationSystemProps) 
 
   useEffect(() => {
     fetchNotifications()
-    
-    // Set up real-time updates (in a real app, you'd use WebSockets)
-    const interval = setInterval(fetchNotifications, 30000) // Check every 30 seconds
-    
-    return () => clearInterval(interval)
   }, [userId])
+
+  // Use Supabase Realtime for live notifications
+  useNotificationsRealtime(userId, (newNotification) => {
+    setNotifications(prev => {
+      // Check if notification already exists (avoid duplicates)
+      const exists = prev.some(n => n.id === newNotification.id)
+      if (exists) return prev
+      
+      // Add new notification at the beginning
+      return [newNotification, ...prev]
+    })
+    setUnreadCount(prev => prev + 1)
+  })
 
   const fetchNotifications = async () => {
     try {

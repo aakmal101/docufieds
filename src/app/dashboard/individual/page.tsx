@@ -157,9 +157,33 @@ export default function IndividualDashboard() {
           />
         </div>
             <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
-                <p className="text-sm text-gray-500">Member ID: {user.memberId}</p>
+              {/* Profile Picture */}
+              <div className="flex items-center space-x-3">
+                {user.photoUrl ? (
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={user.photoUrl}
+                      alt={user.fullName || 'Profile'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback to default avatar if image fails to load
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hidden">
+                      <User className="h-6 w-6 text-gray-500" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                    <User className="h-6 w-6 text-gray-500" />
+                  </div>
+                )}
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
+                  <p className="text-sm text-gray-500">Member ID: {user.memberId}</p>
+                </div>
               </div>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 Sign Out
@@ -340,6 +364,44 @@ export default function IndividualDashboard() {
             <CardDescription>Your account details and verification status</CardDescription>
           </CardHeader>
           <CardContent>
+            {/* Profile Picture Display */}
+            <div className="mb-6 pb-6 border-b">
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Profile Picture</label>
+              <div className="flex items-center space-x-4">
+                {user.photoUrl ? (
+                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-md">
+                    <img
+                      src={user.photoUrl}
+                      alt={user.fullName || 'Profile'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center hidden">
+                      <User className="h-12 w-12 text-gray-500" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300 shadow-md">
+                    <User className="h-12 w-12 text-gray-500" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {user.photoUrl ? 'Profile picture uploaded' : 'No profile picture'}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => router.push('/dashboard/individual/profile')}
+                  >
+                    {user.photoUrl ? 'Change Picture' : 'Upload Picture'}
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div>

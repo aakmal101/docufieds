@@ -129,24 +129,27 @@ export default function ProfilePage() {
       if (profilePhoto) {
         const formDataPhoto = new FormData()
         formDataPhoto.append('file', profilePhoto)
-        formDataPhoto.append('type', 'profile-photo')
 
-        const uploadResponse = await fetch('/api/documents/upload', {
+        const uploadResponse = await fetch('/api/user/profile/photo', {
           method: 'POST',
           body: formDataPhoto,
         })
 
         const uploadData = await uploadResponse.json()
-        if (uploadData.success) {
-          photoUrl = uploadData.url
+        if (uploadData.success && uploadData.data?.photoUrl) {
+          photoUrl = uploadData.data.photoUrl
+          // Update preview with new URL
+          setPhotoPreview(photoUrl)
+          // Update form data
+          setFormData(prev => ({ ...prev, photoUrl }))
         } else {
-          toast.error('Failed to upload profile photo')
+          toast.error(uploadData.message || 'Failed to upload profile photo')
           setSaving(false)
           return
         }
       }
 
-      // Update profile with photo URL
+      // Update profile with all data including photo URL
       const response = await fetch('/api/user/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -157,7 +160,23 @@ export default function ProfilePage() {
 
       if (data.success) {
         toast.success('Profile updated successfully!')
-        router.push('/dashboard/individual')
+        // Update local state with new data
+        if (data.data) {
+          setUser(data.data)
+          setFormData(prev => ({
+            ...prev,
+            photoUrl: data.data.photoUrl || prev.photoUrl
+          }))
+          if (data.data.photoUrl) {
+            setPhotoPreview(data.data.photoUrl)
+          }
+        }
+        // Refresh user data to get updated profile
+        await fetchUserData()
+        // Small delay to show success message
+        setTimeout(() => {
+          router.push('/dashboard/individual')
+        }, 1000)
       } else {
         toast.error(data.message || 'Failed to update profile')
       }
@@ -208,9 +227,32 @@ export default function ProfilePage() {
           />
         </div>
             <div className="flex items-center space-x-4">
-              <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-                <p className="text-sm text-gray-500">Member ID: {user?.memberId}</p>
+              {/* Profile Picture */}
+              <div className="flex items-center space-x-3">
+                {user?.photoUrl ? (
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={user.photoUrl}
+                      alt={user?.fullName || 'Profile'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hidden">
+                      <User className="h-6 w-6 text-gray-500" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
+                    <User className="h-6 w-6 text-gray-500" />
+                  </div>
+                )}
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
+                  <p className="text-sm text-gray-500">Member ID: {user?.memberId}</p>
+                </div>
               </div>
               <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/individual')}>
                 Back to Dashboard
