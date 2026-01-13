@@ -10,41 +10,49 @@ const categories = [
     {
         name: 'USA',
         count: 'Tourist & Business',
+        code: 'us',
         color: 'bg-blue-50 text-blue-600',
     },
     {
         name: 'UK',
         count: 'Standard Visitor',
+        code: 'gb',
         color: 'bg-red-50 text-red-600',
     },
     {
         name: 'Canada',
         count: 'Visitor Visa',
+        code: 'ca',
         color: 'bg-red-50 text-red-600',
     },
     {
         name: 'Schengen',
         count: '26 Countries',
+        code: 'eu',
         color: 'bg-indigo-50 text-indigo-600',
     },
     {
         name: 'Australia',
         count: 'Visitor Visa (600)',
+        code: 'au',
         color: 'bg-amber-50 text-amber-600',
     },
     {
         name: 'Thailand',
         count: 'Tourist Visa',
+        code: 'th',
         color: 'bg-purple-50 text-purple-600',
     },
     {
         name: 'Malaysia',
         count: 'eVISA',
+        code: 'my',
         color: 'bg-orange-50 text-orange-600',
     },
     {
         name: 'Singapore',
         count: 'Tourist Visa',
+        code: 'sg',
         color: 'bg-rose-50 text-rose-600',
     },
 ]
@@ -95,8 +103,12 @@ export function VisaCategories() {
                                 className="group relative flex items-center justify-between p-6 bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:border-brand-100 transition-all duration-300 cursor-pointer"
                             >
                                 <div className="flex items-center gap-4">
-                                    <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl transition-colors duration-300", category.color)}>
-                                        <Globe className="h-6 w-6" />
+                                    <div className={cn("flex h-12 w-12 items-center justify-center rounded-xl overflow-hidden shadow-sm transition-transform duration-300 group-hover:scale-105", category.color)}>
+                                        <img
+                                            src={`https://flagcdn.com/${category.code}.svg`}
+                                            alt={`${category.name} flag`}
+                                            className="h-full w-full object-cover"
+                                        />
                                     </div>
                                     <div>
                                         <h3 className="font-semibold text-lg text-gray-900 group-hover:text-brand-primary transition-colors">
