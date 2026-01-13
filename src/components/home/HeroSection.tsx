@@ -78,7 +78,7 @@ export function HeroSection() {
               <img
                 src="/hero-image.png"
                 alt="Visa Document Processing"
-                className="w-full h-auto object-contain drop-shadow-2xl rounded-lg transform hover:scale-105 transition-transform duration-500"
+                className="w-full h-auto object-contain rounded-lg transform hover:scale-105 transition-transform duration-500"
               />
             </div>
           </div>
