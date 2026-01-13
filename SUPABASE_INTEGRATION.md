@@ -174,4 +174,3 @@ Supabase Auth can complement or replace NextAuth. Currently set up to work along
 - Document uploads now use Supabase Storage (no local files)
 - Old file URLs will need to be migrated if you have existing data
 - Realtime subscriptions are opt-in (use the hooks provided)
-

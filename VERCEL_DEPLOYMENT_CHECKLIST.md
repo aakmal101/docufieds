@@ -124,4 +124,3 @@ npm start
 ---
 
 **Last Updated**: After NextAuth production fix implementation
-

@@ -66,4 +66,3 @@ export function useApplicationStatusRealtime(
     }
   }, [applicationId, callback])
 }
-

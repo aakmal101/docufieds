@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -60,6 +61,7 @@ const consultancyFees = {
 }
 
 export default function NewApplicationPage() {
+  const { data: session, status } = useSession()
   const router = useRouter()
   const [step, setStep] = useState<'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('destination')
   const [loading, setLoading] = useState(false)
@@ -72,6 +74,18 @@ export default function NewApplicationPage() {
   })
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
+
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/auth/signin')
+      return
+    }
+
+    if (session?.user?.role !== 'INDIVIDUAL') {
+      router.push('/dashboard')
+      return
+    }
+  }, [session, status, router])
 
   const handleCountrySelect = (country: Country) => {
     setSelectedCountry(country)
@@ -169,11 +183,15 @@ export default function NewApplicationPage() {
         toast.success('Application created successfully!')
         setStep('documents')
       } else {
-        setError(data.message || 'Failed to create application')
+        const errorMsg = data.message || 'Failed to create application'
+        setError(errorMsg)
+        toast.error(errorMsg)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Application creation error:', error)
-      setError('Something went wrong. Please try again.')
+      const errorMsg = error?.message || 'Something went wrong. Please try again.'
+      setError(errorMsg)
+      toast.error(errorMsg)
     } finally {
       setLoading(false)
     }

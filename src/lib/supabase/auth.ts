@@ -67,4 +67,3 @@ export async function getUserFromSession() {
 
   return { ...user, supabaseUser }
 }
-

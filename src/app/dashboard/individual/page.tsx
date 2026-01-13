@@ -160,18 +160,20 @@ export default function IndividualDashboard() {
               {/* Profile Picture */}
               <div className="flex items-center space-x-3">
                 {user.photoUrl ? (
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 relative">
                     <img
                       src={user.photoUrl}
                       alt={user.fullName || 'Profile'}
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        // Fallback to default avatar if image fails to load
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        // Hide image and show fallback
+                        const target = e.currentTarget as HTMLImageElement
+                        target.style.display = 'none'
+                        const fallback = target.parentElement?.querySelector('.fallback-avatar') as HTMLElement
+                        if (fallback) fallback.style.display = 'flex'
                       }}
                     />
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hidden">
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center fallback-avatar hidden absolute inset-0">
                       <User className="h-6 w-6 text-gray-500" />
                     </div>
                   </div>

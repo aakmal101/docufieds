@@ -1,5 +1,8 @@
 'use client'
 
+// Force dynamic rendering - this page fetches from /api/admin/applications which uses headers/cookies
+export const dynamic = 'force-dynamic'
+
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'

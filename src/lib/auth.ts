@@ -80,9 +80,24 @@ export const authOptions: NextAuthOptions = {
 
           // If user doesn't exist, create a demo user based on the identifier
           if (!user) {
-            const role = credentials.identifier.includes('@demo.com') 
-              ? credentials.identifier.split('@')[0].toUpperCase()
-              : 'INDIVIDUAL'
+            let role = 'INDIVIDUAL'
+            
+            // Extract role from demo email format (e.g., individual@demo.com -> INDIVIDUAL)
+            if (credentials.identifier.includes('@demo.com')) {
+              const rolePart = credentials.identifier.split('@')[0].toUpperCase()
+              // Map common role names
+              const roleMap: Record<string, string> = {
+                'INDIVIDUAL': 'INDIVIDUAL',
+                'AGENCY': 'AGENCY',
+                'ADMIN': 'ADMIN',
+                'SUPPORT': 'SUPPORT',
+                'LEGAL': 'LEGAL',
+                'ACCOUNTS': 'ACCOUNTS',
+                'CASH_OFFICER': 'CASH_OFFICER',
+                'CASHOFFICER': 'CASH_OFFICER',
+              }
+              role = roleMap[rolePart] || 'INDIVIDUAL'
+            }
 
             // Generate member ID for approved users
             const memberId = role === 'INDIVIDUAL' ? generateMemberId() : undefined
@@ -91,7 +106,7 @@ export const authOptions: NextAuthOptions = {
               data: {
                 email: credentials.identifier,
                 phone: `+123456789${Date.now().toString().slice(-3)}`, // Unique demo phone using timestamp
-                fullName: `${role} User`,
+                fullName: role === 'INDIVIDUAL' ? 'Individual User' : `${role} User`,
                 role: role as any,
                 status: role === 'INDIVIDUAL' ? 'PENDING' : 'APPROVED',
                 memberId,

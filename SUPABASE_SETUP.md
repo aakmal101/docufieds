@@ -92,4 +92,3 @@ After setting up Supabase:
 2. ✅ Run `npx prisma db push` to create tables
 3. ✅ Restart the dev server
 4. ✅ Start developing!
-

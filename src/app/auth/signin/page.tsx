@@ -41,40 +41,55 @@ export default function SignInPage() {
       })
 
       if (result?.error) {
-        setError('Login failed. Please try again.')
+        console.error('Sign in error:', result.error)
+        setError(result.error || 'Login failed. Please try again.')
+        toast.error('Login failed. Please try again.')
       } else {
-        toast.success(`Signed in as ${role}!`)
+        // Wait a moment for session to be created
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Get the updated session
         const session = await getSession()
         
-        // Redirect based on user role
-        switch (session?.user?.role) {
-          case 'INDIVIDUAL':
-            router.push('/dashboard/individual')
-            break
-          case 'AGENCY':
-            router.push('/dashboard/agency')
-            break
-          case 'ADMIN':
-            router.push('/admin')
-            break
-          case 'SUPPORT':
-            router.push('/admin/support')
-            break
-          case 'LEGAL':
-            router.push('/admin/legal')
-            break
-          case 'ACCOUNTS':
-            router.push('/admin/accounts')
-            break
-          case 'CASH_OFFICER':
-            router.push('/admin/cash')
-            break
-          default:
-            router.push('/dashboard')
+        if (!session?.user) {
+          setError('Session not created. Please try again.')
+          toast.error('Session not created. Please try again.')
+          setLoading(false)
+          return
         }
+
+        toast.success(`Signed in as ${role}!`)
+        
+        // Redirect based on user role
+        const redirectPath = (() => {
+          switch (session.user.role) {
+            case 'INDIVIDUAL':
+              return '/dashboard/individual'
+            case 'AGENCY':
+              return '/dashboard/agency'
+            case 'ADMIN':
+              return '/admin'
+            case 'SUPPORT':
+              return '/admin/support'
+            case 'LEGAL':
+              return '/admin/legal'
+            case 'ACCOUNTS':
+              return '/admin/accounts'
+            case 'CASH_OFFICER':
+              return '/admin/cash'
+            default:
+              return '/dashboard'
+          }
+        })()
+        
+        // Use window.location for a full page reload to ensure session is loaded
+        window.location.href = redirectPath
       }
-    } catch (error) {
-      setError('Something went wrong. Please try again.')
+    } catch (error: any) {
+      console.error('Login error:', error)
+      const errorMessage = error?.message || 'Something went wrong. Please try again.'
+      setError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -144,11 +159,11 @@ export default function SignInPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-docufieds-50 to-docufieds-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
         {/* Header */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center text-brand-primary hover:text-brand-secondary mb-4">
+          <Link href="/" className="inline-flex items-center text-red-600 hover:text-red-700 mb-4 transition-colors">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Home
           </Link>
@@ -182,9 +197,9 @@ export default function SignInPage() {
                 <Button
                   key={button.role}
                   variant="outline"
-                  className={`h-auto p-6 flex flex-col items-center space-y-3 hover:shadow-md transition-all ${
+                  className={`h-auto p-6 flex flex-col items-center space-y-3 hover:shadow-md transition-all border-2 ${
                     button.bgColor
-                  } ${button.borderColor} hover:${button.bgColor}`}
+                  } ${button.borderColor}`}
                   onClick={() => handleRoleLogin(button.role)}
                   disabled={loading}
                 >
@@ -205,7 +220,7 @@ export default function SignInPage() {
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">
                 Don't have an account?{' '}
-                <Link href="/auth/signup" className="text-brand-primary hover:text-brand-secondary font-medium">
+                <Link href="/auth/signup" className="text-red-600 hover:text-red-700 font-medium transition-colors">
                   Sign up
                 </Link>
               </p>
