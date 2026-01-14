@@ -24,7 +24,7 @@ export function CallToAction() {
                             </Button>
                         </Link>
                         <Link href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer">
-                            <Button size="lg" variant="outline" className="text-white border-white hover:bg-white/10 text-lg h-12 px-8">
+                            <Button size="lg" className="bg-white text-brand-primary hover:bg-gray-100 text-lg h-12 px-8">
                                 <MessageCircle className="mr-2 h-5 w-5" />
                                 Chat on WhatsApp
                             </Button>
