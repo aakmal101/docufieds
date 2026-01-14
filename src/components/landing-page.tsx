@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { HeroSection } from './home/HeroSection'
@@ -11,9 +12,12 @@ import { WhyChoose } from './home/WhyChoose'
 import { Testimonials } from './home/Testimonials'
 import { FAQ } from './home/FAQ'
 import { CallToAction } from './home/CallToAction'
-import { Phone, Mail, Instagram, Youtube } from 'lucide-react'
+import { Phone, Mail, Instagram, Youtube, Menu, X } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 export default function LandingPage() {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -42,11 +46,63 @@ export default function LandingPage() {
                 <Button variant="ghost" className="hidden sm:flex text-gray-700 hover:text-brand-primary hover:bg-brand-50">Sign In</Button>
               </Link>
               <Link href="/auth/signup">
-                <Button className="bg-brand-primary hover:bg-brand-secondary">Get Started</Button>
+                <Button className="hidden sm:flex bg-brand-primary hover:bg-brand-secondary">Get Started</Button>
               </Link>
+
+              {/* Mobile Menu Button */}
+              <button
+                className="md:hidden p-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              >
+                {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </button>
             </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isMobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-gray-100 bg-white"
+            >
+              <div className="space-y-1 px-4 py-6 bg-white">
+                <Link
+                  href="#services"
+                  className="block px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Services
+                </Link>
+                <Link
+                  href="#how-it-works"
+                  className="block px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  How it Works
+                </Link>
+                <Link
+                  href="#contact"
+                  className="block px-3 py-2 text-base font-semibold text-gray-900 hover:bg-gray-50 rounded-lg"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+                <div className="pt-4 flex flex-col gap-3">
+                  <Link href="/auth/signin" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button variant="outline" className="w-full justify-center">Sign In</Button>
+                  </Link>
+                  <Link href="/auth/signup" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Button className="w-full justify-center bg-brand-primary hover:bg-brand-secondary">Get Started</Button>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       <main>

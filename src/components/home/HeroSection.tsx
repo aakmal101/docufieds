@@ -73,8 +73,8 @@ export function HeroSection() {
             </div>
           </div>
 
-          <div className="relative lg:h-[600px] hidden lg:block">
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-[600px] flex items-center justify-center">
+          <div className="relative mt-12 lg:mt-0 lg:h-[600px] block">
+            <div className="relative w-full h-full max-w-[500px] lg:max-w-[600px] mx-auto flex items-center justify-center">
               <img
                 src="/hero-image.png"
                 alt="Visa Document Processing"
@@ -82,7 +82,7 @@ export function HeroSection() {
               />
 
               {/* Floating Module 1: Documents Notarized */}
-              <div className="absolute -left-4 top-12 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '5s', animationDelay: '0s' }}>
+              <div className="hidden lg:flex absolute -left-4 top-12 bg-white p-4 rounded-xl shadow-xl border border-gray-100 items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '5s', animationDelay: '0s' }}>
                 <div className="bg-blue-100 p-2 rounded-lg">
                   <Stamp className="h-6 w-6 text-blue-600" />
                 </div>
@@ -93,7 +93,7 @@ export function HeroSection() {
               </div>
 
               {/* Floating Module 2: Documents Merged */}
-              <div className="absolute -left-8 bottom-20 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '7s', animationDelay: '1s' }}>
+              <div className="hidden lg:flex absolute -left-8 bottom-20 bg-white p-4 rounded-xl shadow-xl border border-gray-100 items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '7s', animationDelay: '1s' }}>
                 <div className="bg-purple-100 p-2 rounded-lg">
                   <Files className="h-6 w-6 text-purple-600" />
                 </div>
@@ -104,7 +104,7 @@ export function HeroSection() {
               </div>
 
               {/* Floating Module 3: Application Ready */}
-              <div className="absolute -right-6 top-1/2 bg-white p-4 rounded-xl shadow-xl border border-gray-100 flex items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '6s', animationDelay: '2s' }}>
+              <div className="hidden lg:flex absolute -right-6 top-1/2 bg-white p-4 rounded-xl shadow-xl border border-gray-100 items-center gap-3 animate-float shadow-brand-100/50" style={{ animationDuration: '6s', animationDelay: '2s' }}>
                 <div className="bg-green-100 p-2 rounded-lg">
                   <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
