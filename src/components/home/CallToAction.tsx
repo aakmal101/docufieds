@@ -23,7 +23,7 @@ export function CallToAction() {
                                 Get Started Now <ArrowRight className="ml-2 h-5 w-5" />
                             </Button>
                         </Link>
-                        <Link href="https://wa.me/1234567890" target="_blank" rel="noopener noreferrer">
+                        <Link href="https://wa.me/8801819020202" target="_blank" rel="noopener noreferrer">
                             <Button size="lg" className="bg-white text-brand-primary hover:bg-gray-100 text-lg h-12 px-8">
                                 <MessageCircle className="mr-2 h-5 w-5" />
                                 Chat on WhatsApp
@@ -31,7 +31,7 @@ export function CallToAction() {
                         </Link>
                     </div>
                     <div className="mt-8 text-sm text-gray-400">
-                        <p>Or visit our office: House 12, Road 5, Block B, Dhaka, Bangladesh</p>
+                        <p>Or visit our office: 832, 10th Floor, Sayed Plaza, Evercare Gate, Dhaka 1212, Dhaka, Bangladesh</p>
                     </div>
                 </div>
             </div>
