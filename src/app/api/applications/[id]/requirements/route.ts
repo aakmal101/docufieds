@@ -56,32 +56,39 @@ export async function GET(
 
     // If no requirements found, create default requirements for this application
     if (requirements.length === 0) {
-      const defaultDocumentTypes = [
-        { documentType: 'Passport', isRequired: true, description: 'Valid passport with at least 6 months validity' },
-        { documentType: 'National ID Card', isRequired: true, description: 'Government-issued national identification card' },
-        { documentType: 'Birth Certificate', isRequired: true, description: 'Official birth certificate with apostille' },
-        { documentType: 'Bank Statements', isRequired: true, description: 'Last 6 months bank statements showing sufficient funds' },
-        { documentType: 'Employment Letter', isRequired: true, description: 'Letter from employer confirming employment and salary' },
-        { documentType: 'Travel Insurance', isRequired: true, description: 'Comprehensive travel insurance coverage' },
-        { documentType: 'Accommodation Proof', isRequired: false, description: 'Hotel booking or accommodation confirmation' },
-        { documentType: 'Educational Certificates', isRequired: false, description: 'Academic certificates and transcripts' },
-      ]
+      try {
+        const defaultDocumentTypes = [
+          { documentType: 'Passport', isRequired: true, description: 'Valid passport with at least 6 months validity' },
+          { documentType: 'National ID Card', isRequired: true, description: 'Government-issued national identification card' },
+          { documentType: 'Birth Certificate', isRequired: true, description: 'Official birth certificate with apostille' },
+          { documentType: 'Bank Statements', isRequired: true, description: 'Last 6 months bank statements showing sufficient funds' },
+          { documentType: 'Employment Letter', isRequired: true, description: 'Letter from employer confirming employment and salary' },
+          { documentType: 'Travel Insurance', isRequired: true, description: 'Comprehensive travel insurance coverage' },
+          { documentType: 'Accommodation Proof', isRequired: false, description: 'Hotel booking or accommodation confirmation' },
+          { documentType: 'Educational Certificates', isRequired: false, description: 'Academic certificates and transcripts' },
+        ]
 
-      // Create default requirements
-      const createPromises = defaultDocumentTypes.map((doc) =>
-        prisma.documentRequirement.create({
-          data: {
-            country: application.country,
-            processType: application.processType,
-            profession: application.profession || null,
-            documentType: doc.documentType,
-            isRequired: doc.isRequired,
-            description: doc.description,
-          },
-        })
-      )
+        // Create default requirements
+        const createPromises = defaultDocumentTypes.map((doc) =>
+          prisma.documentRequirement.create({
+            data: {
+              country: application.country,
+              processType: application.processType,
+              profession: application.profession || null,
+              documentType: doc.documentType,
+              isRequired: doc.isRequired,
+              description: doc.description,
+            },
+          })
+        )
 
-      requirements = await Promise.all(createPromises)
+        requirements = await Promise.all(createPromises)
+        console.log(`Created ${requirements.length} default document requirements for application ${applicationId}`)
+      } catch (createError: any) {
+        console.error('Error creating default requirements:', createError)
+        // If creation fails, return empty array - component will handle fallback
+        requirements = []
+      }
     }
 
     // Fetch uploaded documents for this application

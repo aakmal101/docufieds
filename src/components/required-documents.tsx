@@ -155,7 +155,33 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           },
         ]
         setDocuments(fallbackDocuments)
-        toast.error(data.message || 'Failed to load document requirements. Showing default documents.')
+        // Try to fetch templates for fallback documents
+        const templatePromises = fallbackDocuments.map(async (doc) => {
+          try {
+            const templateResponse = await fetch(
+              `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
+            )
+            if (templateResponse.ok) {
+              const templateData = await templateResponse.json()
+              if (templateData.success && templateData.data.length > 0) {
+                return { [doc.documentType]: templateData.data[0] }
+              }
+            }
+          } catch (err) {
+            console.warn(`Failed to fetch template for ${doc.documentType}:`, err)
+          }
+          return null
+        })
+        const templateResults = await Promise.all(templatePromises)
+        const templateMap: { [key: string]: any } = {}
+        templateResults.forEach((result) => {
+          if (result) {
+            Object.assign(templateMap, result)
+          }
+        })
+        setTemplates(templateMap)
+        // Don't show error toast - fallback is expected behavior
+        console.warn('Using fallback documents. API returned error:', data.message)
       }
     } catch (error) {
       console.error('Error fetching requirements:', error)
@@ -211,7 +237,33 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         },
       ]
       setDocuments(fallbackDocuments)
-      toast.error('Failed to load document requirements. Showing default documents.')
+      // Try to fetch templates for fallback documents
+      const templatePromises = fallbackDocuments.map(async (doc) => {
+        try {
+          const templateResponse = await fetch(
+            `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
+          )
+          if (templateResponse.ok) {
+            const templateData = await templateResponse.json()
+            if (templateData.success && templateData.data.length > 0) {
+              return { [doc.documentType]: templateData.data[0] }
+            }
+          }
+        } catch (err) {
+          console.warn(`Failed to fetch template for ${doc.documentType}:`, err)
+        }
+        return null
+      })
+      const templateResults = await Promise.all(templatePromises)
+      const templateMap: { [key: string]: any } = {}
+      templateResults.forEach((result) => {
+        if (result) {
+          Object.assign(templateMap, result)
+        }
+      })
+      setTemplates(templateMap)
+      // Don't show error toast for fallback - it's expected behavior
+      console.warn('Using fallback documents. API may have failed or no requirements exist yet.')
     } finally {
       setLoading(false)
     }
@@ -357,16 +409,15 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    {templates[document.documentType] && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleDownloadTemplate(document.documentType)}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download Template
-                      </Button>
-                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleDownloadTemplate(document.documentType)}
+                      disabled={!templates[document.documentType]}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download Template
+                    </Button>
                     <input
                       type="file"
                       ref={(el) => (fileInputRefs.current[document.documentType] = el)}
@@ -435,16 +486,15 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                     </div>
                   )}
                   <div className="flex items-center gap-2">
-                    {templates[document.documentType] && (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleDownloadTemplate(document.documentType)}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        Download Template
-                      </Button>
-                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleDownloadTemplate(document.documentType)}
+                      disabled={!templates[document.documentType]}
+                    >
+                      <Download className="h-4 w-4 mr-1" />
+                      Download Template
+                    </Button>
                     <input
                       type="file"
                       ref={(el) => (fileInputRefs.current[document.documentType] = el)}
