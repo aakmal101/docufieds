@@ -208,6 +208,14 @@ export default function AdminDashboard() {
                   <Users className="h-6 w-6 mb-2" />
                   <span>User Management</span>
                 </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex flex-col items-center justify-center"
+                  onClick={() => router.push('/admin/templates')}
+                >
+                  <FileText className="h-6 w-6 mb-2" />
+                  <span>Document Templates</span>
+                </Button>
               </div>
             </CardContent>
           </Card>

@@ -74,6 +74,7 @@ export default function NewApplicationPage() {
   })
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
+  const [applicationId, setApplicationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -181,6 +182,7 @@ export default function NewApplicationPage() {
 
       if (data.success) {
         toast.success('Application created successfully!')
+        setApplicationId(data.data.id)
         setStep('documents')
       } else {
         const errorMsg = data.message || 'Failed to create application'
@@ -377,11 +379,24 @@ export default function NewApplicationPage() {
                   </div>
                 )}
 
-                {step === 'documents' && (
+                {step === 'documents' && applicationId && (
                   <RequiredDocuments 
+                    applicationId={applicationId}
                     onComplete={() => setStep('call')}
                     onBack={() => setStep('review')}
                   />
+                )}
+                {step === 'documents' && !applicationId && (
+                  <div className="text-center py-12">
+                    <Alert className="mb-4">
+                      <AlertDescription>
+                        Please complete the application form first before uploading documents.
+                      </AlertDescription>
+                    </Alert>
+                    <Button onClick={() => setStep('review')}>
+                      Go to Review
+                    </Button>
+                  </div>
                 )}
 
                 {step === 'call' && (

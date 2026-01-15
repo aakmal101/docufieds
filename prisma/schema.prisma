@@ -186,3 +186,19 @@ model DocumentRequirement {
   
   @@map("document_requirements")
 }
+
+model DocumentTemplate {
+  id          String @id @default(cuid())
+  documentType String @map("document_type")
+  country     String?
+  processType String? @map("process_type")
+  fileName    String @map("file_name")
+  fileUrl     String @map("file_url")
+  fileType    String @map("file_type")
+  fileSize    Int @map("file_size")
+  uploadedBy  String @map("uploaded_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  @@map("document_templates")
+}
