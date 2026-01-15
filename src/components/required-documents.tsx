@@ -52,42 +52,166 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
 
   useEffect(() => {
-    fetchRequirements()
+    if (applicationId) {
+      fetchRequirements()
+    } else {
+      setLoading(false)
+      toast.error('Application ID is missing')
+    }
   }, [applicationId])
 
   const fetchRequirements = async () => {
     try {
       setLoading(true)
       const response = await fetch(`/api/applications/${applicationId}/requirements`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
 
       if (data.success) {
-        setDocuments(data.data)
-        // Fetch templates for each document type
-        const templatePromises = data.data.map(async (doc: DocumentRequirement) => {
-          const templateResponse = await fetch(
-            `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
-          )
-          const templateData = await templateResponse.json()
-          if (templateData.success && templateData.data.length > 0) {
-            return { [doc.documentType]: templateData.data[0] }
-          }
-          return null
-        })
-        const templateResults = await Promise.all(templatePromises)
-        const templateMap: { [key: string]: any } = {}
-        templateResults.forEach((result) => {
-          if (result) {
-            Object.assign(templateMap, result)
-          }
-        })
-        setTemplates(templateMap)
+        setDocuments(data.data || [])
+        
+        // Fetch templates for each document type (only if we have documents)
+        if (data.data && data.data.length > 0) {
+          const templatePromises = data.data.map(async (doc: DocumentRequirement) => {
+            try {
+              const templateResponse = await fetch(
+                `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
+              )
+              if (templateResponse.ok) {
+                const templateData = await templateResponse.json()
+                if (templateData.success && templateData.data.length > 0) {
+                  return { [doc.documentType]: templateData.data[0] }
+                }
+              }
+            } catch (err) {
+              console.warn(`Failed to fetch template for ${doc.documentType}:`, err)
+            }
+            return null
+          })
+          const templateResults = await Promise.all(templatePromises)
+          const templateMap: { [key: string]: any } = {}
+          templateResults.forEach((result) => {
+            if (result) {
+              Object.assign(templateMap, result)
+            }
+          })
+          setTemplates(templateMap)
+        }
       } else {
-        toast.error('Failed to load document requirements')
+        console.error('API returned error:', data.message)
+        // Show fallback default documents if API fails
+        const fallbackDocuments: DocumentRequirement[] = [
+          {
+            id: '1',
+            documentType: 'Passport',
+            description: 'Valid passport with at least 6 months validity',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+          {
+            id: '2',
+            documentType: 'National ID Card',
+            description: 'Government-issued national identification card',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+          {
+            id: '3',
+            documentType: 'Birth Certificate',
+            description: 'Official birth certificate with apostille',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+          {
+            id: '4',
+            documentType: 'Bank Statements',
+            description: 'Last 6 months bank statements showing sufficient funds',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+          {
+            id: '5',
+            documentType: 'Employment Letter',
+            description: 'Letter from employer confirming employment and salary',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+          {
+            id: '6',
+            documentType: 'Travel Insurance',
+            description: 'Comprehensive travel insurance coverage',
+            isRequired: true,
+            status: 'pending',
+            uploadedFile: null,
+          },
+        ]
+        setDocuments(fallbackDocuments)
+        toast.error(data.message || 'Failed to load document requirements. Showing default documents.')
       }
     } catch (error) {
       console.error('Error fetching requirements:', error)
-      toast.error('Failed to load document requirements')
+      // Show fallback default documents on error
+      const fallbackDocuments: DocumentRequirement[] = [
+        {
+          id: '1',
+          documentType: 'Passport',
+          description: 'Valid passport with at least 6 months validity',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+        {
+          id: '2',
+          documentType: 'National ID Card',
+          description: 'Government-issued national identification card',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+        {
+          id: '3',
+          documentType: 'Birth Certificate',
+          description: 'Official birth certificate with apostille',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+        {
+          id: '4',
+          documentType: 'Bank Statements',
+          description: 'Last 6 months bank statements showing sufficient funds',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+        {
+          id: '5',
+          documentType: 'Employment Letter',
+          description: 'Letter from employer confirming employment and salary',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+        {
+          id: '6',
+          documentType: 'Travel Insurance',
+          description: 'Comprehensive travel insurance coverage',
+          isRequired: true,
+          status: 'pending',
+          uploadedFile: null,
+        },
+      ]
+      setDocuments(fallbackDocuments)
+      toast.error('Failed to load document requirements. Showing default documents.')
     } finally {
       setLoading(false)
     }
