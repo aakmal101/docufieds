@@ -47,92 +47,104 @@ export async function POST(request: NextRequest) {
 
     // Upload file to Supabase Storage
     let publicUrl: string
-    
-    try {
-      const supabase = await createClient()
-      const fileExt = file.name.split('.').pop()
-      const fileName = `profiles/${session.user.id}/profile.${fileExt}`
-      const fileBuffer = await file.arrayBuffer()
-      
-      // Delete old profile photo if exists
-      const oldPhoto = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { photoUrl: true },
-      })
 
-      if (oldPhoto?.photoUrl && oldPhoto.photoUrl.includes('supabase.co')) {
-        // Extract file path from URL if it's a Supabase URL
-        try {
-          const urlParts = oldPhoto.photoUrl.split('/storage/v1/object/public/documents/')
-          if (urlParts.length > 1) {
-            const oldPath = urlParts[1]
-            await supabase.storage
-              .from('documents')
-              .remove([oldPath])
-          }
-        } catch (error) {
-          // Ignore errors when deleting old photo
-          console.warn('Could not delete old photo:', error)
-        }
-      }
-
-      // Upload new photo
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(fileName, fileBuffer, {
-          contentType: file.type,
-          upsert: true, // Replace if exists
-        })
-
-      if (uploadError) {
-        console.error('Supabase upload error:', uploadError)
-        return NextResponse.json(
-          { success: false, message: `Failed to upload file: ${uploadError.message}` },
-          { status: 500 }
-        )
-      }
-
-      // Get public URL for the uploaded file
-      const { data: { publicUrl: url } } = supabase.storage
-        .from('documents')
-        .getPublicUrl(fileName)
-      
-      publicUrl = url
-    } catch (error: any) {
-      console.error('Supabase client error:', error)
+    // Verify environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Missing Supabase environment variables')
       return NextResponse.json(
-        { success: false, message: 'Storage service unavailable. Please check Supabase configuration.' },
+        { success: false, message: 'Server configuration error: Missing Supabase environment variables' },
         { status: 500 }
       )
     }
 
-    // Update user profile with new photo URL
-    const updatedUser = await prisma.user.update({
+    const supabase = await createClient()
+    const fileExt = file.name.split('.').pop()
+    const fileName = `profiles/${session.user.id}/profile.${fileExt}`
+    const fileBuffer = await file.arrayBuffer()
+
+    // Delete old profile photo if exists
+    const oldPhoto = await prisma.user.findUnique({
       where: { id: session.user.id },
-      data: {
-        photoUrl: publicUrl,
-      },
-      select: {
-        id: true,
-        photoUrl: true,
-        fullName: true,
-      },
+      select: { photoUrl: true },
     })
 
-    return NextResponse.json({
-      success: true,
-      message: 'Profile photo uploaded successfully',
-      data: {
-        photoUrl: publicUrl,
-        user: updatedUser,
-      },
-    })
-  } catch (error) {
-    console.error('Profile photo upload error:', error)
+    if (oldPhoto?.photoUrl && oldPhoto.photoUrl.includes('supabase.co')) {
+      // Extract file path from URL if it's a Supabase URL
+      try {
+        const urlParts = oldPhoto.photoUrl.split('/storage/v1/object/public/documents/')
+        if (urlParts.length > 1) {
+          const oldPath = urlParts[1]
+          await supabase.storage
+            .from('documents')
+            .remove([oldPath])
+        }
+      } catch (error) {
+        // Ignore errors when deleting old photo
+        console.warn('Could not delete old photo:', error)
+      }
+    }
+
+    // Upload new photo
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: true, // Replace if exists
+      })
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError)
+      return NextResponse.json(
+        { success: false, message: `Failed to upload file: ${uploadError.message}` },
+        { status: 500 }
+      )
+    }
+
+    // Get public URL for the uploaded file
+    const { data: { publicUrl: url } } = supabase.storage
+      .from('documents')
+      .getPublicUrl(fileName)
+
+    publicUrl = url
+  } catch (error: any) {
+    console.error('Supabase client error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      {
+        success: false,
+        message: `Storage service unavailable: ${error.message || 'Unknown error'}`,
+        details: process.env.NODE_ENV === 'development' ? error : undefined
+      },
       { status: 500 }
     )
   }
+
+  // Update user profile with new photo URL
+  const updatedUser = await prisma.user.update({
+    where: { id: session.user.id },
+    data: {
+      photoUrl: publicUrl,
+    },
+    select: {
+      id: true,
+      photoUrl: true,
+      fullName: true,
+    },
+  })
+
+  return NextResponse.json({
+    success: true,
+    message: 'Profile photo uploaded successfully',
+    data: {
+      photoUrl: publicUrl,
+      user: updatedUser,
+    },
+  })
+} catch (error) {
+  console.error('Profile photo upload error:', error)
+  return NextResponse.json(
+    { success: false, message: 'Internal server error' },
+    { status: 500 }
+  )
+}
 }
 
