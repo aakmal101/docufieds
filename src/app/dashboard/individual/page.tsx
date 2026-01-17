@@ -357,8 +357,19 @@ export default function IndividualDashboard() {
                           )}
                         </div>
                       </div>
-                      <Button variant="outline" size="sm">
-                        View Details
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          if (application.status === 'DRAFT') {
+                            router.push(`/dashboard/individual/new-application?id=${application.id}`)
+                          } else {
+                            // For non-draft applications, could navigate to a view-only page
+                            router.push(`/dashboard/individual/new-application?id=${application.id}`)
+                          }
+                        }}
+                      >
+                        {application.status === 'DRAFT' ? 'Continue Application' : 'View Details'}
                       </Button>
                     </div>
                   </div>
