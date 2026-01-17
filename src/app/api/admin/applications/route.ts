@@ -42,6 +42,9 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             fileName: true,
+            fileUrl: true,
+            fileType: true,
+            fileSize: true,
             documentType: true,
             uploadedAt: true,
             isRequired: true,

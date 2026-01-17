@@ -19,7 +19,10 @@ import {
   User,
   Calendar,
   CreditCard,
-  Scale
+  Scale,
+  Eye,
+  X,
+  Download
 } from 'lucide-react'
 
 export default function LegalDashboard() {
@@ -27,6 +30,10 @@ export default function LegalDashboard() {
   const router = useRouter()
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [selectedApplication, setSelectedApplication] = useState<any | null>(null)
+  const [documents, setDocuments] = useState<any[]>([])
+  const [loadingDocuments, setLoadingDocuments] = useState(false)
+  const [viewingDocument, setViewingDocument] = useState<{ url: string; fileName: string } | null>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -78,6 +85,41 @@ export default function LegalDashboard() {
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })
+  }
+
+  const handleViewDocuments = async (application: any) => {
+    setSelectedApplication(application)
+    setLoadingDocuments(true)
+    
+    try {
+      const response = await fetch(`/api/documents?applicationId=${application.id}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setDocuments(data.data || [])
+      } else {
+        console.error('Failed to fetch documents:', data.message)
+        setDocuments([])
+      }
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      setDocuments([])
+    } finally {
+      setLoadingDocuments(false)
+    }
+  }
+
+  const handleViewDocument = (fileUrl: string, fileName: string) => {
+    setViewingDocument({ url: fileUrl, fileName })
+  }
+
+  const closeViewer = () => {
+    setViewingDocument(null)
+  }
+
+  const closeDocumentViewer = () => {
+    setSelectedApplication(null)
+    setDocuments([])
   }
 
   if (loading) {
@@ -237,8 +279,13 @@ export default function LegalDashboard() {
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        <Button variant="outline" size="sm">
-                          Review Documents
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleViewDocuments(application)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View Documents
                         </Button>
                         <Button size="sm">
                           Process
@@ -251,6 +298,159 @@ export default function LegalDashboard() {
             )}
           </CardContent>
         </Card>
+
+        {/* Document Viewer Modal */}
+        {selectedApplication && (
+          <Card className="mt-8">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Documents for {selectedApplication.country} - {selectedApplication.processType}</CardTitle>
+                  <CardDescription>
+                    Applicant: {selectedApplication.user?.fullName || 'Unknown'}
+                  </CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={closeDocumentViewer}>
+                  <X className="h-4 w-4 mr-1" />
+                  Close
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingDocuments ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                  <span>Loading documents...</span>
+                </div>
+              ) : documents.length === 0 ? (
+                <div className="text-center py-8">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No documents uploaded for this application</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {documents.map((doc) => (
+                    <Card key={doc.id} className="border-l-4 border-l-blue-500">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-base flex items-center">
+                          <FileText className="h-4 w-4 mr-2 text-blue-600" />
+                          {doc.documentType}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600 truncate" title={doc.fileName}>
+                            {doc.fileName}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
+                          </p>
+                          <div className="flex items-center gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleViewDocument(doc.fileUrl, doc.fileName)}
+                              className="flex-1"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(doc.fileUrl, '_blank')}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* PDF Viewer Modal */}
+        {viewingDocument && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-4 border-b">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <FileText className="h-5 w-5 mr-2" />
+                  {viewingDocument.fileName}
+                </h3>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={closeViewer}
+                  className="ml-4"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="flex-1 overflow-auto p-4">
+                {viewingDocument.url.toLowerCase().endsWith('.pdf') || 
+                 viewingDocument.url.includes('.pdf') ||
+                 viewingDocument.url.toLowerCase().includes('application/pdf') ? (
+                  <iframe
+                    src={viewingDocument.url}
+                    className="w-full h-full min-h-[600px] border-0"
+                    title={viewingDocument.fileName}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <img
+                        src={viewingDocument.url}
+                        alt={viewingDocument.fileName}
+                        className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                        onError={(e) => {
+                          const target = e.currentTarget as HTMLImageElement
+                          target.style.display = 'none'
+                          const errorDiv = target.nextElementSibling as HTMLElement
+                          if (errorDiv) errorDiv.style.display = 'block'
+                        }}
+                      />
+                      <div style={{ display: 'none' }} className="mt-4">
+                        <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                        <p className="text-gray-600">Unable to display this file type</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-4"
+                          onClick={() => window.open(viewingDocument.url, '_blank')}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          Download to View
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-2 p-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => window.open(viewingDocument.url, '_blank')}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+                <Button onClick={closeViewer}>
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
