@@ -124,9 +124,38 @@ export const authOptions: NextAuthOptions = {
             
             user = await Promise.race([prismaPromise, timeoutPromise]) as any
           } catch (prismaError: any) {
-            console.warn('Prisma connection failed or timed out, using demo mode:', prismaError.message)
-            // If Prisma fails, return demo user immediately
-            return createDemoUser(credentials.identifier)
+            console.warn('Prisma connection failed, trying Supabase fallback:', prismaError.message)
+            
+            // Try Supabase fallback
+            try {
+              const { createServiceRoleClient } = await import('@/lib/supabase/server')
+              const supabase = createServiceRoleClient()
+              
+              const { data: supabaseUser } = await supabase
+                .from('users')
+                .select('*')
+                .or(`phone.eq.${credentials.identifier},email.eq.${credentials.identifier},user_id.eq.${credentials.identifier}`)
+                .single()
+              
+              if (supabaseUser) {
+                // Transform Supabase user to match Prisma format
+                user = {
+                  id: supabaseUser.id,
+                  email: supabaseUser.email,
+                  phone: supabaseUser.phone,
+                  userId: supabaseUser.user_id,
+                  role: supabaseUser.role,
+                  status: supabaseUser.status,
+                  memberId: supabaseUser.member_id,
+                  fullName: supabaseUser.full_name,
+                  isVerified: supabaseUser.is_verified,
+                }
+              }
+            } catch (supabaseError: any) {
+              console.warn('Supabase lookup also failed, using demo mode:', supabaseError.message)
+              // If both fail, return demo user
+              return createDemoUser(credentials.identifier)
+            }
           }
 
           // If user doesn't exist, try to create one in database

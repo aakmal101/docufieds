@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
+import { generateMemberId } from '@/lib/utils'
 
 // Force dynamic rendering - this route uses getServerSession which requires headers/cookies
 export const dynamic = 'force-dynamic'
@@ -168,6 +169,64 @@ export async function PUT(request: NextRequest) {
 
     // Try Prisma first, fallback to Supabase if it fails
     try {
+      // Check if user exists first
+      const existingUser = await prisma.user.findUnique({
+        where: { id: session.user.id },
+      })
+
+      if (!existingUser) {
+        // User doesn't exist, create it
+        const newUser = await prisma.user.create({
+          data: {
+            id: session.user.id,
+            email: session.user.email || null,
+            phone: session.user.phone || null,
+            userId: session.user.userId || null,
+            fullName,
+            dateOfBirth: new Date(dateOfBirth),
+            placeOfBirth,
+            birthCertificateNumber,
+            nidNumber,
+            passportNumber,
+            presentAddress,
+            permanentAddress,
+            photoUrl: photoUrl || null,
+            role: session.user.role || 'INDIVIDUAL',
+            status: 'APPROVED',
+            memberId: session.user.memberId || generateMemberId(),
+            isVerified: true,
+          },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            userId: true,
+            role: true,
+            status: true,
+            memberId: true,
+            dateOfBirth: true,
+            placeOfBirth: true,
+            photoUrl: true,
+            birthCertificateNumber: true,
+            nidNumber: true,
+            passportNumber: true,
+            presentAddress: true,
+            permanentAddress: true,
+            isVerified: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        })
+
+        return NextResponse.json({
+          success: true,
+          message: 'Profile created and saved successfully',
+          data: newUser,
+        })
+      }
+
+      // User exists, update it
       const updatedUser = await prisma.user.update({
         where: { id: session.user.id },
         data: {
@@ -215,33 +274,51 @@ export async function PUT(request: NextRequest) {
       
       // Fallback to Supabase - use service role client to bypass RLS if needed
       try {
-        // Try with regular client first (respects RLS)
-        let supabase = await createClient()
+        const supabase = createServiceRoleClient()
         
-        let { data: updatedUser, error: supabaseError } = await supabase
+        // Check if user exists
+        const { data: existingUser } = await supabase
           .from('users')
-          .update({
-            full_name: fullName,
-            date_of_birth: new Date(dateOfBirth).toISOString(),
-            place_of_birth: placeOfBirth,
-            birth_certificate_number: birthCertificateNumber,
-            nid_number: nidNumber,
-            passport_number: passportNumber,
-            present_address: presentAddress,
-            permanent_address: permanentAddress,
-            photo_url: photoUrl || null,
-            status: 'APPROVED',
-            updated_at: new Date().toISOString(),
-          })
+          .select('id')
           .eq('id', session.user.id)
-          .select()
           .single()
 
-        // If RLS blocks the update, try with service role client
-        if (supabaseError && (supabaseError.code === 'PGRST301' || supabaseError.message?.includes('permission'))) {
-          supabase = createServiceRoleClient()
-          
-          const result = await supabase
+        let updatedUser
+
+        if (!existingUser) {
+          // User doesn't exist, create it
+          const { data: newUser, error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: session.user.id,
+              email: session.user.email || null,
+              phone: session.user.phone || null,
+              user_id: session.user.userId || null,
+              full_name: fullName,
+              date_of_birth: new Date(dateOfBirth).toISOString(),
+              place_of_birth: placeOfBirth,
+              birth_certificate_number: birthCertificateNumber,
+              nid_number: nidNumber,
+              passport_number: passportNumber,
+              present_address: presentAddress,
+              permanent_address: permanentAddress,
+              photo_url: photoUrl || null,
+              role: session.user.role || 'INDIVIDUAL',
+              status: 'APPROVED',
+              member_id: session.user.memberId || generateMemberId(),
+              is_verified: true,
+            })
+            .select()
+            .single()
+
+          if (createError) {
+            throw createError
+          }
+
+          updatedUser = newUser
+        } else {
+          // User exists, update it
+          const { data: updated, error: updateError } = await supabase
             .from('users')
             .update({
               full_name: fullName,
@@ -259,13 +336,12 @@ export async function PUT(request: NextRequest) {
             .eq('id', session.user.id)
             .select()
             .single()
-          
-          updatedUser = result.data
-          supabaseError = result.error
-        }
 
-        if (supabaseError) {
-          throw supabaseError
+          if (updateError) {
+            throw updateError
+          }
+
+          updatedUser = updated
         }
 
         // Transform Supabase response to match Prisma format
