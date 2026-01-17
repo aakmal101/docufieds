@@ -513,14 +513,31 @@ export default function NewApplicationPage() {
                         const data = await response.json()
 
                         if (data.success) {
-                          toast.success('Call process completed! Your application is now under review.')
-                          router.push('/dashboard/individual')
+                          toast.success(data.message || 'Application process completed successfully! Your application is now under review.')
+                          // Small delay to show success message
+                          setTimeout(() => {
+                            router.push('/dashboard/individual')
+                          }, 1500)
                         } else {
-                          toast.error(data.message || 'Failed to complete call process')
+                          // Handle validation errors with more detail
+                          if (data.missingDocuments) {
+                            const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
+                            toast.error(`Please upload all required documents: ${missingList}`, {
+                              duration: 5000,
+                            })
+                            // Navigate back to documents step
+                            setStep('documents')
+                          } else if (data.requiredAmount) {
+                            toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before finalizing.`, {
+                              duration: 5000,
+                            })
+                          } else {
+                            toast.error(data.message || 'Failed to complete application process. Please check all requirements.')
+                          }
                         }
                       } catch (error: any) {
                         console.error('Call completion error:', error)
-                        toast.error('Failed to complete call process. Please try again.')
+                        toast.error('Failed to complete application process. Please try again.')
                       } finally {
                         setLoading(false)
                       }
