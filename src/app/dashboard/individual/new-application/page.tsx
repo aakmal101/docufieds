@@ -495,7 +495,36 @@ export default function NewApplicationPage() {
 
                 {step === 'call' && (
                   <CustomerCallScreen 
-                    onComplete={() => setStep('call')}
+                    onComplete={async () => {
+                      if (!applicationId) {
+                        toast.error('Application ID not found. Please try again.')
+                        return
+                      }
+
+                      try {
+                        setLoading(true)
+                        const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                          },
+                        })
+
+                        const data = await response.json()
+
+                        if (data.success) {
+                          toast.success('Call process completed! Your application is now under review.')
+                          router.push('/dashboard/individual')
+                        } else {
+                          toast.error(data.message || 'Failed to complete call process')
+                        }
+                      } catch (error: any) {
+                        console.error('Call completion error:', error)
+                        toast.error('Failed to complete call process. Please try again.')
+                      } finally {
+                        setLoading(false)
+                      }
+                    }}
                     onBack={() => setStep('documents')}
                   />
                 )}

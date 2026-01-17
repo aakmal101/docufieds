@@ -82,6 +82,9 @@ export default function CustomerCallScreen({ onBack, onComplete }: CustomerCallS
   const nextStep = () => {
     if (currentStep < callSteps.length - 1) {
       setCurrentStep(currentStep + 1)
+    } else if (currentStep === callSteps.length - 1) {
+      // If on the last step, automatically complete the process
+      completeCall()
     }
   }
 
