@@ -159,7 +159,13 @@ export default function ProfilePage() {
       const data = await response.json()
 
       if (data.success) {
-        toast.success('Profile updated successfully!')
+        // If user was just registered, show success message
+        if (data.autoLogin) {
+          toast.success('Profile saved! You are now registered and logged in. Set a password in Settings to login later.')
+        } else {
+          toast.success('Profile updated successfully!')
+        }
+        
         // Update local state with new data
         if (data.data) {
           setUser(data.data)

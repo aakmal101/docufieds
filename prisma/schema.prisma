@@ -43,6 +43,9 @@ model User {
   outstandingAmount Float?      @default(0) @map("outstanding_amount")
   documentLimit     Int?        @default(10) @map("document_limit")
   
+  // Authentication
+  passwordHash      String?     @map("password_hash")
+  
   // Relations
   applications      Application[]
   payments          Payment[]

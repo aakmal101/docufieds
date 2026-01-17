@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
             presentAddress: user.present_address,
             permanentAddress: user.permanent_address,
             isVerified: user.is_verified,
+            passwordHash: user.password_hash || null,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
           }
@@ -214,15 +215,18 @@ export async function PUT(request: NextRequest) {
             presentAddress: true,
             permanentAddress: true,
             isVerified: true,
+            passwordHash: true,
             createdAt: true,
             updatedAt: true,
           },
         })
 
+        // Auto-login after profile creation
         return NextResponse.json({
           success: true,
-          message: 'Profile created and saved successfully',
+          message: 'Profile created and saved successfully. You are now registered!',
           data: newUser,
+          autoLogin: true,
         })
       }
 
@@ -264,11 +268,17 @@ export async function PUT(request: NextRequest) {
         },
       })
 
-      return NextResponse.json({
-        success: true,
-        message: 'Profile updated successfully',
-        data: updatedUser,
-      })
+        // If user was just created, mark for auto-login
+        const wasJustCreated = !existingUser
+        
+        return NextResponse.json({
+          success: true,
+          message: wasJustCreated 
+            ? 'Profile created and saved successfully. You are now registered!'
+            : 'Profile updated successfully',
+          data: updatedUser,
+          autoLogin: wasJustCreated,
+        })
     } catch (prismaError: any) {
       console.warn('Prisma update failed, trying Supabase fallback:', prismaError.message)
       
@@ -363,6 +373,7 @@ export async function PUT(request: NextRequest) {
           presentAddress: updatedUser.present_address,
           permanentAddress: updatedUser.permanent_address,
           isVerified: updatedUser.is_verified,
+          passwordHash: updatedUser.password_hash || null,
           createdAt: updatedUser.created_at,
           updatedAt: updatedUser.updated_at,
         }

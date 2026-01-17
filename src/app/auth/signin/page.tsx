@@ -24,7 +24,79 @@ import toast from 'react-hot-toast'
 export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [loginMode, setLoginMode] = useState<'password' | 'demo'>('password')
+  const [credentials, setCredentials] = useState({
+    identifier: '',
+    password: '',
+  })
   const router = useRouter()
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+
+    try {
+      const result = await signIn('credentials', {
+        identifier: credentials.identifier,
+        password: credentials.password,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        console.error('Sign in error:', result.error)
+        setError(result.error || 'Login failed. Please check your credentials.')
+        toast.error('Login failed. Please check your credentials.')
+      } else {
+        // Wait a moment for session to be created
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        // Get the updated session
+        const session = await getSession()
+        
+        if (!session?.user) {
+          setError('Session not created. Please try again.')
+          toast.error('Session not created. Please try again.')
+          setLoading(false)
+          return
+        }
+
+        toast.success('Signed in successfully!')
+        
+        // Redirect based on user role
+        const redirectPath = (() => {
+          switch (session.user.role) {
+            case 'INDIVIDUAL':
+              return '/dashboard/individual'
+            case 'AGENCY':
+              return '/dashboard/agency'
+            case 'ADMIN':
+              return '/admin'
+            case 'SUPPORT':
+              return '/admin/support'
+            case 'LEGAL':
+              return '/admin/legal'
+            case 'ACCOUNTS':
+              return '/admin/accounts'
+            case 'CASH_OFFICER':
+              return '/admin/cash'
+            default:
+              return '/dashboard'
+          }
+        })()
+        
+        // Use window.location for a full page reload to ensure session is loaded
+        window.location.href = redirectPath
+      }
+    } catch (error: any) {
+      console.error('Login error:', error)
+      const errorMessage = error?.message || 'Something went wrong. Please try again.'
+      setError(errorMessage)
+      toast.error(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleRoleLogin = async (role: string) => {
     setLoading(true)
@@ -180,9 +252,9 @@ export default function SignInPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Sign In as</CardTitle>
+            <CardTitle>Sign In</CardTitle>
             <CardDescription>
-              Select your role to access the appropriate dashboard
+              Login with your credentials or use demo mode
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -192,7 +264,82 @@ export default function SignInPage() {
               </Alert>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Login Mode Toggle */}
+            <div className="flex space-x-2 mb-6 border-b">
+              <button
+                type="button"
+                onClick={() => setLoginMode('password')}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  loginMode === 'password'
+                    ? 'text-red-600 border-b-2 border-red-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Password Login
+              </button>
+              <button
+                type="button"
+                onClick={() => setLoginMode('demo')}
+                className={`px-4 py-2 font-medium text-sm transition-colors ${
+                  loginMode === 'demo'
+                    ? 'text-red-600 border-b-2 border-red-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Demo Mode
+              </button>
+            </div>
+
+            {/* Password Login Form */}
+            {loginMode === 'password' && (
+              <form onSubmit={handlePasswordLogin} className="mb-6 space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="identifier" className="text-sm font-medium text-gray-700">
+                    Email or Phone Number
+                  </label>
+                  <input
+                    id="identifier"
+                    type="text"
+                    placeholder="Enter your email or phone"
+                    value={credentials.identifier}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, identifier: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your password"
+                    value={credentials.password}
+                    onChange={(e) => setCredentials(prev => ({ ...prev, password: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500"
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+                <p className="text-xs text-center text-gray-500">
+                  Don't have a password? Complete your profile and set one in Settings.
+                </p>
+              </form>
+            )}
+
+            {/* Demo Mode Role Selection */}
+            {loginMode === 'demo' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {roleButtons.map((button) => (
                 <Button
                   key={button.role}
@@ -215,7 +362,8 @@ export default function SignInPage() {
                   )}
                 </Button>
               ))}
-            </div>
+              </div>
+            )}
 
             <div className="mt-8 text-center">
               <p className="text-sm text-gray-600">

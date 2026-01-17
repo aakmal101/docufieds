@@ -59,6 +59,7 @@ export const authOptions: NextAuthOptions = {
       name: 'credentials',
       credentials: {
         identifier: { label: 'Phone/Email/UserID', type: 'text' },
+        password: { label: 'Password', type: 'password' },
         otp: { label: 'OTP', type: 'text' },
       },
       async authorize(credentials) {
@@ -123,6 +124,18 @@ export const authOptions: NextAuthOptions = {
             )
             
             user = await Promise.race([prismaPromise, timeoutPromise]) as any
+            
+            // If password is provided, verify it
+            if (user && credentials.password && user.passwordHash) {
+              const isValidPassword = await bcrypt.compare(
+                credentials.password,
+                user.passwordHash
+              )
+              
+              if (!isValidPassword) {
+                return null // Invalid password
+              }
+            }
           } catch (prismaError: any) {
             console.warn('Prisma connection failed, trying Supabase fallback:', prismaError.message)
             
@@ -138,6 +151,18 @@ export const authOptions: NextAuthOptions = {
                 .single()
               
               if (supabaseUser) {
+                // If password is provided, verify it
+                if (credentials.password && supabaseUser.password_hash) {
+                  const isValidPassword = await bcrypt.compare(
+                    credentials.password,
+                    supabaseUser.password_hash
+                  )
+                  
+                  if (!isValidPassword) {
+                    return null // Invalid password
+                  }
+                }
+                
                 // Transform Supabase user to match Prisma format
                 user = {
                   id: supabaseUser.id,
@@ -149,6 +174,7 @@ export const authOptions: NextAuthOptions = {
                   memberId: supabaseUser.member_id,
                   fullName: supabaseUser.full_name,
                   isVerified: supabaseUser.is_verified,
+                  passwordHash: supabaseUser.password_hash,
                 }
               }
             } catch (supabaseError: any) {

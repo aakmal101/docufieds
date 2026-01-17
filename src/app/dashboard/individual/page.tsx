@@ -19,7 +19,8 @@ import {
   Globe,
   Phone,
   Mail,
-  Calendar
+  Calendar,
+  Settings
 } from 'lucide-react'
 import { UserStatus, ApplicationStatus } from '@/types'
 
@@ -187,6 +188,14 @@ export default function IndividualDashboard() {
                   <p className="text-sm text-gray-500">Member ID: {user.memberId}</p>
                 </div>
               </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push('/dashboard/individual/settings')}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                Settings
+              </Button>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
                 Sign Out
               </Button>
