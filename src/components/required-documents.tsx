@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { CheckCircle, FileText, Download, AlertCircle, Upload, Loader2, X } from 'lucide-react'
+import { CheckCircle, FileText, Download, AlertCircle, Upload, Loader2, X, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface DocumentRequirement {
@@ -49,6 +49,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({})
   const [templates, setTemplates] = useState<{ [key: string]: any }>({})
+  const [viewingDocument, setViewingDocument] = useState<{ url: string; fileName: string } | null>(null)
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
 
   useEffect(() => {
@@ -339,15 +340,27 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         toast.success(`${documentType} uploaded successfully`)
         // Refresh requirements to update status
         await fetchRequirements()
+        // Reset file input
+        if (fileInputRefs.current[documentType]) {
+          fileInputRefs.current[documentType].value = ''
+        }
       } else {
         toast.error(data.message || 'Failed to upload document')
       }
     } catch (error) {
       console.error('Error uploading document:', error)
-      toast.error('Failed to upload document')
+      toast.error('Failed to upload document. Please try again.')
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
     }
+  }
+
+  const handleViewDocument = (fileUrl: string, fileName: string) => {
+    setViewingDocument({ url: fileUrl, fileName })
+  }
+
+  const closeViewer = () => {
+    setViewingDocument(null)
   }
 
   const requiredDocuments = documents.filter(doc => doc.isRequired)
@@ -425,24 +438,35 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                     />
-                    <Button 
-                      size="sm" 
-                      className="bg-red-600 hover:bg-red-700"
-                      onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                      disabled={uploading[document.documentType]}
-                    >
-                      {uploading[document.documentType] ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-1" />
-                          {document.uploadedFile ? 'Replace Document' : 'Upload Document'}
-                        </>
-                      )}
-                    </Button>
+                    {document.uploadedFile && document.status === 'uploaded' ? (
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        View Document
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                        disabled={uploading[document.documentType]}
+                      >
+                        {uploading[document.documentType] ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-1" />
+                            Upload Document
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -502,24 +526,35 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                     />
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                      disabled={uploading[document.documentType]}
-                    >
-                      {uploading[document.documentType] ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="h-4 w-4 mr-1" />
-                          {document.uploadedFile ? 'Replace Document' : 'Upload Document'}
-                        </>
-                      )}
-                    </Button>
+                    {document.uploadedFile && document.status === 'uploaded' ? (
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        View Document
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                        disabled={uploading[document.documentType]}
+                      >
+                        {uploading[document.documentType] ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-4 w-4 mr-1" />
+                            Upload Document
+                          </>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -548,6 +583,85 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           Continue to Next Step
         </Button>
       </div>
+
+      {/* PDF Viewer Modal */}
+      {viewingDocument && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <FileText className="h-5 w-5 mr-2" />
+                {viewingDocument.fileName}
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={closeViewer}
+                className="ml-4"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            {/* Modal Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {viewingDocument.url.toLowerCase().endsWith('.pdf') || 
+               viewingDocument.url.includes('.pdf') ||
+               viewingDocument.url.toLowerCase().includes('application/pdf') ? (
+                <iframe
+                  src={viewingDocument.url}
+                  className="w-full h-full min-h-[600px] border-0"
+                  title={viewingDocument.fileName}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <img
+                      src={viewingDocument.url}
+                      alt={viewingDocument.fileName}
+                      className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement
+                        target.style.display = 'none'
+                        const errorDiv = target.nextElementSibling as HTMLElement
+                        if (errorDiv) errorDiv.style.display = 'block'
+                      }}
+                    />
+                    <div style={{ display: 'none' }} className="mt-4">
+                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-gray-600">Unable to display this file type</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => window.open(viewingDocument.url, '_blank')}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download to View
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="flex items-center justify-end gap-2 p-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => window.open(viewingDocument.url, '_blank')}
+              >
+                <Download className="h-4 w-4 mr-1" />
+                Download
+              </Button>
+              <Button onClick={closeViewer}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

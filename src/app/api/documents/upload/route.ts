@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 
 // Force dynamic rendering - this route uses getServerSession and cookies() via Supabase
 export const dynamic = 'force-dynamic'
@@ -46,32 +46,65 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload file to Supabase Storage
-    const supabase = await createClient()
+    // Try service role client first for better reliability, fallback to regular client
+    let supabase = createServiceRoleClient()
     const fileExt = file.name.split('.').pop()
-    const fileName = `${session.user.id}/${applicationId}/${Date.now()}.${fileExt}`
+    const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
     const fileBuffer = await file.arrayBuffer()
     
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    let uploadData, uploadError, fileUrl
+    
+    // Try upload with service role client
+    const uploadResult = await supabase.storage
       .from('documents')
       .upload(fileName, fileBuffer, {
         contentType: file.type,
         upsert: false,
       })
+    
+    uploadData = uploadResult.data
+    uploadError = uploadResult.error
+
+    // If service role client fails, try regular client
+    if (uploadError) {
+      console.warn('Service role upload failed, trying regular client:', uploadError.message)
+      supabase = await createClient()
+      const retryResult = await supabase.storage
+        .from('documents')
+        .upload(fileName, fileBuffer, {
+          contentType: file.type,
+          upsert: false,
+        })
+      
+      uploadData = retryResult.data
+      uploadError = retryResult.error
+    }
 
     if (uploadError) {
       console.error('Supabase upload error:', uploadError)
       return NextResponse.json(
-        { success: false, message: 'Failed to upload file to storage' },
+        { 
+          success: false, 
+          message: `Failed to upload file to storage: ${uploadError.message}`,
+          error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
+        },
         { status: 500 }
       )
     }
 
     // Get public URL for the uploaded file
-    const { data: { publicUrl } } = supabase.storage
+    const urlResult = supabase.storage
       .from('documents')
       .getPublicUrl(fileName)
 
-    const fileUrl = publicUrl
+    fileUrl = urlResult.data.publicUrl
+
+    if (!fileUrl) {
+      return NextResponse.json(
+        { success: false, message: 'Failed to generate file URL' },
+        { status: 500 }
+      )
+    }
 
     // Create document record
     const document = await prisma.document.create({
