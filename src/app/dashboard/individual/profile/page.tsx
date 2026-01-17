@@ -30,6 +30,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     dateOfBirth: '',
     placeOfBirth: '',
     birthCertificateNumber: '',
@@ -66,6 +67,7 @@ export default function ProfilePage() {
         setUser(data.data)
         setFormData({
           fullName: data.data.fullName || '',
+          email: data.data.email || '',
           dateOfBirth: data.data.dateOfBirth ? new Date(data.data.dateOfBirth).toISOString().split('T')[0] : '',
           placeOfBirth: data.data.placeOfBirth || '',
           birthCertificateNumber: data.data.birthCertificateNumber || '',
@@ -329,6 +331,20 @@ export default function ProfilePage() {
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
                     required
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Update your email address for account notifications
+                  </p>
                 </div>
 
                 <div className="space-y-2">

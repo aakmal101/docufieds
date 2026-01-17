@@ -149,6 +149,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const {
       fullName,
+      email,
       dateOfBirth,
       placeOfBirth,
       birthCertificateNumber,
@@ -158,6 +159,17 @@ export async function PUT(request: NextRequest) {
       permanentAddress,
       photoUrl
     } = body
+
+    // Validate email format if provided
+    if (email && email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid email format' },
+          { status: 400 }
+        )
+      }
+    }
 
     // Validate required fields
     if (!fullName || !dateOfBirth || !placeOfBirth || !birthCertificateNumber || 
@@ -176,11 +188,24 @@ export async function PUT(request: NextRequest) {
       })
 
       if (!existingUser) {
+        // Check email uniqueness if email is provided
+        if (email && email.trim() !== '') {
+          const emailExists = await prisma.user.findUnique({
+            where: { email: email.trim() },
+          })
+          if (emailExists && emailExists.id !== session.user.id) {
+            return NextResponse.json(
+              { success: false, message: 'Email address is already in use' },
+              { status: 409 }
+            )
+          }
+        }
+
         // User doesn't exist, create it
         const newUser = await prisma.user.create({
           data: {
             id: session.user.id,
-            email: session.user.email || null,
+            email: email && email.trim() !== '' ? email.trim() : (session.user.email || null),
             phone: session.user.phone || null,
             userId: session.user.userId || null,
             fullName,
@@ -230,11 +255,25 @@ export async function PUT(request: NextRequest) {
         })
       }
 
+      // Check email uniqueness if email is being updated
+      if (email && email.trim() !== '' && email.trim() !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email: email.trim() },
+        })
+        if (emailExists && emailExists.id !== session.user.id) {
+          return NextResponse.json(
+            { success: false, message: 'Email address is already in use' },
+            { status: 409 }
+          )
+        }
+      }
+
       // User exists, update it
       const updatedUser = await prisma.user.update({
         where: { id: session.user.id },
         data: {
           fullName,
+          email: email && email.trim() !== '' ? email.trim() : existingUser.email,
           dateOfBirth: new Date(dateOfBirth),
           placeOfBirth,
           birthCertificateNumber,
@@ -296,12 +335,28 @@ export async function PUT(request: NextRequest) {
         let updatedUser
 
         if (!existingUser) {
+          // Check email uniqueness if email is provided
+          if (email && email.trim() !== '') {
+            const { data: emailExists } = await supabase
+              .from('users')
+              .select('id')
+              .eq('email', email.trim())
+              .single()
+            
+            if (emailExists && emailExists.id !== session.user.id) {
+              return NextResponse.json(
+                { success: false, message: 'Email address is already in use' },
+                { status: 409 }
+              )
+            }
+          }
+
           // User doesn't exist, create it
           const { data: newUser, error: createError } = await supabase
             .from('users')
             .insert({
               id: session.user.id,
-              email: session.user.email || null,
+              email: email && email.trim() !== '' ? email.trim() : (session.user.email || null),
               phone: session.user.phone || null,
               user_id: session.user.userId || null,
               full_name: fullName,
@@ -327,22 +382,61 @@ export async function PUT(request: NextRequest) {
 
           updatedUser = newUser
         } else {
+          // Check email uniqueness if email is being updated
+          if (email && email.trim() !== '') {
+            const { data: currentUser } = await supabase
+              .from('users')
+              .select('email')
+              .eq('id', session.user.id)
+              .single()
+            
+            if (email.trim() !== currentUser?.email) {
+              const { data: emailExists } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', email.trim())
+                .single()
+              
+              if (emailExists && emailExists.id !== session.user.id) {
+                return NextResponse.json(
+                  { success: false, message: 'Email address is already in use' },
+                  { status: 409 }
+                )
+              }
+            }
+          }
+
+          // Get current user email
+          const { data: currentUser } = await supabase
+            .from('users')
+            .select('email')
+            .eq('id', session.user.id)
+            .single()
+
+          // Prepare update data
+          const updateData: any = {
+            full_name: fullName,
+            date_of_birth: new Date(dateOfBirth).toISOString(),
+            place_of_birth: placeOfBirth,
+            birth_certificate_number: birthCertificateNumber,
+            nid_number: nidNumber,
+            passport_number: passportNumber,
+            present_address: presentAddress,
+            permanent_address: permanentAddress,
+            photo_url: photoUrl || null,
+            status: 'APPROVED',
+            updated_at: new Date().toISOString(),
+          }
+
+          // Only update email if a new one is provided
+          if (email && email.trim() !== '') {
+            updateData.email = email.trim()
+          }
+
           // User exists, update it
           const { data: updated, error: updateError } = await supabase
             .from('users')
-            .update({
-              full_name: fullName,
-              date_of_birth: new Date(dateOfBirth).toISOString(),
-              place_of_birth: placeOfBirth,
-              birth_certificate_number: birthCertificateNumber,
-              nid_number: nidNumber,
-              passport_number: passportNumber,
-              present_address: presentAddress,
-              permanent_address: permanentAddress,
-              photo_url: photoUrl || null,
-              status: 'APPROVED',
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('id', session.user.id)
             .select()
             .single()
