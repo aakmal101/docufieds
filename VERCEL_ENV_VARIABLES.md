@@ -4,11 +4,26 @@
 
 Copy and paste these into Vercel Dashboard → Settings → Environment Variables:
 
-### 1. DATABASE_URL
+### 1. DATABASE_URL (Connection Pooler - for runtime)
 ```
-postgresql://postgres:Passwordisincorrec@db.nrbbxcxwyqczsoscdfyw.supabase.co:5432/postgres?sslmode=require
+postgresql://postgres.nrbbxcxwyqczsoscdfyw:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true&sslmode=require
 ```
 **Environments**: Production, Preview, Development
+**⚠️ IMPORTANT**: 
+- Use **Connection Pooler** (port 6543) for runtime
+- Get from: Supabase Dashboard → Settings → Database → Connection pooling → Transaction mode
+- Replace `[YOUR-PASSWORD]` with your actual database password
+- Replace `[REGION]` with your region (e.g., `us-east-1`)
+
+### 1b. DIRECT_URL (Direct Connection - for migrations)
+```
+postgresql://postgres:[YOUR-PASSWORD]@db.nrbbxcxwyqczsoscdfyw.supabase.co:5432/postgres?sslmode=require
+```
+**Environments**: Production, Preview, Development
+**⚠️ IMPORTANT**:
+- Use **Direct Connection** (port 5432) for migrations only
+- Get from: Supabase Dashboard → Settings → Database → Connection string → URI
+- Replace `[YOUR-PASSWORD]` with your actual database password
 
 ### 2. NEXT_PUBLIC_SUPABASE_URL
 ```
