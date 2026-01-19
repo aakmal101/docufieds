@@ -133,11 +133,58 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           }
         })
         
-        // Only update state if we have valid data
-        // This prevents overwriting optimistic updates with stale data
-        if (documentsWithStatus.length > 0) {
-          setDocuments(documentsWithStatus)
-        }
+        // DEBUG: Log fetched requirements to verify uploaded documents
+        console.log('[Frontend] Fetched requirements:', documentsWithStatus.map(d => ({
+          type: d.documentType,
+          status: d.status,
+          hasFile: !!d.uploadedFile
+        })))
+        
+        // CRITICAL: Merge fetched data with existing state intelligently
+        // Preserve optimistic state if it's valid and newer
+        setDocuments(prev => {
+          const merged = documentsWithStatus.map(fetchedDoc => {
+            // Find corresponding document in current state
+            const currentDoc = prev.find(p => p.documentType === fetchedDoc.documentType)
+            
+            // If current state has an uploaded file, check if we should preserve it
+            if (currentDoc?.uploadedFile && currentDoc.status === 'uploaded') {
+              const currentFile = currentDoc.uploadedFile
+              const fetchedFile = fetchedDoc.uploadedFile
+              
+              // If fetched data doesn't have the file but current state does, preserve current
+              // This handles race conditions where fetch happens before DB is updated
+              if (!fetchedFile && currentFile.fileUrl && currentFile.fileUrl.trim().length > 0) {
+                console.log(`[Frontend] Preserving optimistic state for "${fetchedDoc.documentType}" - fetched data missing file`)
+                return {
+                  ...fetchedDoc,
+                  status: 'uploaded' as const,
+                  uploadedFile: currentFile
+                }
+              }
+              
+              // If both have files, use the one with newer upload date
+              if (fetchedFile && currentFile.uploadedAt && fetchedFile.uploadedAt) {
+                const currentDate = currentFile.uploadedAt instanceof Date ? currentFile.uploadedAt : new Date(currentFile.uploadedAt)
+                const fetchedDate = fetchedFile.uploadedAt instanceof Date ? fetchedFile.uploadedAt : new Date(fetchedFile.uploadedAt)
+                
+                if (currentDate > fetchedDate) {
+                  console.log(`[Frontend] Using newer local state for "${fetchedDoc.documentType}"`)
+                  return {
+                    ...fetchedDoc,
+                    status: 'uploaded' as const,
+                    uploadedFile: currentFile
+                  }
+                }
+              }
+            }
+            
+            // Otherwise use fetched data (source of truth from database)
+            return fetchedDoc
+          })
+          
+          return merged
+        })
         
         // Fetch templates for each document type (only if we have documents)
         if (data.data && data.data.length > 0) {
@@ -426,18 +473,23 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
         // Update state with the CONFIRMED database record
         // This is the source of truth - the document exists in the database
+        const uploadedFile = {
+          fileUrl: uploadedFileData.fileUrl.trim(),
+          fileName: uploadedFileData.fileName.trim(),
+          uploadedAt: uploadedFileData.uploadedAt instanceof Date 
+            ? uploadedFileData.uploadedAt 
+            : new Date(uploadedFileData.uploadedAt)
+        }
+        
+        // DEBUG: Log the upload to verify documentType
+        console.log(`[Frontend] Upload successful: type="${documentType}", file="${uploadedFile.fileName}"`)
+        
         setDocuments(prev => prev.map(doc => {
           if (doc.documentType === documentType) {
             return {
               ...doc,
               status: 'uploaded' as const,
-              uploadedFile: {
-                fileUrl: uploadedFileData.fileUrl.trim(),
-                fileName: uploadedFileData.fileName.trim(),
-                uploadedAt: uploadedFileData.uploadedAt instanceof Date 
-                  ? uploadedFileData.uploadedAt 
-                  : new Date(uploadedFileData.uploadedAt)
-              }
+              uploadedFile
             }
           }
           return doc
@@ -450,16 +502,14 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           fileInputRefs.current[documentType].value = ''
         }
 
-        // Refresh from server after a short delay to ensure database consistency
-        // This ensures the state stays in sync, but doesn't overwrite our confirmed update
-        setTimeout(async () => {
-          try {
-            await fetchRequirements(false)
-          } catch (err) {
-            console.warn('Background refresh after upload failed:', err)
-            // Don't show error to user - we already have the correct state
-          }
-        }, 500)
+        // Refresh from server to ensure consistency
+        // The merge logic will preserve this optimistic state if fetch is stale
+        try {
+          await fetchRequirements(false)
+        } catch (err) {
+          console.warn('Background refresh after upload failed:', err)
+          // Don't show error to user - we already have the correct state
+        }
       } else {
         throw new Error(data.message || 'Failed to upload document')
       }

@@ -111,20 +111,38 @@ export async function GET(
     // Use a Map to handle multiple documents of same type (take most recent)
     // Database is the SOURCE OF TRUTH - only documents in DB are considered uploaded
     const documentMap = new Map<string, typeof uploadedDocuments[0]>()
+    
+    // DEBUG: Log all uploaded documents to verify they're being fetched
+    console.log(`[Requirements API] Found ${uploadedDocuments.length} uploaded documents for application ${applicationId}`)
+    uploadedDocuments.forEach((doc) => {
+      console.log(`[Requirements API] Document: type="${doc.documentType}", file="${doc.fileName}", url="${doc.fileUrl?.substring(0, 50)}..."`)
+    })
+    
     uploadedDocuments.forEach((doc) => {
       // Only include documents with valid file data
       if (doc.fileUrl && doc.fileUrl.trim().length > 0 && 
           doc.fileName && doc.fileName.trim().length > 0) {
-        if (!documentMap.has(doc.documentType) || 
-            (doc.uploadedAt && documentMap.get(doc.documentType)?.uploadedAt && 
-             doc.uploadedAt > documentMap.get(doc.documentType)!.uploadedAt)) {
-          documentMap.set(doc.documentType, doc)
+        // CRITICAL: Use exact documentType match (case-sensitive, trimmed)
+        const docType = doc.documentType.trim()
+        if (!documentMap.has(docType) || 
+            (doc.uploadedAt && documentMap.get(docType)?.uploadedAt && 
+             doc.uploadedAt > documentMap.get(docType)!.uploadedAt)) {
+          documentMap.set(docType, doc)
         }
       }
     })
 
     const requirementsWithStatus = requirements.map((req) => {
-      const uploadedDoc = documentMap.get(req.documentType)
+      // CRITICAL: Match documentType exactly (case-sensitive, trimmed)
+      const reqDocType = req.documentType.trim()
+      const uploadedDoc = documentMap.get(reqDocType)
+      
+      // DEBUG: Log matching attempt
+      if (uploadedDoc) {
+        console.log(`[Requirements API] Matched requirement "${reqDocType}" with uploaded document`)
+      } else {
+        console.log(`[Requirements API] No match for requirement "${reqDocType}" (available types: ${Array.from(documentMap.keys()).join(', ')})`)
+      }
       
       // CRITICAL: Validate file data from database
       // A document is only considered uploaded if it exists in DB with valid data

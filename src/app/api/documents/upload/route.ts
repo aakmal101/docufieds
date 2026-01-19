@@ -153,6 +153,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // DEBUG: Log the saved document to verify documentType
+    console.log(`[Upload API] Document saved: type="${document.documentType}", file="${document.fileName}", applicationId="${applicationId}"`)
+
     // Update application status if this is the first document
     if (application.status === 'DOCUMENT_UNDER_REVIEW') {
       await prisma.application.update({
