@@ -699,18 +699,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       className="hidden"
                     />
                     {(() => {
-                      // SOURCE OF TRUTH: Database record determines button state
-                      // A document is uploaded ONLY if:
+                      // SOURCE OF TRUTH: uploadedFile existence determines button state
+                      // A document is uploaded IF AND ONLY IF:
                       // 1. uploadedFile exists
                       // 2. fileUrl is valid (non-empty string)
                       // 3. fileName is valid (non-empty string)
+                      // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
                       const uploadedFile = document.uploadedFile
                       const hasUploadedDocument = uploadedFile && 
                                                 uploadedFile.fileUrl && 
                                                 uploadedFile.fileUrl.trim().length > 0 &&
                                                 uploadedFile.fileName && 
-                                                uploadedFile.fileName.trim().length > 0 &&
-                                                document.status === 'uploaded'
+                                                uploadedFile.fileName.trim().length > 0
                       
                       if (hasUploadedDocument) {
                         return (
@@ -806,18 +806,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       className="hidden"
                     />
                     {(() => {
-                      // SOURCE OF TRUTH: Database record determines button state
-                      // A document is uploaded ONLY if:
+                      // SOURCE OF TRUTH: uploadedFile existence determines button state
+                      // A document is uploaded IF AND ONLY IF:
                       // 1. uploadedFile exists
                       // 2. fileUrl is valid (non-empty string)
                       // 3. fileName is valid (non-empty string)
+                      // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
                       const uploadedFile = document.uploadedFile
                       const hasUploadedDocument = uploadedFile && 
                                                 uploadedFile.fileUrl && 
                                                 uploadedFile.fileUrl.trim().length > 0 &&
                                                 uploadedFile.fileName && 
-                                                uploadedFile.fileName.trim().length > 0 &&
-                                                document.status === 'uploaded'
+                                                uploadedFile.fileName.trim().length > 0
                       
                       if (hasUploadedDocument) {
                         return (
