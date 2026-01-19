@@ -144,6 +144,15 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Verify the document was saved correctly
+    if (!document || !document.fileUrl || !document.fileName) {
+      console.error('Document save verification failed:', { document })
+      return NextResponse.json(
+        { success: false, message: 'Failed to save document record' },
+        { status: 500 }
+      )
+    }
+
     // Update application status if this is the first document
     if (application.status === 'DOCUMENT_UNDER_REVIEW') {
       await prisma.application.update({
@@ -162,12 +171,21 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Return the document in the exact format the frontend expects
+    // This is the SOURCE OF TRUTH - the database record
     return NextResponse.json({
       success: true,
       message: 'Document uploaded successfully',
       data: {
-        ...document,
-        // Ensure the response matches what the frontend expects
+        id: document.id,
+        applicationId: document.applicationId,
+        documentType: document.documentType,
+        fileName: document.fileName,
+        fileUrl: document.fileUrl,
+        fileType: document.fileType,
+        fileSize: document.fileSize,
+        uploadedAt: document.uploadedAt,
+        // Also include in the format expected by requirements API
         uploadedFile: {
           fileUrl: document.fileUrl,
           fileName: document.fileName,

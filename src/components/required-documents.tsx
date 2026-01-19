@@ -105,27 +105,39 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       const data = await response.json()
 
       if (data.success) {
-        // Ensure uploadedFile structure matches what the component expects
-        // This is the source of truth - comes directly from the database
+        // This is the SOURCE OF TRUTH - data comes directly from the database
+        // Map requirements with their upload status from database
         const documentsWithStatus = (data.data || []).map((doc: any) => {
-          const hasUploadedFile = doc.uploadedFile && doc.uploadedFile.fileUrl && doc.uploadedFile.fileName
+          // CRITICAL: Check if document has valid uploaded file data
+          // Database is the source of truth - if uploadedFile exists with valid data, document is uploaded
+          const uploadedFile = doc.uploadedFile
+          const hasUploadedFile = uploadedFile && 
+                                 uploadedFile.fileUrl && 
+                                 uploadedFile.fileUrl.trim().length > 0 &&
+                                 uploadedFile.fileName && 
+                                 uploadedFile.fileName.trim().length > 0
           
           return {
             ...doc,
+            // Status is determined by database record existence
             status: hasUploadedFile ? 'uploaded' as const : 'pending' as const,
             uploadedFile: hasUploadedFile ? {
-              fileUrl: doc.uploadedFile.fileUrl,
-              fileName: doc.uploadedFile.fileName,
-              uploadedAt: doc.uploadedFile.uploadedAt 
-                ? (doc.uploadedFile.uploadedAt instanceof Date 
-                    ? doc.uploadedFile.uploadedAt 
-                    : new Date(doc.uploadedFile.uploadedAt))
+              fileUrl: uploadedFile.fileUrl.trim(),
+              fileName: uploadedFile.fileName.trim(),
+              uploadedAt: uploadedFile.uploadedAt 
+                ? (uploadedFile.uploadedAt instanceof Date 
+                    ? uploadedFile.uploadedAt 
+                    : new Date(uploadedFile.uploadedAt))
                 : new Date()
             } : null
           }
         })
         
-        setDocuments(documentsWithStatus)
+        // Only update state if we have valid data
+        // This prevents overwriting optimistic updates with stale data
+        if (documentsWithStatus.length > 0) {
+          setDocuments(documentsWithStatus)
+        }
         
         // Fetch templates for each document type (only if we have documents)
         if (data.data && data.data.length > 0) {
@@ -394,28 +406,34 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       const data = await response.json()
 
       if (data.success && data.data) {
-        // Optimistically update the state immediately for instant UI feedback
-        // The API returns: { success: true, data: { ...document, uploadedFile: {...} } }
+        // The API returns the saved document from database (SOURCE OF TRUTH)
         const documentData = data.data
+        
+        // Extract file data - API returns both formats for compatibility
         const uploadedFileData = documentData.uploadedFile || {
           fileUrl: documentData.fileUrl,
           fileName: documentData.fileName,
           uploadedAt: documentData.uploadedAt || new Date()
         }
         
-        // Ensure we have valid file data
-        if (!uploadedFileData.fileUrl || !uploadedFileData.fileName) {
-          throw new Error('Invalid document data received from server')
+        // CRITICAL: Validate we have valid file data from database
+        if (!uploadedFileData.fileUrl || !uploadedFileData.fileName || 
+            uploadedFileData.fileUrl.trim().length === 0 || 
+            uploadedFileData.fileName.trim().length === 0) {
+          console.error('Invalid document data from server:', documentData)
+          throw new Error('Invalid document data received from server. Please try again.')
         }
 
+        // Update state with the CONFIRMED database record
+        // This is the source of truth - the document exists in the database
         setDocuments(prev => prev.map(doc => {
           if (doc.documentType === documentType) {
             return {
               ...doc,
               status: 'uploaded' as const,
               uploadedFile: {
-                fileUrl: uploadedFileData.fileUrl,
-                fileName: uploadedFileData.fileName,
+                fileUrl: uploadedFileData.fileUrl.trim(),
+                fileName: uploadedFileData.fileName.trim(),
                 uploadedAt: uploadedFileData.uploadedAt instanceof Date 
                   ? uploadedFileData.uploadedAt 
                   : new Date(uploadedFileData.uploadedAt)
@@ -427,21 +445,35 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
         toast.success(`${documentType} uploaded successfully`)
         
-        // Then refresh from server to ensure consistency (source of truth)
-        await fetchRequirements(false)
-        
-        // Reset file input
+        // Reset file input immediately
         if (fileInputRefs.current[documentType]) {
           fileInputRefs.current[documentType].value = ''
         }
+
+        // Refresh from server after a short delay to ensure database consistency
+        // This ensures the state stays in sync, but doesn't overwrite our confirmed update
+        setTimeout(async () => {
+          try {
+            await fetchRequirements(false)
+          } catch (err) {
+            console.warn('Background refresh after upload failed:', err)
+            // Don't show error to user - we already have the correct state
+          }
+        }, 500)
       } else {
         throw new Error(data.message || 'Failed to upload document')
       }
     } catch (error: any) {
       console.error('Error uploading document:', error)
       toast.error(error.message || 'Failed to upload document. Please try again.')
+      
       // Re-fetch to ensure state is correct after error
-      await fetchRequirements(false)
+      // This ensures we don't show stale "uploaded" state if upload failed
+      try {
+        await fetchRequirements(false)
+      } catch (fetchError) {
+        console.error('Error refreshing requirements after upload failure:', fetchError)
+      }
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
     }
@@ -593,18 +625,25 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       className="hidden"
                     />
                     {(() => {
-                      // Source of truth: Check if document has uploadedFile with valid URL
-                      const hasUploadedDocument = document.uploadedFile && 
-                                                document.uploadedFile.fileUrl && 
-                                                document.uploadedFile.fileName &&
-                                                (document.status === 'uploaded' || document.uploadedFile.fileUrl.length > 0)
+                      // SOURCE OF TRUTH: Database record determines button state
+                      // A document is uploaded ONLY if:
+                      // 1. uploadedFile exists
+                      // 2. fileUrl is valid (non-empty string)
+                      // 3. fileName is valid (non-empty string)
+                      const uploadedFile = document.uploadedFile
+                      const hasUploadedDocument = uploadedFile && 
+                                                uploadedFile.fileUrl && 
+                                                uploadedFile.fileUrl.trim().length > 0 &&
+                                                uploadedFile.fileName && 
+                                                uploadedFile.fileName.trim().length > 0 &&
+                                                document.status === 'uploaded'
                       
                       if (hasUploadedDocument) {
                         return (
                           <Button 
                             size="sm" 
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                            onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View Document
@@ -693,18 +732,25 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       className="hidden"
                     />
                     {(() => {
-                      // Source of truth: Check if document has uploadedFile with valid URL
-                      const hasUploadedDocument = document.uploadedFile && 
-                                                document.uploadedFile.fileUrl && 
-                                                document.uploadedFile.fileName &&
-                                                (document.status === 'uploaded' || document.uploadedFile.fileUrl.length > 0)
+                      // SOURCE OF TRUTH: Database record determines button state
+                      // A document is uploaded ONLY if:
+                      // 1. uploadedFile exists
+                      // 2. fileUrl is valid (non-empty string)
+                      // 3. fileName is valid (non-empty string)
+                      const uploadedFile = document.uploadedFile
+                      const hasUploadedDocument = uploadedFile && 
+                                                uploadedFile.fileUrl && 
+                                                uploadedFile.fileUrl.trim().length > 0 &&
+                                                uploadedFile.fileName && 
+                                                uploadedFile.fileName.trim().length > 0 &&
+                                                document.status === 'uploaded'
                       
                       if (hasUploadedDocument) {
                         return (
                           <Button 
                             size="sm" 
                             className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                            onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View Document

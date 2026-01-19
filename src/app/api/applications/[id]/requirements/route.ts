@@ -109,19 +109,25 @@ export async function GET(
 
     // Map requirements with upload status
     // Use a Map to handle multiple documents of same type (take most recent)
+    // Database is the SOURCE OF TRUTH - only documents in DB are considered uploaded
     const documentMap = new Map<string, typeof uploadedDocuments[0]>()
     uploadedDocuments.forEach((doc) => {
-      if (!documentMap.has(doc.documentType) || 
-          (doc.uploadedAt && documentMap.get(doc.documentType)?.uploadedAt && 
-           doc.uploadedAt > documentMap.get(doc.documentType)!.uploadedAt)) {
-        documentMap.set(doc.documentType, doc)
+      // Only include documents with valid file data
+      if (doc.fileUrl && doc.fileUrl.trim().length > 0 && 
+          doc.fileName && doc.fileName.trim().length > 0) {
+        if (!documentMap.has(doc.documentType) || 
+            (doc.uploadedAt && documentMap.get(doc.documentType)?.uploadedAt && 
+             doc.uploadedAt > documentMap.get(doc.documentType)!.uploadedAt)) {
+          documentMap.set(doc.documentType, doc)
+        }
       }
     })
 
     const requirementsWithStatus = requirements.map((req) => {
       const uploadedDoc = documentMap.get(req.documentType)
       
-      // Ensure we have valid file data
+      // CRITICAL: Validate file data from database
+      // A document is only considered uploaded if it exists in DB with valid data
       const hasValidFile = uploadedDoc && 
                           uploadedDoc.fileUrl && 
                           uploadedDoc.fileUrl.trim().length > 0 &&
@@ -130,10 +136,11 @@ export async function GET(
       
       return {
         ...req,
+        // Status is determined by database record existence
         status: hasValidFile ? 'uploaded' : 'pending',
         uploadedFile: hasValidFile ? {
-          fileUrl: uploadedDoc.fileUrl,
-          fileName: uploadedDoc.fileName,
+          fileUrl: uploadedDoc.fileUrl.trim(),
+          fileName: uploadedDoc.fileName.trim(),
           uploadedAt: uploadedDoc.uploadedAt,
         } : null,
       }
