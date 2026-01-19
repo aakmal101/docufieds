@@ -50,16 +50,31 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const [uploading, setUploading] = useState<{ [key: string]: boolean }>({})
   const [templates, setTemplates] = useState<{ [key: string]: any }>({})
   const [viewingDocument, setViewingDocument] = useState<{ url: string; fileName: string } | null>(null)
+  const [application, setApplication] = useState<any>(null)
+  const [checkingReadiness, setCheckingReadiness] = useState(false)
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
 
   useEffect(() => {
     if (applicationId) {
       fetchRequirements()
+      fetchApplication()
     } else {
       setLoading(false)
       toast.error('Application ID is missing')
     }
   }, [applicationId])
+
+  const fetchApplication = async () => {
+    try {
+      const response = await fetch(`/api/applications/${applicationId}`)
+      const data = await response.json()
+      if (data.success) {
+        setApplication(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching application:', error)
+    }
+  }
 
   const fetchRequirements = async () => {
     try {
@@ -363,6 +378,52 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     setViewingDocument(null)
   }
 
+  const handleContinueToCallPhase = async () => {
+    if (!applicationId) {
+      toast.error('Application ID not found')
+      return
+    }
+
+    setCheckingReadiness(true)
+
+    try {
+      // Check if application is ready (documents + payment)
+      const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Status transition successful, proceed to Call Phase
+        toast.success('Application ready! Proceeding to final step.')
+        onComplete()
+      } else {
+        // Handle validation errors
+        if (data.missingDocuments) {
+          const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
+          toast.error(`Please upload all required documents: ${missingList}`, {
+            duration: 5000,
+          })
+        } else if (data.requiredAmount) {
+          toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before proceeding.`, {
+            duration: 5000,
+          })
+        } else {
+          toast.error(data.message || 'Please complete all requirements before proceeding.')
+        }
+      }
+    } catch (error: any) {
+      console.error('Error checking readiness:', error)
+      toast.error('Failed to verify application readiness. Please try again.')
+    } finally {
+      setCheckingReadiness(false)
+    }
+  }
+
   const requiredDocuments = documents.filter(doc => doc.isRequired)
   const optionalDocuments = documents.filter(doc => !doc.isRequired)
 
@@ -578,9 +639,17 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         </Button>
         <Button 
           className="bg-red-600 hover:bg-red-700"
-          onClick={onComplete}
+          onClick={handleContinueToCallPhase}
+          disabled={checkingReadiness}
         >
-          Continue to Next Step
+          {checkingReadiness ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Checking...
+            </>
+          ) : (
+            'Continue to Next Step'
+          )}
         </Button>
       </div>
 

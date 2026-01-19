@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 import WorldMap from '@/components/world-map'
 import RequiredDocuments from '@/components/required-documents'
-import CustomerCallScreen from '@/components/customer-call-screen'
+import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -76,6 +76,7 @@ export default function NewApplicationPage() {
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
   const [applicationId, setApplicationId] = useState<string | null>(null)
+  const [isReadOnly, setIsReadOnly] = useState(false)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -109,6 +110,9 @@ export default function NewApplicationPage() {
         // Set application ID
         setApplicationId(app.id)
         
+        // Check if application is read-only (not DRAFT)
+        setIsReadOnly(app.status !== 'DRAFT')
+        
         // Restore form data
         setFormData({
           country: app.country || '',
@@ -135,7 +139,19 @@ export default function NewApplicationPage() {
         if (app.status === 'DRAFT') {
           // If no documents uploaded, go to documents step
           if (app.documents && app.documents.length > 0) {
-            setStep('call')
+            // Check if ready for Call Phase (documents + payment complete)
+            const validPayments = app.payments?.filter(
+              (p: any) => p.status === 'PAID' || p.status === 'PARTIAL'
+            ) || []
+            const totalPaid = validPayments.reduce((sum: number, p: any) => sum + p.amount, 0)
+            const paymentComplete = app.consultancyFee === 0 || totalPaid >= app.consultancyFee
+            
+            if (paymentComplete) {
+              // Auto-transition to Call Phase if ready
+              setStep('call')
+            } else {
+              setStep('documents')
+            }
           } else if (app.country && app.processType && app.profession) {
             setStep('documents')
           } else if (app.country && app.processType) {
@@ -145,8 +161,11 @@ export default function NewApplicationPage() {
           } else {
             setStep('destination')
           }
+        } else if (app.status === 'UNDER_REVIEW' || app.status === 'DOCUMENT_UNDER_REVIEW' || app.status === 'DOCUMENT_UNDER_PROCESSING') {
+          // For submitted applications, show Call Phase (read-only)
+          setStep('call')
         } else {
-          // For non-draft applications, show documents step
+          // For other statuses, show documents step
           setStep('documents')
         }
       } else {
@@ -366,7 +385,7 @@ export default function NewApplicationPage() {
                   {step === 'profession' && 'Select Your Profession'}
                   {step === 'review' && 'Review Application'}
                   {step === 'documents' && 'Required Documents'}
-                  {step === 'call' && 'Customer Representative Call'}
+                  {step === 'call' && 'Application Submitted'}
                 </CardTitle>
                 <CardDescription>
                   {step === 'destination' && 'Choose the country you want to visit'}
@@ -374,7 +393,7 @@ export default function NewApplicationPage() {
                   {step === 'profession' && 'Tell us about your profession'}
                   {step === 'review' && 'Review your application details before submitting'}
                   {step === 'documents' && 'Prepare the required documents for your application'}
-                  {step === 'call' && 'A customer representative will call you to guide you through the next steps'}
+                  {step === 'call' && 'Your application has been submitted and is now being processed'}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -386,8 +405,15 @@ export default function NewApplicationPage() {
 
                 {step === 'destination' && (
                   <div className="space-y-6">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited. You are viewing it in read-only mode.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <WorldMap 
-                      onCountrySelect={handleCountrySelect}
+                      onCountrySelect={isReadOnly ? () => {} : handleCountrySelect}
                       selectedCountry={selectedCountry?.id}
                     />
                   </div>
@@ -395,15 +421,26 @@ export default function NewApplicationPage() {
 
                 {step === 'process' && (
                   <div className="space-y-4">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     {processTypes.map((type) => (
                       <div
                         key={type.value}
-                        className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                        className={`p-4 border rounded-lg transition-colors ${
                           formData.processType === type.value
                             ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => setFormData(prev => ({ ...prev, processType: type.value }))}
+                            : 'border-gray-200'
+                        } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-gray-300'}`}
+                        onClick={() => {
+                          if (!isReadOnly) {
+                            setFormData(prev => ({ ...prev, processType: type.value }))
+                          }
+                        }}
                       >
                         <div className="flex justify-between items-start">
                           <div>
@@ -421,9 +458,24 @@ export default function NewApplicationPage() {
 
                 {step === 'profession' && (
                   <div className="space-y-4">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited.
+                        </AlertDescription>
+                      </Alert>
+                    )}
                     <div className="space-y-2">
                       <Label htmlFor="profession">Profession</Label>
-                      <Select value={formData.profession} onValueChange={(value) => setFormData(prev => ({ ...prev, profession: value }))}>
+                      <Select 
+                        value={formData.profession} 
+                        onValueChange={(value) => {
+                          if (!isReadOnly) {
+                            setFormData(prev => ({ ...prev, profession: value }))
+                          }
+                        }}
+                        disabled={isReadOnly}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select your profession" />
                         </SelectTrigger>
@@ -493,56 +545,65 @@ export default function NewApplicationPage() {
                   </div>
                 )}
 
-                {step === 'call' && (
-                  <CustomerCallScreen 
-                    onComplete={async () => {
-                      if (!applicationId) {
-                        toast.error('Application ID not found. Please try again.')
-                        return
-                      }
-
+                {step === 'call' && applicationId && (
+                  <CallPhaseScreen 
+                    applicationId={applicationId}
+                    onBackToDashboard={async () => {
+                      // Check if application needs to be submitted first
                       try {
-                        setLoading(true)
-                        const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
-                          method: 'POST',
-                          headers: {
-                            'Content-Type': 'application/json',
-                          },
-                        })
-
-                        const data = await response.json()
-
-                        if (data.success) {
-                          toast.success(data.message || 'Application process completed successfully! Your application is now under review.')
-                          // Small delay to show success message
-                          setTimeout(() => {
-                            router.push('/dashboard/individual')
-                          }, 1500)
-                        } else {
-                          // Handle validation errors with more detail
-                          if (data.missingDocuments) {
-                            const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
-                            toast.error(`Please upload all required documents: ${missingList}`, {
-                              duration: 5000,
+                        const appResponse = await fetch(`/api/applications/${applicationId}`)
+                        const appData = await appResponse.json()
+                        
+                        if (appData.success && appData.data) {
+                          const app = appData.data
+                          
+                          // If still in DRAFT, try to submit
+                          if (app.status === 'DRAFT') {
+                            setLoading(true)
+                            const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
                             })
-                            // Navigate back to documents step
-                            setStep('documents')
-                          } else if (data.requiredAmount) {
-                            toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before finalizing.`, {
-                              duration: 5000,
-                            })
+
+                            const data = await response.json()
+
+                            if (data.success) {
+                              toast.success(data.message || 'Application successfully submitted!')
+                              setTimeout(() => {
+                                router.push('/dashboard/individual')
+                              }, 1500)
+                            } else {
+                              // Handle validation errors
+                              if (data.missingDocuments) {
+                                const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
+                                toast.error(`Please upload all required documents: ${missingList}`, {
+                                  duration: 5000,
+                                })
+                                setStep('documents')
+                              } else if (data.requiredAmount) {
+                                toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before finalizing.`, {
+                                  duration: 5000,
+                                })
+                                setStep('documents')
+                              } else {
+                                toast.error(data.message || 'Failed to submit application. Please check all requirements.')
+                              }
+                              setLoading(false)
+                            }
                           } else {
-                            toast.error(data.message || 'Failed to complete application process. Please check all requirements.')
+                            // Already submitted, just go to dashboard
+                            router.push('/dashboard/individual')
                           }
+                        } else {
+                          router.push('/dashboard/individual')
                         }
                       } catch (error: any) {
-                        console.error('Call completion error:', error)
-                        toast.error('Failed to complete application process. Please try again.')
-                      } finally {
-                        setLoading(false)
+                        console.error('Error checking application status:', error)
+                        router.push('/dashboard/individual')
                       }
                     }}
-                    onBack={() => setStep('documents')}
                   />
                 )}
 
@@ -565,13 +626,6 @@ export default function NewApplicationPage() {
                       ) : (
                         'Submit Application'
                       )}
-                    </Button>
-                  ) : step === 'call' ? (
-                    <Button onClick={() => {
-                      toast.success('Application process completed! A representative will contact you soon.')
-                      router.push('/dashboard/individual')
-                    }}>
-                      Complete Process
                     </Button>
                   ) : (
                     <Button onClick={handleNext}>

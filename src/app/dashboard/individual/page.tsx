@@ -101,6 +101,27 @@ export default function IndividualDashboard() {
     }
   }
 
+  const getApplicationStatusLabel = (status: string) => {
+    switch (status) {
+      case 'UNDER_REVIEW':
+      case 'DOCUMENT_UNDER_REVIEW':
+      case 'DOCUMENT_UNDER_PROCESSING':
+        return 'Submitted – Processing'
+      case 'COMPLETED':
+        return 'Completed'
+      case 'PROCESSED':
+        return 'Processed'
+      case 'DECLINED':
+        return 'Declined'
+      case 'CANCELLED':
+        return 'Cancelled'
+      case 'DRAFT':
+        return 'Draft'
+      default:
+        return status.replace(/_/g, ' ')
+    }
+  }
+
   const calculateProfileCompletion = () => {
     if (!user) return 0
     
@@ -337,7 +358,7 @@ export default function IndividualDashboard() {
                             {application.country} - {application.processType}
                           </h3>
                           <Badge className={getApplicationStatusColor(application.status)}>
-                            {application.status.replace(/_/g, ' ')}
+                            {getApplicationStatusLabel(application.status)}
                           </Badge>
                         </div>
                         <div className="flex items-center space-x-6 text-sm text-gray-600">
@@ -357,20 +378,28 @@ export default function IndividualDashboard() {
                           )}
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          if (application.status === 'DRAFT') {
+                      {application.status === 'DRAFT' ? (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
                             router.push(`/dashboard/individual/new-application?id=${application.id}`)
-                          } else {
-                            // For non-draft applications, could navigate to a view-only page
+                          }}
+                        >
+                          Continue Application
+                        </Button>
+                      ) : (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            // Navigate to Call Phase (read-only view)
                             router.push(`/dashboard/individual/new-application?id=${application.id}`)
-                          }
-                        }}
-                      >
-                        {application.status === 'DRAFT' ? 'Continue Application' : 'View Details'}
-                      </Button>
+                          }}
+                        >
+                          View Status
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
