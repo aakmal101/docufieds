@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 
 // Force dynamic rendering - this route uses getServerSession
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 export async function GET(
   request: NextRequest,
@@ -107,41 +108,48 @@ export async function GET(
       },
     })
 
+    // Canonical documentType normalization function
+    // This ensures consistent matching regardless of case/whitespace
+    const normalizeDocType = (value: string): string => {
+      return value.trim().toLowerCase().replace(/\s+/g, ' ')
+    }
+
+    // TEMPORARY DEBUG: Log all documents found in DB
+    console.log(`[Requirements API] Application ID: ${applicationId}`)
+    console.log(`[Requirements API] Found ${uploadedDocuments.length} documents in DB:`)
+    uploadedDocuments.forEach((doc, idx) => {
+      console.log(`  [${idx}] ID: ${doc.documentType} | Type: "${doc.documentType}" | File: "${doc.fileName}" | URL: ${doc.fileUrl?.substring(0, 60) || 'N/A'}... | Uploaded: ${doc.uploadedAt}`)
+    })
+
     // Map requirements with upload status
     // Use a Map to handle multiple documents of same type (take most recent)
     // Database is the SOURCE OF TRUTH - only documents in DB are considered uploaded
     const documentMap = new Map<string, typeof uploadedDocuments[0]>()
     
-    // DEBUG: Log all uploaded documents to verify they're being fetched
-    console.log(`[Requirements API] Found ${uploadedDocuments.length} uploaded documents for application ${applicationId}`)
-    uploadedDocuments.forEach((doc) => {
-      console.log(`[Requirements API] Document: type="${doc.documentType}", file="${doc.fileName}", url="${doc.fileUrl?.substring(0, 50)}..."`)
-    })
-    
     uploadedDocuments.forEach((doc) => {
       // Only include documents with valid file data
       if (doc.fileUrl && doc.fileUrl.trim().length > 0 && 
           doc.fileName && doc.fileName.trim().length > 0) {
-        // CRITICAL: Use exact documentType match (case-sensitive, trimmed)
-        const docType = doc.documentType.trim()
-        if (!documentMap.has(docType) || 
-            (doc.uploadedAt && documentMap.get(docType)?.uploadedAt && 
-             doc.uploadedAt > documentMap.get(docType)!.uploadedAt)) {
-          documentMap.set(docType, doc)
+        // CRITICAL: Use canonical normalization for matching
+        const normalizedType = normalizeDocType(doc.documentType)
+        if (!documentMap.has(normalizedType) || 
+            (doc.uploadedAt && documentMap.get(normalizedType)?.uploadedAt && 
+             doc.uploadedAt > documentMap.get(normalizedType)!.uploadedAt)) {
+          documentMap.set(normalizedType, doc)
         }
       }
     })
 
     const requirementsWithStatus = requirements.map((req) => {
-      // CRITICAL: Match documentType exactly (case-sensitive, trimmed)
-      const reqDocType = req.documentType.trim()
-      const uploadedDoc = documentMap.get(reqDocType)
+      // CRITICAL: Use canonical normalization for matching
+      const normalizedReqType = normalizeDocType(req.documentType)
+      const uploadedDoc = documentMap.get(normalizedReqType)
       
-      // DEBUG: Log matching attempt
+      // TEMPORARY DEBUG: Log matching attempt
       if (uploadedDoc) {
-        console.log(`[Requirements API] Matched requirement "${reqDocType}" with uploaded document`)
+        console.log(`[Requirements API] ✓ Matched requirement "${req.documentType}" (normalized: "${normalizedReqType}") with uploaded document`)
       } else {
-        console.log(`[Requirements API] No match for requirement "${reqDocType}" (available types: ${Array.from(documentMap.keys()).join(', ')})`)
+        console.log(`[Requirements API] ✗ No match for requirement "${req.documentType}" (normalized: "${normalizedReqType}") | Available normalized types: ${Array.from(documentMap.keys()).join(', ')}`)
       }
       
       // CRITICAL: Validate file data from database
@@ -164,10 +172,24 @@ export async function GET(
       }
     })
 
-    return NextResponse.json({
+    // TEMPORARY DEBUG: Log complete mapping result
+    console.log(`[Requirements API] Mapping result for application ${applicationId}:`)
+    requirementsWithStatus.forEach(req => {
+      console.log(`  - Requirement: "${req.documentType}" | Status: ${req.status} | Has File: ${!!req.uploadedFile} | File URL: ${req.uploadedFile?.fileUrl?.substring(0, 60) || 'N/A'}...`)
+    })
+    console.log(`[Requirements API] Document map keys: ${Array.from(documentMap.keys()).join(', ')}`)
+
+    const response = NextResponse.json({
       success: true,
       data: requirementsWithStatus,
     })
+    
+    // Force no-cache headers to prevent stale responses
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    
+    return response
   } catch (error: any) {
     console.error('Error fetching document requirements:', error)
     return NextResponse.json(

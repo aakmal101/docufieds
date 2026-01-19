@@ -64,20 +64,8 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     }
   }, [applicationId])
 
-  // Refresh requirements periodically to catch any external updates
-  // This ensures state stays in sync with database
-  useEffect(() => {
-    if (!applicationId) return
-
-    const interval = setInterval(() => {
-      // Silently refresh every 30 seconds to keep state in sync
-      fetchRequirements(false).catch(err => {
-        console.warn('Background refresh failed:', err)
-      })
-    }, 30000)
-
-    return () => clearInterval(interval)
-  }, [applicationId])
+  // REMOVED: Background polling interval that was causing state reversion
+  // State will be refreshed only on mount and after upload
 
   const fetchApplication = async () => {
     try {
@@ -96,7 +84,13 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       if (showLoading) {
         setLoading(true)
       }
-      const response = await fetch(`/api/applications/${applicationId}/requirements`)
+      // Force no-cache to prevent stale responses
+      const response = await fetch(`/api/applications/${applicationId}/requirements`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      })
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -133,29 +127,38 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           }
         })
         
-        // DEBUG: Log fetched requirements to verify uploaded documents
-        console.log('[Frontend] Fetched requirements:', documentsWithStatus.map(d => ({
-          type: d.documentType,
-          status: d.status,
-          hasFile: !!d.uploadedFile
-        })))
+        // Canonical documentType normalization (must match server-side)
+        const normalizeDocType = (value: string): string => {
+          return value.trim().toLowerCase().replace(/\s+/g, ' ')
+        }
+        
+        // TEMPORARY DEBUG: Log fetched requirements response
+        console.log(`[Frontend] fetchRequirements response for applicationId: ${applicationId}`)
+        documentsWithStatus.forEach((d, idx) => {
+          console.log(`  [${idx}] Requirement: "${d.documentType}" | Status: ${d.status} | Has File: ${!!d.uploadedFile} | File URL: ${d.uploadedFile?.fileUrl?.substring(0, 60) || 'N/A'}...`)
+        })
         
         // CRITICAL: Merge fetched data with existing state intelligently
-        // Preserve optimistic state if it's valid and newer
+        // NEVER overwrite valid optimistic state with stale/empty fetched data
         setDocuments(prev => {
           const merged = documentsWithStatus.map(fetchedDoc => {
-            // Find corresponding document in current state
-            const currentDoc = prev.find(p => p.documentType === fetchedDoc.documentType)
+            // Find corresponding document in current state using normalized matching
+            const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
+            const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
             
-            // If current state has an uploaded file, check if we should preserve it
-            if (currentDoc?.uploadedFile && currentDoc.status === 'uploaded') {
+            // If current state has a valid uploaded file, preserve it unless fetched has a newer valid file
+            if (currentDoc?.uploadedFile && 
+                currentDoc.status === 'uploaded' &&
+                currentDoc.uploadedFile.fileUrl && 
+                currentDoc.uploadedFile.fileUrl.trim().length > 0) {
+              
               const currentFile = currentDoc.uploadedFile
               const fetchedFile = fetchedDoc.uploadedFile
               
-              // If fetched data doesn't have the file but current state does, preserve current
+              // CRITICAL: If fetched data doesn't have the file, preserve current state
               // This handles race conditions where fetch happens before DB is updated
-              if (!fetchedFile && currentFile.fileUrl && currentFile.fileUrl.trim().length > 0) {
-                console.log(`[Frontend] Preserving optimistic state for "${fetchedDoc.documentType}" - fetched data missing file`)
+              if (!fetchedFile || !fetchedFile.fileUrl || fetchedFile.fileUrl.trim().length === 0) {
+                console.log(`[Frontend] ✓ Preserving optimistic state for "${fetchedDoc.documentType}" - fetched data missing file`)
                 return {
                   ...fetchedDoc,
                   status: 'uploaded' as const,
@@ -164,12 +167,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               }
               
               // If both have files, use the one with newer upload date
-              if (fetchedFile && currentFile.uploadedAt && fetchedFile.uploadedAt) {
+              if (fetchedFile.uploadedAt && currentFile.uploadedAt) {
                 const currentDate = currentFile.uploadedAt instanceof Date ? currentFile.uploadedAt : new Date(currentFile.uploadedAt)
                 const fetchedDate = fetchedFile.uploadedAt instanceof Date ? fetchedFile.uploadedAt : new Date(fetchedFile.uploadedAt)
                 
                 if (currentDate > fetchedDate) {
-                  console.log(`[Frontend] Using newer local state for "${fetchedDoc.documentType}"`)
+                  console.log(`[Frontend] ✓ Using newer local state for "${fetchedDoc.documentType}" (local: ${currentDate.toISOString()}, fetched: ${fetchedDate.toISOString()})`)
                   return {
                     ...fetchedDoc,
                     status: 'uploaded' as const,
@@ -180,6 +183,13 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             }
             
             // Otherwise use fetched data (source of truth from database)
+            // But only if it has valid file data
+            if (fetchedDoc.uploadedFile && 
+                fetchedDoc.uploadedFile.fileUrl && 
+                fetchedDoc.uploadedFile.fileUrl.trim().length > 0) {
+              console.log(`[Frontend] ✓ Using fetched data for "${fetchedDoc.documentType}"`)
+            }
+            
             return fetchedDoc
           })
           
@@ -481,11 +491,24 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             : new Date(uploadedFileData.uploadedAt)
         }
         
-        // DEBUG: Log the upload to verify documentType
-        console.log(`[Frontend] Upload successful: type="${documentType}", file="${uploadedFile.fileName}"`)
+        // TEMPORARY DEBUG: Log upload success with all details
+        console.log(`[Frontend] ✓ Upload SUCCESS:`)
+        console.log(`  - applicationId: ${applicationId}`)
+        console.log(`  - requirement.documentType: "${documentType}"`)
+        console.log(`  - returned document.documentType: "${documentData.documentType || 'N/A'}"`)
+        console.log(`  - returned fileUrl: ${uploadedFile.fileUrl.substring(0, 80)}...`)
+        console.log(`  - returned fileName: "${uploadedFile.fileName}"`)
+        console.log(`  - uploadedAt: ${uploadedFile.uploadedAt.toISOString()}`)
+        
+        // Canonical normalization for matching
+        const normalizeDocType = (value: string): string => {
+          return value.trim().toLowerCase().replace(/\s+/g, ' ')
+        }
         
         setDocuments(prev => prev.map(doc => {
-          if (doc.documentType === documentType) {
+          // Use normalized matching to find the correct document
+          if (normalizeDocType(doc.documentType) === normalizeDocType(documentType)) {
+            console.log(`[Frontend] ✓ Updating state for "${doc.documentType}" → "uploaded"`)
             return {
               ...doc,
               status: 'uploaded' as const,
@@ -504,10 +527,11 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
         // Refresh from server to ensure consistency
         // The merge logic will preserve this optimistic state if fetch is stale
+        // No delay needed - merge logic handles race conditions
         try {
           await fetchRequirements(false)
         } catch (err) {
-          console.warn('Background refresh after upload failed:', err)
+          console.warn('[Frontend] Background refresh after upload failed:', err)
           // Don't show error to user - we already have the correct state
         }
       } else {
