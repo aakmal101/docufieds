@@ -56,12 +56,27 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
   useEffect(() => {
     if (applicationId) {
-      fetchRequirements()
+      fetchRequirements(true)
       fetchApplication()
     } else {
       setLoading(false)
       toast.error('Application ID is missing')
     }
+  }, [applicationId])
+
+  // Refresh requirements periodically to catch any external updates
+  // This ensures state stays in sync with database
+  useEffect(() => {
+    if (!applicationId) return
+
+    const interval = setInterval(() => {
+      // Silently refresh every 30 seconds to keep state in sync
+      fetchRequirements(false).catch(err => {
+        console.warn('Background refresh failed:', err)
+      })
+    }, 30000)
+
+    return () => clearInterval(interval)
   }, [applicationId])
 
   const fetchApplication = async () => {
@@ -91,15 +106,24 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
       if (data.success) {
         // Ensure uploadedFile structure matches what the component expects
-        const documentsWithStatus = (data.data || []).map((doc: any) => ({
-          ...doc,
-          status: doc.uploadedFile ? 'uploaded' : 'pending',
-          uploadedFile: doc.uploadedFile ? {
-            fileUrl: doc.uploadedFile.fileUrl,
-            fileName: doc.uploadedFile.fileName,
-            uploadedAt: doc.uploadedFile.uploadedAt ? new Date(doc.uploadedFile.uploadedAt) : new Date()
-          } : null
-        }))
+        // This is the source of truth - comes directly from the database
+        const documentsWithStatus = (data.data || []).map((doc: any) => {
+          const hasUploadedFile = doc.uploadedFile && doc.uploadedFile.fileUrl && doc.uploadedFile.fileName
+          
+          return {
+            ...doc,
+            status: hasUploadedFile ? 'uploaded' as const : 'pending' as const,
+            uploadedFile: hasUploadedFile ? {
+              fileUrl: doc.uploadedFile.fileUrl,
+              fileName: doc.uploadedFile.fileName,
+              uploadedAt: doc.uploadedFile.uploadedAt 
+                ? (doc.uploadedFile.uploadedAt instanceof Date 
+                    ? doc.uploadedFile.uploadedAt 
+                    : new Date(doc.uploadedFile.uploadedAt))
+                : new Date()
+            } : null
+          }
+        })
         
         setDocuments(documentsWithStatus)
         
@@ -369,11 +393,43 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
       const data = await response.json()
 
-      if (data.success) {
+      if (data.success && data.data) {
+        // Optimistically update the state immediately for instant UI feedback
+        // The API returns: { success: true, data: { ...document, uploadedFile: {...} } }
+        const documentData = data.data
+        const uploadedFileData = documentData.uploadedFile || {
+          fileUrl: documentData.fileUrl,
+          fileName: documentData.fileName,
+          uploadedAt: documentData.uploadedAt || new Date()
+        }
+        
+        // Ensure we have valid file data
+        if (!uploadedFileData.fileUrl || !uploadedFileData.fileName) {
+          throw new Error('Invalid document data received from server')
+        }
+
+        setDocuments(prev => prev.map(doc => {
+          if (doc.documentType === documentType) {
+            return {
+              ...doc,
+              status: 'uploaded' as const,
+              uploadedFile: {
+                fileUrl: uploadedFileData.fileUrl,
+                fileName: uploadedFileData.fileName,
+                uploadedAt: uploadedFileData.uploadedAt instanceof Date 
+                  ? uploadedFileData.uploadedAt 
+                  : new Date(uploadedFileData.uploadedAt)
+              }
+            }
+          }
+          return doc
+        }))
+
         toast.success(`${documentType} uploaded successfully`)
-        // Refresh requirements to update status - this will update the button to "View Document"
-        // Don't show loading spinner during refresh after upload
+        
+        // Then refresh from server to ensure consistency (source of truth)
         await fetchRequirements(false)
+        
         // Reset file input
         if (fileInputRefs.current[documentType]) {
           fileInputRefs.current[documentType].value = ''
@@ -384,13 +440,31 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     } catch (error: any) {
       console.error('Error uploading document:', error)
       toast.error(error.message || 'Failed to upload document. Please try again.')
+      // Re-fetch to ensure state is correct after error
+      await fetchRequirements(false)
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
     }
   }
 
-  const handleViewDocument = (fileUrl: string, fileName: string) => {
-    setViewingDocument({ url: fileUrl, fileName })
+  const handleViewDocument = async (fileUrl: string, fileName: string) => {
+    // Validate URL before opening
+    if (!fileUrl || fileUrl.trim().length === 0) {
+      toast.error('Document URL is invalid. Please try uploading again.')
+      // Refresh to get correct state
+      await fetchRequirements(false)
+      return
+    }
+
+    // Check if URL is accessible (basic validation)
+    try {
+      // For Supabase public URLs, we can directly use them
+      // For other URLs, we might need to verify
+      setViewingDocument({ url: fileUrl, fileName })
+    } catch (error) {
+      console.error('Error opening document:', error)
+      toast.error('Unable to open document. Please try again.')
+    }
   }
 
   const closeViewer = () => {
@@ -518,35 +592,47 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                     />
-                    {document.uploadedFile && document.status === 'uploaded' ? (
-                      <Button 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        View Document
-                      </Button>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        className="bg-red-600 hover:bg-red-700"
-                        onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                        disabled={uploading[document.documentType]}
-                      >
-                        {uploading[document.documentType] ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-1" />
-                            Upload Document
-                          </>
-                        )}
-                      </Button>
-                    )}
+                    {(() => {
+                      // Source of truth: Check if document has uploadedFile with valid URL
+                      const hasUploadedDocument = document.uploadedFile && 
+                                                document.uploadedFile.fileUrl && 
+                                                document.uploadedFile.fileName &&
+                                                (document.status === 'uploaded' || document.uploadedFile.fileUrl.length > 0)
+                      
+                      if (hasUploadedDocument) {
+                        return (
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Document
+                          </Button>
+                        )
+                      }
+                      
+                      return (
+                        <Button 
+                          size="sm" 
+                          className="bg-red-600 hover:bg-red-700 text-white"
+                          onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                          disabled={uploading[document.documentType]}
+                        >
+                          {uploading[document.documentType] ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-1" />
+                              Upload Document
+                            </>
+                          )}
+                        </Button>
+                      )
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -606,35 +692,47 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                       className="hidden"
                     />
-                    {document.uploadedFile && document.status === 'uploaded' ? (
-                      <Button 
-                        size="sm" 
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        View Document
-                      </Button>
-                    ) : (
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                        disabled={uploading[document.documentType]}
-                      >
-                        {uploading[document.documentType] ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-4 w-4 mr-1" />
-                            Upload Document
-                          </>
-                        )}
-                      </Button>
-                    )}
+                    {(() => {
+                      // Source of truth: Check if document has uploadedFile with valid URL
+                      const hasUploadedDocument = document.uploadedFile && 
+                                                document.uploadedFile.fileUrl && 
+                                                document.uploadedFile.fileName &&
+                                                (document.status === 'uploaded' || document.uploadedFile.fileUrl.length > 0)
+                      
+                      if (hasUploadedDocument) {
+                        return (
+                          <Button 
+                            size="sm" 
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => handleViewDocument(document.uploadedFile!.fileUrl, document.uploadedFile!.fileName)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Document
+                          </Button>
+                        )
+                      }
+                      
+                      return (
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                          disabled={uploading[document.documentType]}
+                        >
+                          {uploading[document.documentType] ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              Uploading...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4 mr-1" />
+                              Upload Document
+                            </>
+                          )}
+                        </Button>
+                      )
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -674,19 +772,28 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
       {/* PDF Viewer Modal */}
       {viewingDocument && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+          onClick={(e) => {
+            // Close modal when clicking backdrop
+            if (e.target === e.currentTarget) {
+              closeViewer()
+            }
+          }}
+        >
           <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl h-full max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <FileText className="h-5 w-5 mr-2" />
-                {viewingDocument.fileName}
+            <div className="flex items-center justify-between p-4 border-b flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center truncate flex-1 mr-4">
+                <FileText className="h-5 w-5 mr-2 flex-shrink-0" />
+                <span className="truncate">{viewingDocument.fileName}</span>
               </h3>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={closeViewer}
-                className="ml-4"
+                className="flex-shrink-0"
+                aria-label="Close document viewer"
               >
                 <X className="h-4 w-4" />
               </Button>
@@ -696,53 +803,59 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             <div className="flex-1 overflow-auto p-4">
               {(() => {
                 const url = viewingDocument.url.toLowerCase()
-                const isPDF = url.endsWith('.pdf') || 
+                const fileName = viewingDocument.fileName.toLowerCase()
+                
+                // Determine file type
+                const isPDF = fileName.endsWith('.pdf') || 
                              url.includes('.pdf') || 
                              url.includes('application/pdf') ||
-                             viewingDocument.fileName.toLowerCase().endsWith('.pdf')
+                             url.includes('content-type=application/pdf')
+                
+                const isImage = fileName.endsWith('.jpg') || 
+                              fileName.endsWith('.jpeg') || 
+                              fileName.endsWith('.png') || 
+                              fileName.endsWith('.gif') ||
+                              url.includes('image/jpeg') ||
+                              url.includes('image/png') ||
+                              url.includes('image/jpg')
                 
                 if (isPDF) {
                   return (
-                    <iframe
-                      src={viewingDocument.url}
-                      className="w-full h-full min-h-[600px] border-0"
-                      title={viewingDocument.fileName}
-                      onError={(e) => {
-                        console.error('Error loading PDF:', e)
-                      }}
-                    />
+                    <div className="w-full h-full flex flex-col">
+                      <iframe
+                        src={`${viewingDocument.url}#toolbar=1`}
+                        className="w-full flex-1 border-0 min-h-[600px]"
+                        title={viewingDocument.fileName}
+                        style={{ minHeight: '600px' }}
+                      />
+                    </div>
                   )
                 }
                 
-                // Check if it's an image
-                const isImage = url.endsWith('.jpg') || 
-                              url.endsWith('.jpeg') || 
-                              url.endsWith('.png') || 
-                              url.endsWith('.gif') ||
-                              url.includes('image/')
-                
                 if (isImage) {
                   return (
-                    <div className="flex items-center justify-center h-full">
-                      <div className="text-center">
+                    <div className="flex items-center justify-center h-full min-h-[400px]">
+                      <div className="text-center w-full">
                         <img
                           src={viewingDocument.url}
                           alt={viewingDocument.fileName}
-                          className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                          className="max-w-full max-h-[75vh] mx-auto rounded-lg shadow-lg"
                           onError={(e) => {
                             const target = e.currentTarget as HTMLImageElement
-                            target.style.display = 'none'
-                            const errorDiv = target.nextElementSibling as HTMLElement
-                            if (errorDiv) errorDiv.style.display = 'block'
+                            const container = target.parentElement
+                            if (container) {
+                              target.style.display = 'none'
+                              const errorDiv = container.querySelector('.image-error') as HTMLElement
+                              if (errorDiv) errorDiv.style.display = 'block'
+                            }
                           }}
                         />
-                        <div style={{ display: 'none' }} className="mt-4">
+                        <div className="image-error mt-4" style={{ display: 'none' }}>
                           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-gray-600">Unable to display this image</p>
+                          <p className="text-gray-600 mb-2">Unable to display this image</p>
                           <Button
                             variant="outline"
                             size="sm"
-                            className="mt-4"
                             onClick={() => window.open(viewingDocument.url, '_blank')}
                           >
                             <Download className="h-4 w-4 mr-1" />
@@ -756,10 +869,10 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 
                 // For other file types, show download option
                 return (
-                  <div className="flex items-center justify-center h-full">
+                  <div className="flex items-center justify-center h-full min-h-[400px]">
                     <div className="text-center">
                       <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600 mb-4">Preview not available for this file type</p>
+                      <p className="text-gray-600 mb-2">Preview not available for this file type</p>
                       <p className="text-sm text-gray-500 mb-4">{viewingDocument.fileName}</p>
                       <Button
                         variant="outline"
@@ -776,10 +889,17 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             </div>
             
             {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 p-4 border-t">
+            <div className="flex items-center justify-end gap-2 p-4 border-t flex-shrink-0">
               <Button
                 variant="outline"
-                onClick={() => window.open(viewingDocument.url, '_blank')}
+                onClick={() => {
+                  try {
+                    window.open(viewingDocument.url, '_blank', 'noopener,noreferrer')
+                  } catch (error) {
+                    console.error('Error opening document:', error)
+                    toast.error('Unable to open document in new tab')
+                  }
+                }}
               >
                 <Download className="h-4 w-4 mr-1" />
                 Download

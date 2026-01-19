@@ -102,17 +102,40 @@ export async function GET(
         fileName: true,
         uploadedAt: true,
       },
+      orderBy: {
+        uploadedAt: 'desc', // Get most recent upload if duplicates exist
+      },
     })
 
     // Map requirements with upload status
+    // Use a Map to handle multiple documents of same type (take most recent)
+    const documentMap = new Map<string, typeof uploadedDocuments[0]>()
+    uploadedDocuments.forEach((doc) => {
+      if (!documentMap.has(doc.documentType) || 
+          (doc.uploadedAt && documentMap.get(doc.documentType)?.uploadedAt && 
+           doc.uploadedAt > documentMap.get(doc.documentType)!.uploadedAt)) {
+        documentMap.set(doc.documentType, doc)
+      }
+    })
+
     const requirementsWithStatus = requirements.map((req) => {
-      const uploadedDoc = uploadedDocuments.find(
-        (doc) => doc.documentType === req.documentType
-      )
+      const uploadedDoc = documentMap.get(req.documentType)
+      
+      // Ensure we have valid file data
+      const hasValidFile = uploadedDoc && 
+                          uploadedDoc.fileUrl && 
+                          uploadedDoc.fileUrl.trim().length > 0 &&
+                          uploadedDoc.fileName &&
+                          uploadedDoc.fileName.trim().length > 0
+      
       return {
         ...req,
-        status: uploadedDoc ? 'uploaded' : 'pending',
-        uploadedFile: uploadedDoc || null,
+        status: hasValidFile ? 'uploaded' : 'pending',
+        uploadedFile: hasValidFile ? {
+          fileUrl: uploadedDoc.fileUrl,
+          fileName: uploadedDoc.fileName,
+          uploadedAt: uploadedDoc.uploadedAt,
+        } : null,
       }
     })
 
