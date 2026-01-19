@@ -23,9 +23,13 @@ import {
   User,
   Calendar,
   CreditCard,
-  Settings
+  Settings,
+  MessageCircle,
+  Send,
+  X
 } from 'lucide-react'
 import { ApplicationStatus } from '@/types'
+import toast from 'react-hot-toast'
 
 export default function SupportDashboard() {
   const { data: session, status } = useSession()
@@ -34,6 +38,12 @@ export default function SupportDashboard() {
   const [loading, setLoading] = useState(true)
   const [selectedApplication, setSelectedApplication] = useState<any>(null)
   const [documentRequirements, setDocumentRequirements] = useState<string[]>([])
+  const [submittedApplications, setSubmittedApplications] = useState<any[]>([])
+  const [selectedAppForMessaging, setSelectedAppForMessaging] = useState<any>(null)
+  const [messages, setMessages] = useState<any[]>([])
+  const [newMessage, setNewMessage] = useState('')
+  const [sendingMessage, setSendingMessage] = useState(false)
+  const [adminNote, setAdminNote] = useState('')
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -41,7 +51,9 @@ export default function SupportDashboard() {
       return
     }
 
-    if (session?.user?.role !== 'SUPPORT') {
+    // Allow ADMIN and SUPPORT roles
+    const allowedRoles = ['ADMIN', 'SUPPORT']
+    if (!session?.user?.role || !allowedRoles.includes(session.user.role)) {
       router.push('/dashboard')
       return
     }
@@ -51,17 +63,75 @@ export default function SupportDashboard() {
 
   const fetchApplications = async () => {
     try {
+      // Fetch all applications for stats
       const response = await fetch('/api/admin/applications')
       const data = await response.json()
       
       if (data.success) {
         setApplications(data.data)
       }
+
+      // Fetch submitted applications (status >= UNDER_REVIEW)
+      const submittedResponse = await fetch('/api/admin/applications?submittedOnly=true')
+      const submittedData = await submittedResponse.json()
+      
+      if (submittedData.success) {
+        setSubmittedApplications(submittedData.data)
+      }
     } catch (error) {
       console.error('Error fetching applications:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchMessages = async (applicationId: string) => {
+    try {
+      const response = await fetch(`/api/admin/messages?applicationId=${applicationId}`)
+      const data = await response.json()
+      
+      if (data.success) {
+        setMessages(data.data)
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error)
+    }
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedAppForMessaging) return
+
+    setSendingMessage(true)
+    try {
+      const response = await fetch('/api/admin/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          applicationId: selectedAppForMessaging.id,
+          userId: selectedAppForMessaging.userId,
+          text: newMessage.trim(),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setNewMessage('')
+        await fetchMessages(selectedAppForMessaging.id)
+        toast.success('Message sent successfully')
+      } else {
+        toast.error(data.message || 'Failed to send message')
+      }
+    } catch (error) {
+      console.error('Error sending message:', error)
+    } finally {
+      setSendingMessage(false)
+    }
+  }
+
+  const handleOpenMessaging = (application: any) => {
+    setSelectedAppForMessaging(application)
+    fetchMessages(application.id)
   }
 
   const getStatusColor = (status: string) => {
@@ -106,16 +176,27 @@ export default function SupportDashboard() {
     }
   }
 
-  const handleCallbackComplete = async (applicationId: string) => {
+  const handleCallbackComplete = async (applicationId: string, note?: string) => {
     try {
       const response = await fetch(`/api/admin/applications/${applicationId}/callback-complete`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminNote: note || adminNote,
+        }),
       })
 
       const data = await response.json()
 
       if (data.success) {
+        setAdminNote('')
         await fetchApplications()
+        if (selectedAppForMessaging?.id === applicationId) {
+          setSelectedAppForMessaging(null)
+        }
+        toast.success('Callback completed successfully')
+      } else {
+        toast.error(data.message || 'Failed to complete callback')
       }
     } catch (error) {
       console.error('Error completing callback:', error)
@@ -232,6 +313,94 @@ export default function SupportDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Submitted Applications Queue */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle>Submitted Applications Queue</CardTitle>
+            <CardDescription>Applications with status UNDER_REVIEW or beyond - ready for support handling</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {submittedApplications.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No submitted applications</h3>
+                <p className="text-gray-600">No applications have been submitted yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {submittedApplications.map((application) => {
+                  const lastActivity = application.statusUpdates?.[0]?.createdAt || application.updatedAt
+                  const unreadMessages = application.messages?.filter((m: any) => 
+                    m.senderRole !== session?.user?.role && !m.isRead
+                  ).length || 0
+                  
+                  return (
+                    <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-lg font-medium text-gray-900">
+                              {application.country} - {application.processType}
+                            </h3>
+                            <Badge className={getStatusColor(application.status)}>
+                              {application.status.replace(/_/g, ' ')}
+                            </Badge>
+                            {unreadMessages > 0 && (
+                              <Badge variant="destructive" className="ml-2">
+                                {unreadMessages} new
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-6 text-sm text-gray-600 mb-2">
+                            <div className="flex items-center">
+                              <User className="h-4 w-4 mr-1" />
+                              {application.user?.fullName || 'Unknown User'}
+                            </div>
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-1" />
+                              Submitted: {new Date(application.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center">
+                              <Clock className="h-4 w-4 mr-1" />
+                              Last activity: {new Date(lastActivity).toLocaleDateString()}
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Application ID: {application.id}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleOpenMessaging(application)}
+                          >
+                            <MessageCircle className="h-4 w-4 mr-1" />
+                            Message
+                          </Button>
+                          {application.status === 'UNDER_REVIEW' && (
+                            <Button 
+                              size="sm"
+                              onClick={() => {
+                                const note = prompt('Add admin note (optional):')
+                                if (note !== null) {
+                                  handleCallbackComplete(application.id, note)
+                                }
+                              }}
+                            >
+                              Complete Callback
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Applications List */}
@@ -389,6 +558,100 @@ export default function SupportDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Messaging Modal/Overlay */}
+        {selectedAppForMessaging && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <Card className="w-full max-w-2xl max-h-[80vh] flex flex-col">
+              <CardHeader className="flex-shrink-0">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <CardTitle>Messaging: {selectedAppForMessaging.user?.fullName}</CardTitle>
+                    <CardDescription>
+                      {selectedAppForMessaging.country} - {selectedAppForMessaging.processType}
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedAppForMessaging(null)
+                      setMessages([])
+                      setNewMessage('')
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1 overflow-y-auto space-y-4">
+                {messages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No messages yet</p>
+                  </div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`flex ${
+                        message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                          ? 'justify-end'
+                          : 'justify-start'
+                      }`}
+                    >
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 ${
+                          message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                            ? 'bg-red-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                      >
+                        <p className="text-sm">{message.text}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                              ? 'text-red-100'
+                              : 'text-gray-500'
+                          }`}
+                        >
+                          {new Date(message.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+              <div className="border-t p-4 flex-shrink-0">
+                <div className="flex gap-2">
+                  <Input
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        handleSendMessage()
+                      }
+                    }}
+                    placeholder="Type your message..."
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!newMessage.trim() || sendingMessage}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {sendingMessage ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

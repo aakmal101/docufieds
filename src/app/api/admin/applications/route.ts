@@ -26,7 +26,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Get query params for filtering
+    const { searchParams } = new URL(request.url)
+    const statusFilter = searchParams.get('status')
+    const submittedOnly = searchParams.get('submittedOnly') === 'true'
+
+    // Define submitted statuses (status >= UNDER_REVIEW)
+    const submittedStatuses = [
+      'UNDER_REVIEW',
+      'DOCUMENT_UNDER_REVIEW',
+      'DOCUMENT_UNDER_PROCESSING',
+      'PROCESSED',
+      'COMPLETED',
+      'DECLINED',
+      'CANCELLED',
+    ]
+
+    const where: any = {}
+    
+    // Filter by submitted statuses if requested
+    if (submittedOnly) {
+      where.status = {
+        in: submittedStatuses,
+      }
+    } else if (statusFilter) {
+      where.status = statusFilter
+    }
+
     const applications = await prisma.application.findMany({
+      where,
       include: {
         user: {
           select: {
@@ -62,6 +90,10 @@ export async function GET(request: NextRequest) {
         statusUpdates: {
           orderBy: { createdAt: 'desc' },
           take: 5,
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
         },
       },
       orderBy: { createdAt: 'desc' },

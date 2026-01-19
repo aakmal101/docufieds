@@ -52,6 +52,7 @@ model User {
   documents         Document[]
   notifications     Notification[]
   sessions          Session[]
+  messages          Message[]
   
   @@map("users")
 }
@@ -83,6 +84,7 @@ model Application {
   documents         Document[]
   payments          Payment[]
   statusUpdates     StatusUpdate[]
+  messages          Message[]
   
   @@map("applications")
 }
@@ -205,4 +207,24 @@ model DocumentTemplate {
   updatedAt   DateTime @updatedAt @map("updated_at")
   
   @@map("document_templates")
+}
+
+model Message {
+  id            String   @id @default(cuid())
+  applicationId String?  @map("application_id")
+  userId        String   @map("user_id")
+  senderId      String   @map("sender_id")
+  senderRole    String   @map("sender_role")
+  text          String
+  isRead        Boolean  @default(false) @map("is_read")
+  createdAt     DateTime @default(now()) @map("created_at")
+  
+  // Relations
+  application   Application? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("messages")
+  @@index([applicationId])
+  @@index([userId])
+  @@index([createdAt])
 }

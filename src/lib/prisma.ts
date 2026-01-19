@@ -40,9 +40,7 @@ if (process.env.NODE_ENV !== 'production') {
   process.on('beforeExit', async () => {
     await prisma.$disconnect()
   })
-}
-
-// Test connection on startup (development only)
+}// Test connection on startup (development only)
 if (process.env.NODE_ENV === 'development') {
   prisma.$connect()
     .then(() => {

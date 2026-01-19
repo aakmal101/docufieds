@@ -20,8 +20,9 @@ export async function POST(
       )
     }
 
-    // Check if user has support privileges
-    if (session.user.role !== 'SUPPORT') {
+    // Check if user has admin/support privileges
+    const allowedRoles = ['ADMIN', 'SUPPORT']
+    if (!allowedRoles.includes(session.user.role)) {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -29,6 +30,16 @@ export async function POST(
     }
 
     const applicationId = params.id
+
+    // Get request body for admin notes (handle empty body gracefully)
+    let adminNote = ''
+    try {
+      const body = await request.json()
+      adminNote = body.adminNote || body.note || ''
+    } catch {
+      // Request body is empty or invalid, that's okay
+      adminNote = ''
+    }
 
     // Verify application exists
     const application = await prisma.application.findUnique({
@@ -42,18 +53,28 @@ export async function POST(
       )
     }
 
-    // Update application status
-    const updatedApplication = await prisma.application.update({
-      where: { id: applicationId },
-      data: { status: 'DOCUMENT_UNDER_REVIEW' },
-    })
+    // Only update status if currently UNDER_REVIEW
+    let updatedApplication = application
+    let statusMessage = 'Customer callback completed.'
+    
+    if (application.status === 'UNDER_REVIEW') {
+      updatedApplication = await prisma.application.update({
+        where: { id: applicationId },
+        data: { status: 'DOCUMENT_UNDER_REVIEW' },
+      })
+      statusMessage = 'Customer callback completed. Application moved to document review stage.'
+    }
 
-    // Create status update
+    // Create status update with admin note
+    const statusUpdateMessage = adminNote
+      ? `${statusMessage} Admin note: ${adminNote}`
+      : statusMessage
+
     await prisma.statusUpdate.create({
       data: {
         applicationId,
-        status: 'DOCUMENT_UNDER_REVIEW',
-        message: 'Customer callback completed. Application moved to document review stage.',
+        status: updatedApplication.status,
+        message: statusUpdateMessage,
         updatedBy: session.user.id,
       },
     })
@@ -71,7 +92,10 @@ export async function POST(
     return NextResponse.json({
       success: true,
       message: 'Callback completed successfully',
-      data: updatedApplication,
+      data: {
+        ...updatedApplication,
+        adminNote: adminNote || null,
+      },
     })
   } catch (error) {
     console.error('Callback completion error:', error)

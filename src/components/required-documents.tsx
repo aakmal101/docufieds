@@ -76,9 +76,11 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     }
   }
 
-  const fetchRequirements = async () => {
+  const fetchRequirements = async (showLoading = false) => {
     try {
-      setLoading(true)
+      if (showLoading) {
+        setLoading(true)
+      }
       const response = await fetch(`/api/applications/${applicationId}/requirements`)
       
       if (!response.ok) {
@@ -88,7 +90,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       const data = await response.json()
 
       if (data.success) {
-        setDocuments(data.data || [])
+        // Ensure uploadedFile structure matches what the component expects
+        const documentsWithStatus = (data.data || []).map((doc: any) => ({
+          ...doc,
+          status: doc.uploadedFile ? 'uploaded' : 'pending',
+          uploadedFile: doc.uploadedFile ? {
+            fileUrl: doc.uploadedFile.fileUrl,
+            fileName: doc.uploadedFile.fileName,
+            uploadedAt: doc.uploadedFile.uploadedAt ? new Date(doc.uploadedFile.uploadedAt) : new Date()
+          } : null
+        }))
+        
+        setDocuments(documentsWithStatus)
         
         // Fetch templates for each document type (only if we have documents)
         if (data.data && data.data.length > 0) {
@@ -349,22 +362,28 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         body: formData,
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || `Upload failed with status ${response.status}`)
+      }
+
       const data = await response.json()
 
       if (data.success) {
         toast.success(`${documentType} uploaded successfully`)
-        // Refresh requirements to update status
-        await fetchRequirements()
+        // Refresh requirements to update status - this will update the button to "View Document"
+        // Don't show loading spinner during refresh after upload
+        await fetchRequirements(false)
         // Reset file input
         if (fileInputRefs.current[documentType]) {
           fileInputRefs.current[documentType].value = ''
         }
       } else {
-        toast.error(data.message || 'Failed to upload document')
+        throw new Error(data.message || 'Failed to upload document')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading document:', error)
-      toast.error('Failed to upload document. Please try again.')
+      toast.error(error.message || 'Failed to upload document. Please try again.')
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
     }
@@ -675,35 +694,76 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             
             {/* Modal Content */}
             <div className="flex-1 overflow-auto p-4">
-              {viewingDocument.url.toLowerCase().endsWith('.pdf') || 
-               viewingDocument.url.includes('.pdf') ||
-               viewingDocument.url.toLowerCase().includes('application/pdf') ? (
-                <iframe
-                  src={viewingDocument.url}
-                  className="w-full h-full min-h-[600px] border-0"
-                  title={viewingDocument.fileName}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <img
+              {(() => {
+                const url = viewingDocument.url.toLowerCase()
+                const isPDF = url.endsWith('.pdf') || 
+                             url.includes('.pdf') || 
+                             url.includes('application/pdf') ||
+                             viewingDocument.fileName.toLowerCase().endsWith('.pdf')
+                
+                if (isPDF) {
+                  return (
+                    <iframe
                       src={viewingDocument.url}
-                      alt={viewingDocument.fileName}
-                      className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                      className="w-full h-full min-h-[600px] border-0"
+                      title={viewingDocument.fileName}
                       onError={(e) => {
-                        const target = e.currentTarget as HTMLImageElement
-                        target.style.display = 'none'
-                        const errorDiv = target.nextElementSibling as HTMLElement
-                        if (errorDiv) errorDiv.style.display = 'block'
+                        console.error('Error loading PDF:', e)
                       }}
                     />
-                    <div style={{ display: 'none' }} className="mt-4">
-                      <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-gray-600">Unable to display this file type</p>
+                  )
+                }
+                
+                // Check if it's an image
+                const isImage = url.endsWith('.jpg') || 
+                              url.endsWith('.jpeg') || 
+                              url.endsWith('.png') || 
+                              url.endsWith('.gif') ||
+                              url.includes('image/')
+                
+                if (isImage) {
+                  return (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <img
+                          src={viewingDocument.url}
+                          alt={viewingDocument.fileName}
+                          className="max-w-full max-h-[70vh] mx-auto rounded-lg shadow-lg"
+                          onError={(e) => {
+                            const target = e.currentTarget as HTMLImageElement
+                            target.style.display = 'none'
+                            const errorDiv = target.nextElementSibling as HTMLElement
+                            if (errorDiv) errorDiv.style.display = 'block'
+                          }}
+                        />
+                        <div style={{ display: 'none' }} className="mt-4">
+                          <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                          <p className="text-gray-600">Unable to display this image</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-4"
+                            onClick={() => window.open(viewingDocument.url, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-1" />
+                            Download to View
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                }
+                
+                // For other file types, show download option
+                return (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <FileText className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-4">Preview not available for this file type</p>
+                      <p className="text-sm text-gray-500 mb-4">{viewingDocument.fileName}</p>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mt-4"
                         onClick={() => window.open(viewingDocument.url, '_blank')}
                       >
                         <Download className="h-4 w-4 mr-1" />
@@ -711,8 +771,8 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       </Button>
                     </div>
                   </div>
-                </div>
-              )}
+                )
+              })()}
             </div>
             
             {/* Modal Footer */}

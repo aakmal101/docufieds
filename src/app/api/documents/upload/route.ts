@@ -106,19 +106,43 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create document record
-    const document = await prisma.document.create({
-      data: {
+    // Check if a document of this type already exists for this application
+    // If it does, we'll update it instead of creating a new one
+    const existingDocument = await prisma.document.findFirst({
+      where: {
         applicationId,
-        userId: session.user.id,
-        fileName: file.name,
-        fileUrl,
-        fileType: file.type,
-        fileSize: file.size,
         documentType,
-        isRequired: true,
       },
     })
+
+    let document
+    if (existingDocument) {
+      // Update existing document (replace the old one)
+      document = await prisma.document.update({
+        where: { id: existingDocument.id },
+        data: {
+          fileName: file.name,
+          fileUrl,
+          fileType: file.type,
+          fileSize: file.size,
+          uploadedAt: new Date(),
+        },
+      })
+    } else {
+      // Create new document record
+      document = await prisma.document.create({
+        data: {
+          applicationId,
+          userId: session.user.id,
+          fileName: file.name,
+          fileUrl,
+          fileType: file.type,
+          fileSize: file.size,
+          documentType,
+          isRequired: true,
+        },
+      })
+    }
 
     // Update application status if this is the first document
     if (application.status === 'DOCUMENT_UNDER_REVIEW') {
@@ -141,12 +165,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Document uploaded successfully',
-      data: document,
+      data: {
+        ...document,
+        // Ensure the response matches what the frontend expects
+        uploadedFile: {
+          fileUrl: document.fileUrl,
+          fileName: document.fileName,
+          uploadedAt: document.uploadedAt,
+        },
+      },
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Document upload error:', error)
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { 
+        success: false, 
+        message: error?.message || 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     )
   }
