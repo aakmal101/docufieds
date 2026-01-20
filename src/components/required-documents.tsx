@@ -135,6 +135,23 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
   const fetchRequirements = async (showLoading = false) => {
     try {
+      // CRITICAL: Check if we're in upload cooldown period - if so, skip refresh completely
+      // This prevents state reversion by avoiding any fetch during the critical period
+      if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
+        const now = Date.now()
+        const UPLOAD_COOLDOWN = 5000 // 5 seconds - increased for extra safety
+        const recentUploads = Array.from((window as any).__uploadTimestamps.entries())
+          .filter(([_, timestamp]: [string, number]) => now - timestamp < UPLOAD_COOLDOWN)
+        
+        if (recentUploads.length > 0) {
+          const uploadTypes = recentUploads.map(([type]: [string]) => type).join(', ')
+          const oldestTime = Math.min(...recentUploads.map(([_, ts]: [string, number]) => ts))
+          const timeRemaining = UPLOAD_COOLDOWN - (now - oldestTime)
+          console.log(`[Frontend] ⏸ BLOCKING fetchRequirements - upload cooldown active for: ${uploadTypes} (${Math.round(timeRemaining/1000)}s remaining)`)
+          return // Skip refresh during cooldown - state is already correct
+        }
+      }
+      
       if (showLoading) {
         setLoading(true)
       }
@@ -256,6 +273,33 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
             const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
             
+            // CRITICAL: Check upload cooldown - if upload just happened, preserve current state completely
+            if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
+              const now = Date.now()
+              const UPLOAD_COOLDOWN = 5000 // Increased to 5 seconds for extra safety
+              const uploadTime = (window as any).__uploadTimestamps.get(normalizedFetchedType)
+              
+              if (uploadTime && (now - uploadTime) < UPLOAD_COOLDOWN) {
+                // Upload just happened - preserve current state completely, no questions asked
+                if (currentDoc?.uploadedFile && 
+                    currentDoc.uploadedFile.fileUrl && 
+                    currentDoc.uploadedFile.fileUrl.trim().length > 0 &&
+                    currentDoc.uploadedFile.fileName &&
+                    currentDoc.uploadedFile.fileName.trim().length > 0) {
+                  console.log(`[Frontend] 🛡️ COOLDOWN PROTECTION: Preserving state for "${fetchedDoc.documentType}" (upload ${now - uploadTime}ms ago)`)
+                  logStateChange('COOLDOWN_PRESERVE', fetchedDoc.documentType, 'uploaded', true, {
+                    timeSinceUpload: now - uploadTime,
+                    fileUrl: currentDoc.uploadedFile.fileUrl.substring(0, 50)
+                  })
+                  return {
+                    ...fetchedDoc,
+                    status: 'uploaded' as const,
+                    uploadedFile: currentDoc.uploadedFile
+                  }
+                }
+              }
+            }
+            
             // If current state has a valid uploaded file, preserve it unless fetched has a newer valid file
             // CRITICAL: Do NOT check status - it's a derived field that can be overwritten
             // Only check uploadedFile existence (matching button logic)
@@ -341,14 +385,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               }
             }
             
-            // Final check: if we have a lock or current file but fetched doesn't, preserve
+            // CRITICAL FINAL CHECK: If we have ANY valid file (lock or current) but fetched doesn't, ALWAYS preserve
+            // This is the ultimate protection against state reversion
             const finalFileToPreserve = hasLockedFile ? lockedFile : (hasValidCurrentFile ? currentFile : null)
             if (finalFileToPreserve && !hasValidFetchedFile) {
               const preserveReason = hasLockedFile ? 'locked_file' : 'current_file'
               console.log(`[Frontend] ✓ CRITICAL: Preserving ${preserveReason} for "${fetchedDoc.documentType}" - fetched has no file`)
               logStateChange('MERGE_PRESERVE_FINAL', fetchedDoc.documentType, 'uploaded', true, {
                 reason: preserveReason,
-                fileUrl: finalFileToPreserve.fileUrl.substring(0, 50)
+                fileUrl: finalFileToPreserve.fileUrl.substring(0, 50),
+                hasLocked: hasLockedFile,
+                hasCurrent: hasValidCurrentFile,
+                hasFetched: hasValidFetchedFile
               })
               return {
                 ...fetchedDoc,
@@ -357,15 +405,89 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               }
             }
             
-            // If fetched has valid file, use it and clear lock (database confirmed)
+            // ADDITIONAL SAFETY: If fetched has file but it's empty/invalid, still preserve our file
+            if (finalFileToPreserve && hasValidFetchedFile) {
+              // Both have files - check if fetched is actually valid
+              const fetchedFileUrl = fetchedFile.fileUrl?.trim() || ''
+              const fetchedFileName = fetchedFile.fileName?.trim() || ''
+              
+              if (fetchedFileUrl.length === 0 || fetchedFileName.length === 0) {
+                // Fetched file is invalid - preserve ours
+                console.log(`[Frontend] ✓ CRITICAL: Preserving ${hasLockedFile ? 'locked' : 'current'} file - fetched file is invalid`)
+                return {
+                  ...fetchedDoc,
+                  status: 'uploaded' as const,
+                  uploadedFile: finalFileToPreserve
+                }
+              }
+            }
+            
+            // If fetched has valid file, compare with our file to decide which to use
             if (hasValidFetchedFile) {
-              // Clear lock since database has confirmed the file
+              // If we have a locked or current file, compare timestamps
+              if (finalFileToPreserve && finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt) {
+                const preserveDate = finalFileToPreserve.uploadedAt instanceof Date 
+                  ? finalFileToPreserve.uploadedAt 
+                  : new Date(finalFileToPreserve.uploadedAt)
+                const fetchedDate = fetchedFile.uploadedAt instanceof Date 
+                  ? fetchedFile.uploadedAt 
+                  : new Date(fetchedFile.uploadedAt)
+                
+                // If our file is newer or same, use ours (don't overwrite with older data)
+                if (preserveDate >= fetchedDate) {
+                  console.log(`[Frontend] ✓ Using ${hasLockedFile ? 'locked' : 'current'} file (newer or same timestamp) - NOT clearing lock`)
+                  // DO NOT clear lock - our file is newer or same
+                  return {
+                    ...fetchedDoc,
+                    status: 'uploaded' as const,
+                    uploadedFile: finalFileToPreserve
+                  }
+                }
+                
+                // Fetched file is significantly newer (more than 1 second) - use it and clear lock
+                const timeDiff = fetchedDate.getTime() - preserveDate.getTime()
+                if (timeDiff > 1000) {
+                  // Fetched is significantly newer - database has updated file
+                  uploadLocks.current.delete(normalizedFetchedType)
+                  console.log(`[Frontend] ✓ Using fetched data (${timeDiff}ms newer) for "${fetchedDoc.documentType}" (lock cleared)`)
+                  logStateChange('MERGE_USE_FETCHED', fetchedDoc.documentType, fetchedDoc.status, true, {
+                    fileUrl: fetchedDoc.uploadedFile.fileUrl.substring(0, 50),
+                    timeDiff
+                  })
+                  return fetchedDoc
+                } else {
+                  // Files are very close in time - preserve ours (might be same upload)
+                  console.log(`[Frontend] ✓ Preserving ${hasLockedFile ? 'locked' : 'current'} file (timestamps very close: ${timeDiff}ms)`)
+                  return {
+                    ...fetchedDoc,
+                    status: 'uploaded' as const,
+                    uploadedFile: finalFileToPreserve
+                  }
+                }
+              }
+              
+              // Fetched file exists but we don't have a file to compare - use fetched
+              // Only clear lock if we're actually using fetched (not preserving)
               uploadLocks.current.delete(normalizedFetchedType)
               console.log(`[Frontend] ✓ Using fetched data for "${fetchedDoc.documentType}" (lock cleared)`)
               logStateChange('MERGE_USE_FETCHED', fetchedDoc.documentType, fetchedDoc.status, true, {
                 fileUrl: fetchedDoc.uploadedFile.fileUrl.substring(0, 50)
               })
               return fetchedDoc
+            }
+            
+            // FINAL SAFETY CHECK: Before returning fetchedDoc, verify we're not overwriting a valid file
+            // This is the last line of defense - if we have ANY valid file anywhere, preserve it
+            if (finalFileToPreserve && (!hasValidFetchedFile || 
+                (finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt &&
+                 new Date(finalFileToPreserve.uploadedAt) >= new Date(fetchedFile.uploadedAt)))) {
+              // We have a valid file that should be preserved
+              console.log(`[Frontend] 🛡️ FINAL SAFETY: Preserving ${hasLockedFile ? 'locked' : 'current'} file for "${fetchedDoc.documentType}"`)
+              return {
+                ...fetchedDoc,
+                status: 'uploaded' as const,
+                uploadedFile: finalFileToPreserve
+              }
             }
             
             // If neither has file, use fetched (it's the source of truth)
@@ -375,14 +497,42 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             return fetchedDoc
           })
           
+          // CRITICAL FINAL CHECK: Verify no valid uploadedFile was lost in merge
+          // This is a safety net to catch any edge cases
+          const mergedWithValidation = merged.map(doc => {
+            const normalizedType = normalizeDocType(doc.documentType)
+            
+            // Check if we have a lock for this document
+            const lock = uploadLocks.current.get(normalizedType)
+            const hasValidLock = lock && 
+                               lock.fileUrl && 
+                               lock.fileUrl.trim().length > 0 &&
+                               lock.fileName && 
+                               lock.fileName.trim().length > 0
+            
+            // If we have a lock but merged doc doesn't have file, restore from lock
+            if (hasValidLock && (!doc.uploadedFile || 
+                !doc.uploadedFile.fileUrl || 
+                doc.uploadedFile.fileUrl.trim().length === 0)) {
+              console.log(`[Frontend] 🛡️ FINAL VALIDATION: Restoring from lock for "${doc.documentType}" - merge lost the file`)
+              return {
+                ...doc,
+                status: 'uploaded' as const,
+                uploadedFile: lock
+              }
+            }
+            
+            return doc
+          })
+          
           // TEMPORARY: Log final merged state
-          merged.forEach(doc => {
+          mergedWithValidation.forEach(doc => {
             logStateChange('AFTER_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
               fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
             })
           })
           
-          return merged
+          return mergedWithValidation
         })
         
         // Fetch templates for each document type (only if we have documents)
@@ -804,66 +954,31 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           fileInputRefs.current[documentType].value = ''
         }
         
-        console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated, verification will run in background.`)
-
-        // TEMPORARY: Log before fetchRequirements call
-        console.log(`[INSPECTION] About to call fetchRequirements(false) after upload`)
-        logStateChange('BEFORE_FETCH_REQUIREMENTS', documentType, 'uploaded', true, {
-          action: 'calling fetchRequirements after upload'
-        })
+        console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated with uploadedFile.`)
         
-        // CRITICAL: Verify document was saved before refreshing
-        // Add a small delay to ensure database write has propagated
-        // Then verify the document exists before refreshing
-        const verifyAndRefresh = async () => {
-          try {
-            // Wait a moment for DB write to propagate
-            await new Promise(resolve => setTimeout(resolve, 500))
-            
-            // Verify document exists in database
-            const verifyResponse = await fetch(`/api/documents?applicationId=${applicationId}&documentType=${encodeURIComponent(documentType)}`, {
-              cache: 'no-store'
-            })
-            
-            if (verifyResponse.ok) {
-              const verifyData = await verifyResponse.json()
-              if (verifyData.success && verifyData.data && verifyData.data.length > 0) {
-                const savedDoc = verifyData.data.find((d: any) => 
-                  normalizeDocType(d.documentType) === normalizeDocType(documentType)
-                )
-                
-                if (savedDoc && savedDoc.fileUrl && savedDoc.fileUrl.trim().length > 0) {
-                  console.log(`[Frontend] ✓ Document verified in database, refreshing requirements`)
-                  logStateChange('VERIFICATION_SUCCESS', documentType, 'uploaded', true, {
-                    fileUrl: savedDoc.fileUrl.substring(0, 50)
-                  })
-                  // Clear lock since database confirmed the document
-                  const normalizedType = normalizeDocType(documentType)
-                  uploadLocks.current.delete(normalizedType)
-                  console.log(`[Frontend] ✓ Lock cleared for "${documentType}" - database confirmed`)
-                  await fetchRequirements(false)
-                  return
-                }
-              }
-            }
-            
-            // If verification failed, still refresh (merge logic will preserve)
-            console.log(`[Frontend] ⚠ Document verification inconclusive, refreshing anyway`)
-            logStateChange('VERIFICATION_INCONCLUSIVE', documentType, 'unknown', true, {
-              action: 'refreshing_anyway'
-            })
-            await fetchRequirements(false)
-          } catch (err) {
-            console.warn('[Frontend] Verification/refresh failed:', err)
-            logStateChange('VERIFICATION_ERROR', documentType, 'error', false, {
-              error: err instanceof Error ? err.message : 'unknown'
-            })
-            // Don't show error to user - we already have the correct state
+        // CRITICAL: Do NOT call fetchRequirements after upload
+        // The optimistic update is correct - we have valid file data from the API response
+        // Calling fetchRequirements causes state reversion because:
+        // 1. It might return stale data before DB propagates
+        // 2. Even with merge logic, there's a race condition
+        // 3. The optimistic state is already correct - no need to refresh
+        // 
+        // The state will sync naturally:
+        // - On next component mount (if user navigates away and back)
+        // - On manual page refresh
+        // - The merge logic + locks + cooldown will preserve the state when it does sync
+        
+        // Set upload timestamp for cooldown protection (5 seconds - prevents any fetchRequirements)
+        const uploadTimestamp = Date.now()
+        if (typeof window !== 'undefined') {
+          if (!(window as any).__uploadTimestamps) {
+            (window as any).__uploadTimestamps = new Map()
           }
+          (window as any).__uploadTimestamps.set(normalizedType, uploadTimestamp)
+          console.log(`[Frontend] ✓ Upload timestamp set for "${documentType}" - 5 second cooldown active (blocks fetchRequirements)`)
         }
         
-        // Start verification in background
-        verifyAndRefresh()
+        console.log(`[Frontend] ✓ Lock set and state updated. No immediate refresh - state is already correct.`)
       } else {
         throw new Error(data.message || 'Failed to upload document')
       }
@@ -893,10 +1008,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       
       // Re-fetch to ensure state is correct after error
       // This ensures we don't show stale "uploaded" state if upload failed
+      // But respect cooldown - don't refresh if we just uploaded
       try {
-        await fetchRequirements(false)
+        // Small delay to let error state settle
+        setTimeout(async () => {
+          try {
+            await fetchRequirements(false)
+          } catch (fetchError) {
+            console.error('[Frontend] Error refreshing requirements after upload failure:', fetchError)
+          }
+        }, 1000)
       } catch (fetchError) {
-        console.error('[Frontend] Error refreshing requirements after upload failure:', fetchError)
+        console.error('[Frontend] Error scheduling refresh after upload failure:', fetchError)
       }
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
