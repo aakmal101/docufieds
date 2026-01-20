@@ -1281,12 +1281,13 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )
+            })}
           </div>
         </div>
       )}
 
-      {documents.length === 0 && !loading && (
+      {safeDocuments.length === 0 && !loading && (
         <div className="text-center py-12">
           <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">No document requirements found for this application.</p>
