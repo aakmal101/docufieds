@@ -1140,20 +1140,54 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                   </div>
                 </CardContent>
               </Card>
-            ))}
+            )
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="mb-8">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+            <div className="flex items-center mb-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600 mr-2" />
+              <h2 className="text-lg font-semibold text-yellow-900">No Document Requirements Found</h2>
+            </div>
+            <p className="text-yellow-800 mb-4">
+              Document requirements are being loaded. If this message persists, please contact support.
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setLoading(true)
+                setError(null)
+                if (applicationId) {
+                  fetchRequirements(true).catch(err => {
+                    console.error('Retry failed:', err)
+                    setError('Failed to load requirements. Please try refreshing the page.')
+                    setLoading(false)
+                  })
+                }
+              }}
+            >
+              Retry Loading
+            </Button>
           </div>
         </div>
       )}
 
       {/* Optional Documents */}
-      {optionalDocuments.length > 0 && (
+      {Array.isArray(optionalDocuments) && optionalDocuments.length > 0 && (
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <FileText className="h-5 w-5 text-blue-600 mr-2" />
             Supporting Documents ({optionalDocuments.length})
           </h2>
           <div className="grid gap-4">
-            {optionalDocuments.map((document) => (
+            {optionalDocuments.map((document) => {
+              // SAFETY: Ensure document exists before rendering
+              if (!document || !document.documentType) {
+                return null
+              }
+              return (
               <Card key={document.id} className="border-l-4 border-l-blue-500">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
