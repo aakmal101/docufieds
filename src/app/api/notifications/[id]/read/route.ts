@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -20,7 +20,9 @@ export async function PUT(
       )
     }
 
-    const notificationId = params.id
+    // Handle both Promise and direct params (Next.js 14+ vs older versions)
+    const resolvedParams = params instanceof Promise ? await params : params
+    const notificationId = resolvedParams.id
 
     // Verify notification belongs to user
     const notification = await prisma.notification.findFirst({

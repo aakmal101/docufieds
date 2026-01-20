@@ -313,32 +313,7 @@ export default function NewApplicationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center py-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => router.push('/dashboard/individual')}
-              className="mr-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back
-            </Button>
-            <div className="flex items-center">
-              <img 
-                src="/logo.png" 
-                alt="Docufieds Logo" 
-                className="h-16 w-36 object-contain"
-              />
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Indicator */}
         <div className="mb-8">
           <div className="flex items-center justify-between">

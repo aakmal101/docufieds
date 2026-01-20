@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -8,19 +8,13 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { 
-  User, 
   FileText, 
   CreditCard, 
-  MapPin, 
   Clock, 
   CheckCircle,
   AlertCircle,
   Loader2,
-  Globe,
-  Phone,
-  Mail,
-  Calendar,
-  Settings
+  Calendar
 } from 'lucide-react'
 import { UserStatus, ApplicationStatus } from '@/types'
 
@@ -139,10 +133,6 @@ export default function IndividualDashboard() {
     return Math.round((completedFields / requiredFields.length) * 100)
   }
 
-  const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -166,65 +156,7 @@ export default function IndividualDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-        <div className="flex items-center">
-          <img 
-            src="/logo.png" 
-            alt="Docufieds Logo" 
-            className="h-16 w-36 object-contain"
-          />
-        </div>
-            <div className="flex items-center space-x-4">
-              {/* Profile Picture */}
-              <div className="flex items-center space-x-3">
-                {user.photoUrl ? (
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200 relative">
-                    <img
-                      src={user.photoUrl}
-                      alt={user.fullName || 'Profile'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        // Hide image and show fallback
-                        const target = e.currentTarget as HTMLImageElement
-                        target.style.display = 'none'
-                        const fallback = target.parentElement?.querySelector('.fallback-avatar') as HTMLElement
-                        if (fallback) fallback.style.display = 'flex'
-                      }}
-                    />
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center fallback-avatar hidden absolute inset-0">
-                      <User className="h-6 w-6 text-gray-500" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
-                    <User className="h-6 w-6 text-gray-500" />
-                  </div>
-                )}
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user.fullName}</p>
-                  <p className="text-sm text-gray-500">Member ID: {user.memberId}</p>
-                </div>
-              </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => router.push('/dashboard/individual/settings')}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Settings
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
-                Sign Out
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
@@ -372,7 +304,6 @@ export default function IndividualDashboard() {
                           </div>
                           {application.memberId && (
                             <div className="flex items-center">
-                              <User className="h-4 w-4 mr-1" />
                               {application.memberId}
                             </div>
                           )}
@@ -408,114 +339,7 @@ export default function IndividualDashboard() {
           </CardContent>
         </Card>
 
-        {/* Profile Information */}
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Your account details and verification status</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Profile Picture Display */}
-            <div className="mb-6 pb-6 border-b">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Profile Picture</label>
-              <div className="flex items-center space-x-4">
-                {user.photoUrl ? (
-                  <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-gray-200 shadow-md">
-                    <img
-                      src={user.photoUrl}
-                      alt={user.fullName || 'Profile'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                      }}
-                    />
-                    <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center hidden">
-                      <User className="h-12 w-12 text-gray-500" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-4 border-gray-300 shadow-md">
-                    <User className="h-12 w-12 text-gray-500" />
-                  </div>
-                )}
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {user.photoUrl ? 'Profile picture uploaded' : 'No profile picture'}
-                  </p>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => router.push('/dashboard/individual/profile')}
-                  >
-                    {user.photoUrl ? 'Change Picture' : 'Upload Picture'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Full Name</label>
-                  <p className="text-gray-900">{user.fullName || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Phone Number</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Phone className="h-4 w-4 mr-1" />
-                    {user.phone || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Email</label>
-                  <p className="text-gray-900 flex items-center">
-                    <Mail className="h-4 w-4 mr-1" />
-                    {user.email || 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Member ID</label>
-                  <p className="text-gray-900 font-mono">{user.memberId || 'Not assigned'}</p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Account Status</label>
-                  <div className="flex items-center">
-                    <Badge className={getStatusColor(user.status)}>
-                      {user.status.replace(/_/g, ' ')}
-                    </Badge>
-                    {user.isVerified && (
-                      <CheckCircle className="h-4 w-4 text-green-500 ml-2" />
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Date of Birth</label>
-                  <p className="text-gray-900">
-                    {user.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'Not provided'}
-                  </p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Place of Birth</label>
-                  <p className="text-gray-900">{user.placeOfBirth || 'Not provided'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Member Since</label>
-                  <p className="text-gray-900">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-6">
-              <Button variant="outline" onClick={() => router.push('/dashboard/individual/profile')}>
-                Edit Profile
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </div>
+    </>
   )
 }

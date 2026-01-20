@@ -222,55 +222,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-        <div className="flex items-center">
-          <img 
-            src="/logo.png" 
-            alt="Docufieds Logo" 
-            className="h-16 w-36 object-contain"
-          />
-        </div>
-            <div className="flex items-center space-x-4">
-              {/* Profile Picture */}
-              <div className="flex items-center space-x-3">
-                {user?.photoUrl ? (
-                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
-                    <img
-                      src={user.photoUrl}
-                      alt={user?.fullName || 'Profile'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                      }}
-                    />
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center hidden">
-                      <User className="h-6 w-6 text-gray-500" />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
-                    <User className="h-6 w-6 text-gray-500" />
-                  </div>
-                )}
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-                  <p className="text-sm text-gray-500">Member ID: {user?.memberId}</p>
-                </div>
-              </div>
-              <Button variant="outline" size="sm" onClick={() => router.push('/dashboard/individual')}>
-                Back to Dashboard
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <Button 
