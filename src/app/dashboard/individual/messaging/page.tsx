@@ -6,9 +6,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  ArrowLeft, 
-  MessageCircle, 
+import {
+  ArrowLeft,
+  MessageCircle,
   Loader2,
   Send,
   Headphones
@@ -97,147 +97,144 @@ export default function MessagingPage() {
     }, 1000)
   }
 
-  const activeChatHead = chatHeads.find(chat => chat.id === activeChat)
+  const activeChatHead = chatHeads.find(c => c.id === activeChat)
   const ActiveChatIcon = activeChatHead?.icon
 
+  // Re-rendering
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Chat Heads Sidebar */}
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Chats</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="space-y-1">
-                  {chatHeads.map((chat) => {
-                    const Icon = chat.icon
-                    return (
-                      <button
-                        key={chat.id}
-                        onClick={() => setActiveChat(chat.id)}
-                        className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
-                          activeChat === chat.id ? 'bg-red-50 border-l-4 border-l-red-600' : ''
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Chat Heads Sidebar */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Chats</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="space-y-1">
+                {chatHeads.map((chat) => {
+                  const Icon = chat.icon
+                  return (
+                    <button
+                      key={chat.id}
+                      onClick={() => setActiveChat(chat.id)}
+                      className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${activeChat === chat.id ? 'bg-red-50 border-l-4 border-l-red-600' : ''
                         }`}
-                      >
-                        <div className="flex items-center">
-                          <div className={`w-10 h-10 rounded-full ${chat.color} flex items-center justify-center mr-3`}>
-                            <Icon className="h-5 w-5 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <p className={`font-medium ${activeChat === chat.id ? 'text-red-600' : 'text-gray-900'}`}>
-                              {chat.name}
-                            </p>
-                            <p className="text-xs text-gray-500">{chat.description}</p>
-                          </div>
+                    >
+                      <div className="flex items-center">
+                        <div className={`w-10 h-10 rounded-full ${chat.color} flex items-center justify-center mr-3`}>
+                          <Icon className="h-5 w-5 text-white" />
                         </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                        <div className="flex-1">
+                          <p className={`font-medium ${activeChat === chat.id ? 'text-red-600' : 'text-gray-900'}`}>
+                            {chat.name}
+                          </p>
+                          <p className="text-xs text-gray-500">{chat.description}</p>
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Chat Window */}
-          <div className="lg:col-span-3">
-            <Card className="flex flex-col h-[600px]">
-              <CardHeader className="border-b">
-                <div className="flex items-center">
-                  {activeChatHead && ActiveChatIcon && (
-                    <>
-                      <div className={`w-10 h-10 rounded-full ${activeChatHead.color} flex items-center justify-center mr-3`}>
-                        <ActiveChatIcon className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">{activeChatHead.name}</CardTitle>
-                        <p className="text-sm text-gray-500">{activeChatHead.description}</p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardHeader>
-              
-              <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
-                {messages.length === 0 ? (
-                  <div className="flex items-center justify-center h-full text-center">
+        {/* Chat Window */}
+        <div className="lg:col-span-3">
+          <Card className="flex flex-col h-[600px]">
+            <CardHeader className="border-b">
+              <div className="flex items-center">
+                {activeChatHead && ActiveChatIcon && (
+                  <>
+                    <div className={`w-10 h-10 rounded-full ${activeChatHead.color} flex items-center justify-center mr-3`}>
+                      <ActiveChatIcon className="h-5 w-5 text-white" />
+                    </div>
                     <div>
-                      <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-600">No messages yet</p>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Start a conversation with {activeChatHead?.name || 'support'}
+                      <CardTitle className="text-lg">{activeChatHead.name}</CardTitle>
+                      <p className="text-sm text-gray-500">{activeChatHead.description}</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center h-full text-center">
+                  <div>
+                    <MessageCircle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-600">No messages yet</p>
+                    <p className="text-sm text-gray-500 mt-2">
+                      Start a conversation with {activeChatHead?.name || 'support'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'
+                      }`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg p-3 ${message.sender === 'user'
+                        ? 'bg-red-600 text-white'
+                        : 'bg-gray-100 text-gray-900'
+                        }`}
+                    >
+                      <p className="text-sm">{message.text}</p>
+                      <p
+                        className={`text-xs mt-1 ${message.sender === 'user'
+                          ? 'text-red-100'
+                          : 'text-gray-500'
+                          }`}
+                      >
+                        {new Date(message.timestamp).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
                     </div>
                   </div>
-                ) : (
-                  messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${
-                        message.sender === 'user' ? 'justify-end' : 'justify-start'
-                      }`}
-                    >
-                      <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          message.sender === 'user'
-                            ? 'bg-red-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
-                        }`}
-                      >
-                        <p className="text-sm">{message.text}</p>
-                        <p
-                          className={`text-xs mt-1 ${
-                            message.sender === 'user'
-                              ? 'text-red-100'
-                              : 'text-gray-500'
-                          }`}
-                        >
-                          {new Date(message.timestamp).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="bg-gray-100 rounded-lg p-3">
-                      <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
-                    </div>
+                ))
+              )}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 rounded-lg p-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-gray-600" />
                   </div>
-                )}
-              </CardContent>
-
-              <div className="border-t p-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        handleSendMessage()
-                      }
-                    }}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!newMessage.trim() || loading}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
                 </div>
+              )}
+            </CardContent>
+
+            <div className="border-t p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSendMessage()
+                    }
+                  }}
+                  placeholder="Type your message..."
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-600"
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || loading}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
         </div>
+      </div>
     </div>
   )
 }
