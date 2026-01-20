@@ -110,16 +110,20 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
   const fetchRequirements = async (showLoading = false) => {
     try {
-      // Check if we're in upload cooldown period - if so, skip refresh
+      // CRITICAL: Check if we're in upload cooldown period - if so, skip refresh completely
+      // This prevents state reversion by avoiding any fetch during the critical period
       if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
         const now = Date.now()
-        const UPLOAD_COOLDOWN = 3000 // 3 seconds
+        const UPLOAD_COOLDOWN = 5000 // 5 seconds - increased for extra safety
         const recentUploads = Array.from((window as any).__uploadTimestamps.entries())
           .filter(([_, timestamp]: [string, number]) => now - timestamp < UPLOAD_COOLDOWN)
         
         if (recentUploads.length > 0) {
-          console.log(`[Frontend] ⏸ Skipping fetchRequirements - upload cooldown active for: ${recentUploads.map(([type]: [string]) => type).join(', ')}`)
-          return // Skip refresh during cooldown
+          const uploadTypes = recentUploads.map(([type]: [string]) => type).join(', ')
+          const oldestTime = Math.min(...recentUploads.map(([_, ts]: [string, number]) => ts))
+          const timeRemaining = UPLOAD_COOLDOWN - (now - oldestTime)
+          console.log(`[Frontend] ⏸ BLOCKING fetchRequirements - upload cooldown active for: ${uploadTypes} (${Math.round(timeRemaining/1000)}s remaining)`)
+          return // Skip refresh during cooldown - state is already correct
         }
       }
       
@@ -244,18 +248,24 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
             const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
             
-            // CRITICAL: Check upload cooldown - if upload just happened, preserve current state
+            // CRITICAL: Check upload cooldown - if upload just happened, preserve current state completely
             if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
               const now = Date.now()
-              const UPLOAD_COOLDOWN = 3000
+              const UPLOAD_COOLDOWN = 5000 // Increased to 5 seconds for extra safety
               const uploadTime = (window as any).__uploadTimestamps.get(normalizedFetchedType)
               
               if (uploadTime && (now - uploadTime) < UPLOAD_COOLDOWN) {
-                // Upload just happened - preserve current state completely
+                // Upload just happened - preserve current state completely, no questions asked
                 if (currentDoc?.uploadedFile && 
                     currentDoc.uploadedFile.fileUrl && 
-                    currentDoc.uploadedFile.fileUrl.trim().length > 0) {
-                  console.log(`[Frontend] 🛡️ COOLDOWN: Preserving state for "${fetchedDoc.documentType}" (upload ${now - uploadTime}ms ago)`)
+                    currentDoc.uploadedFile.fileUrl.trim().length > 0 &&
+                    currentDoc.uploadedFile.fileName &&
+                    currentDoc.uploadedFile.fileName.trim().length > 0) {
+                  console.log(`[Frontend] 🛡️ COOLDOWN PROTECTION: Preserving state for "${fetchedDoc.documentType}" (upload ${now - uploadTime}ms ago)`)
+                  logStateChange('COOLDOWN_PRESERVE', fetchedDoc.documentType, 'uploaded', true, {
+                    timeSinceUpload: now - uploadTime,
+                    fileUrl: currentDoc.uploadedFile.fileUrl.substring(0, 50)
+                  })
                   return {
                     ...fetchedDoc,
                     status: 'uploaded' as const,
@@ -852,33 +862,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           fileInputRefs.current[documentType].value = ''
         }
         
-        console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated, verification will run in background.`)
-
-        // TEMPORARY: Log before fetchRequirements call
-        console.log(`[INSPECTION] About to call fetchRequirements(false) after upload`)
-        logStateChange('BEFORE_FETCH_REQUIREMENTS', documentType, 'uploaded', true, {
-          action: 'calling fetchRequirements after upload'
-        })
-        
-        // CRITICAL: Do NOT call fetchRequirements immediately after upload
-        // The optimistic update is correct - we have the file data from the API response
-        // Only refresh if user explicitly requests it or after a longer delay
-        // This prevents the state reversion issue
-        
-        // Set a flag to prevent any fetchRequirements calls for a short period
-        const uploadTimestamp = Date.now()
-        const UPLOAD_COOLDOWN = 3000 // 3 seconds - prevent refreshes during this time
-        
-        // Store upload timestamp per document type
-        if (typeof window !== 'undefined') {
-          if (!(window as any).__uploadTimestamps) {
-            (window as any).__uploadTimestamps = new Map()
-          }
-          (window as any).__uploadTimestamps.set(normalizedType, uploadTimestamp)
-        }
-        
-        console.log(`[Frontend] ✓ Upload complete. State updated with uploadedFile.`)
-        console.log(`[Frontend] ✓ Lock set for "${documentType}". No immediate refresh - state is already correct.`)
+        console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated with uploadedFile.`)
         
         // CRITICAL: Do NOT call fetchRequirements after upload
         // The optimistic update is correct - we have valid file data from the API response
@@ -890,7 +874,19 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         // The state will sync naturally:
         // - On next component mount (if user navigates away and back)
         // - On manual page refresh
-        // - The merge logic + locks will preserve the state when it does sync
+        // - The merge logic + locks + cooldown will preserve the state when it does sync
+        
+        // Set upload timestamp for cooldown protection (5 seconds - prevents any fetchRequirements)
+        const uploadTimestamp = Date.now()
+        if (typeof window !== 'undefined') {
+          if (!(window as any).__uploadTimestamps) {
+            (window as any).__uploadTimestamps = new Map()
+          }
+          (window as any).__uploadTimestamps.set(normalizedType, uploadTimestamp)
+          console.log(`[Frontend] ✓ Upload timestamp set for "${documentType}" - 5 second cooldown active (blocks fetchRequirements)`)
+        }
+        
+        console.log(`[Frontend] ✓ Lock set and state updated. No immediate refresh - state is already correct.`)
       } else {
         throw new Error(data.message || 'Failed to upload document')
       }
