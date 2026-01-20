@@ -64,27 +64,27 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}`)
     
-    // Verify bucket exists and is accessible
+    // Verify bucket exists and is accessible (non-blocking check)
+    // Note: listBuckets() may fail due to permissions, but bucket exists, so we proceed anyway
     try {
       const { data: buckets, error: bucketError } = await supabase.storage.listBuckets()
       if (bucketError) {
-        console.warn('[Upload API] Could not list buckets:', bucketError.message)
+        // This is expected - listBuckets may require admin permissions
+        // Since we know the bucket exists (verified via SQL), we proceed
+        console.log(`[Upload API] Could not list buckets (this is OK): ${bucketError.message}`)
       } else {
         const documentsBucket = buckets?.find(b => b.name === 'documents')
-        if (!documentsBucket) {
-          console.error('[Upload API] CRITICAL: documents bucket does not exist!')
-          return NextResponse.json(
-            { 
-              success: false, 
-              message: 'Storage bucket not configured. Please contact support.',
-            },
-            { status: 500 }
-          )
+        if (documentsBucket) {
+          console.log(`[Upload API] Verified documents bucket exists: ${documentsBucket.name} (public: ${documentsBucket.public})`)
+        } else {
+          // Bucket not found in list, but this might be a permissions issue
+          // We'll proceed with upload attempt - if bucket doesn't exist, upload will fail with clear error
+          console.warn('[Upload API] documents bucket not found in list (may be permissions issue, proceeding with upload)')
         }
-        console.log(`[Upload API] Verified documents bucket exists: ${documentsBucket.name} (public: ${documentsBucket.public})`)
       }
     } catch (bucketCheckError: any) {
-      console.warn('[Upload API] Bucket check failed, proceeding with upload:', bucketCheckError.message)
+      // Non-critical - bucket exists, just proceed with upload
+      console.log(`[Upload API] Bucket check failed (non-critical, proceeding): ${bucketCheckError.message}`)
     }
     
     // Try upload with service role client
@@ -128,12 +128,19 @@ export async function POST(request: NextRequest) {
       
       // Provide user-friendly error messages
       let userMessage = 'Failed to upload file to storage'
-      if (errorMessage.includes('Bucket not found')) {
+      if (errorMessage.includes('Bucket not found') || errorMessage.includes('not found')) {
+        // This should not happen since bucket exists, but handle it gracefully
+        console.error('[Upload API] CRITICAL: Bucket not found error - bucket may need to be recreated')
         userMessage = 'Storage bucket not configured. Please contact support.'
-      } else if (errorMessage.includes('The resource already exists')) {
+      } else if (errorMessage.includes('The resource already exists') || errorMessage.includes('already exists')) {
         userMessage = 'A file with this name already exists. Please rename your file and try again.'
-      } else if (errorMessage.includes('new row violates row-level security')) {
+      } else if (errorMessage.includes('new row violates row-level security') || errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
         userMessage = 'Permission denied. Please ensure you have access to upload documents.'
+      } else if (errorMessage.includes('JWT')) {
+        userMessage = 'Authentication error. Please refresh the page and try again.'
+      } else {
+        // Generic error - provide helpful message
+        userMessage = `Upload failed: ${errorMessage}`
       }
       
       return NextResponse.json(
