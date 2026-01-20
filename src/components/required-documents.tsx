@@ -44,6 +44,29 @@ const getStatusIcon = (status: string) => {
   }
 }
 
+// TEMPORARY: State timeline for debugging
+if (typeof window !== 'undefined' && !(window as any).__docStateTimeline) {
+  (window as any).__docStateTimeline = []
+  (window as any).__lastRequirementsResponse = null
+}
+
+const logStateChange = (action: string, documentType: string, status: string | null, hasUploadedFile: boolean, details?: any) => {
+  if (typeof window !== 'undefined') {
+    const timeline = (window as any).__docStateTimeline
+    timeline.push({
+      ts: new Date().toISOString(),
+      action,
+      documentType,
+      status,
+      hasUploadedFile,
+      details: details || {}
+    })
+    // Keep only last 50 entries
+    if (timeline.length > 50) timeline.shift()
+    console.log(`[STATE TIMELINE] ${action} | ${documentType} | status=${status} | hasFile=${hasUploadedFile}`, details || '')
+  }
+}
+
 export default function RequiredDocuments({ applicationId, onComplete, onBack }: RequiredDocumentsProps) {
   const [documents, setDocuments] = useState<DocumentRequirement[]>([])
   const [loading, setLoading] = useState(true)
@@ -98,7 +121,15 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       
       const data = await response.json()
 
+      // TEMPORARY: Store API response for debugging
+      if (typeof window !== 'undefined') {
+        (window as any).__lastRequirementsResponse = JSON.parse(JSON.stringify(data))
+      }
+
       if (data.success) {
+        // TEMPORARY: Log before processing
+        console.log(`[INSPECTION] fetchRequirements called | applicationId: ${applicationId} | response data length: ${data.data?.length || 0}`)
+        
         // This is the SOURCE OF TRUTH - data comes directly from the database
         // Map requirements with their upload status from database
         const documentsWithStatus = (data.data || []).map((doc: any) => {
@@ -138,26 +169,52 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           console.log(`  [${idx}] Requirement: "${d.documentType}" | Status: ${d.status} | Has File: ${!!d.uploadedFile} | File URL: ${d.uploadedFile?.fileUrl?.substring(0, 60) || 'N/A'}...`)
         })
         
+        // TEMPORARY: Log current state before merge
+        console.log(`[INSPECTION] BEFORE merge - current documents state:`, documents.map(d => ({
+          type: d.documentType,
+          status: d.status,
+          hasFile: !!d.uploadedFile,
+          fileUrl: d.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
+        })))
+        
         // CRITICAL: Merge fetched data with existing state intelligently
         // NEVER overwrite valid optimistic state with stale/empty fetched data
         setDocuments(prev => {
+          // TEMPORARY: Log prev state
+          prev.forEach(doc => {
+            logStateChange('BEFORE_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
+              fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
+            })
+          })
+          
           const merged = documentsWithStatus.map(fetchedDoc => {
             // Find corresponding document in current state using normalized matching
             const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
             const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
             
             // If current state has a valid uploaded file, preserve it unless fetched has a newer valid file
-            if (currentDoc?.uploadedFile && 
-                currentDoc.status === 'uploaded' &&
-                currentDoc.uploadedFile.fileUrl && 
-                currentDoc.uploadedFile.fileUrl.trim().length > 0) {
-              
-              const currentFile = currentDoc.uploadedFile
-              const fetchedFile = fetchedDoc.uploadedFile
-              
+            // CRITICAL: Do NOT check status - it's a derived field that can be overwritten
+            // Only check uploadedFile existence (matching button logic)
+            const currentFile = currentDoc?.uploadedFile
+            const fetchedFile = fetchedDoc.uploadedFile
+            
+            // Check if current state has valid uploadedFile (same condition as button)
+            const hasValidCurrentFile = currentFile && 
+                                      currentFile.fileUrl && 
+                                      currentFile.fileUrl.trim().length > 0 &&
+                                      currentFile.fileName && 
+                                      currentFile.fileName.trim().length > 0
+            
+            if (hasValidCurrentFile) {
               // CRITICAL: If fetched data doesn't have the file, preserve current state
               // This handles race conditions where fetch happens before DB is updated
-              if (!fetchedFile || !fetchedFile.fileUrl || fetchedFile.fileUrl.trim().length === 0) {
+              const hasValidFetchedFile = fetchedFile && 
+                                        fetchedFile.fileUrl && 
+                                        fetchedFile.fileUrl.trim().length > 0 &&
+                                        fetchedFile.fileName && 
+                                        fetchedFile.fileName.trim().length > 0
+              
+              if (!hasValidFetchedFile) {
                 console.log(`[Frontend] ✓ Preserving optimistic state for "${fetchedDoc.documentType}" - fetched data missing file`)
                 return {
                   ...fetchedDoc,
@@ -190,7 +247,20 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               console.log(`[Frontend] ✓ Using fetched data for "${fetchedDoc.documentType}"`)
             }
             
+            // TEMPORARY: Log what will be returned
+            logStateChange('MERGE_RESULT', fetchedDoc.documentType, fetchedDoc.status, !!fetchedDoc.uploadedFile, {
+              source: currentDoc ? 'preserved' : 'fetched',
+              fileUrl: fetchedDoc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
+            })
+            
             return fetchedDoc
+          })
+          
+          // TEMPORARY: Log final merged state
+          merged.forEach(doc => {
+            logStateChange('AFTER_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
+              fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
+            })
           })
           
           return merged
@@ -505,18 +575,42 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           return value.trim().toLowerCase().replace(/\s+/g, ' ')
         }
         
-        setDocuments(prev => prev.map(doc => {
-          // Use normalized matching to find the correct document
-          if (normalizeDocType(doc.documentType) === normalizeDocType(documentType)) {
-            console.log(`[Frontend] ✓ Updating state for "${doc.documentType}" → "uploaded"`)
-            return {
-              ...doc,
-              status: 'uploaded' as const,
-              uploadedFile
+        // TEMPORARY: Log before optimistic update
+        console.log(`[INSPECTION] BEFORE optimistic update - current state:`, documents.map(d => ({
+          type: d.documentType,
+          status: d.status,
+          hasFile: !!d.uploadedFile
+        })))
+        
+        setDocuments(prev => {
+          const updated = prev.map(doc => {
+            // Use normalized matching to find the correct document
+            if (normalizeDocType(doc.documentType) === normalizeDocType(documentType)) {
+              console.log(`[Frontend] ✓ Updating state for "${doc.documentType}" → "uploaded"`)
+              logStateChange('OPTIMISTIC_UPDATE', doc.documentType, 'uploaded', true, {
+                fileUrl: uploadedFile.fileUrl.substring(0, 50),
+                fileName: uploadedFile.fileName
+              })
+              return {
+                ...doc,
+                status: 'uploaded' as const,
+                uploadedFile
+              }
             }
-          }
-          return doc
-        }))
+            return doc
+          })
+          
+          // TEMPORARY: Log after optimistic update
+          updated.forEach(doc => {
+            if (normalizeDocType(doc.documentType) === normalizeDocType(documentType)) {
+              logStateChange('AFTER_OPTIMISTIC', doc.documentType, doc.status, !!doc.uploadedFile, {
+                fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
+              })
+            }
+          })
+          
+          return updated
+        })
 
         toast.success(`${documentType} uploaded successfully`)
         
@@ -525,11 +619,25 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           fileInputRefs.current[documentType].value = ''
         }
 
+        // TEMPORARY: Log before fetchRequirements call
+        console.log(`[INSPECTION] About to call fetchRequirements(false) after upload`)
+        logStateChange('BEFORE_FETCH_REQUIREMENTS', documentType, 'uploaded', true, {
+          action: 'calling fetchRequirements after upload'
+        })
+        
         // Refresh from server to ensure consistency
         // The merge logic will preserve this optimistic state if fetch is stale
         // No delay needed - merge logic handles race conditions
         try {
           await fetchRequirements(false)
+          
+          // TEMPORARY: Log after fetchRequirements completes
+          console.log(`[INSPECTION] fetchRequirements completed`)
+          if (typeof window !== 'undefined') {
+            const timeline = (window as any).__docStateTimeline
+            const lastEntry = timeline[timeline.length - 1]
+            console.log(`[INSPECTION] Last state timeline entry:`, lastEntry)
+          }
         } catch (err) {
           console.warn('[Frontend] Background refresh after upload failed:', err)
           // Don't show error to user - we already have the correct state
