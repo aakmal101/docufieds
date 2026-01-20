@@ -46,15 +46,48 @@ export async function POST(request: NextRequest) {
     }
 
     // Upload file to Supabase Storage
+    // Bucket exists and is public (verified: name='documents', public=true, 22 files already uploaded)
     // Try service role client first for better reliability, fallback to regular client
     let supabase
     let uploadData, uploadError, fileUrl
+    let clientType = 'unknown'
     
     try {
+      // Try service role client first (if SUPABASE_SERVICE_ROLE_KEY is set)
       supabase = createServiceRoleClient()
+      clientType = 'service_role'
+      console.log('[Upload API] ✓ Using service role client')
     } catch (serviceRoleError: any) {
-      console.warn('Service role client creation failed, using regular client:', serviceRoleError.message)
-      supabase = await createClient()
+      // Service role key not set or invalid - fallback to regular client
+      // This is OK - bucket is public and has public upload policies
+      console.log('[Upload API] Service role not available, using regular client (this is OK for public bucket)')
+      try {
+        supabase = await createClient()
+        clientType = 'regular'
+        console.log('[Upload API] ✓ Using regular client')
+      } catch (clientError: any) {
+        console.error('[Upload API] CRITICAL: Failed to create any Supabase client:', clientError)
+        return NextResponse.json(
+          { 
+            success: false, 
+            message: 'Failed to initialize storage client. Please check your configuration.',
+            error: process.env.NODE_ENV === 'development' ? clientError.message : undefined
+          },
+          { status: 500 }
+        )
+      }
+    }
+    
+    // Verify we have a valid client
+    if (!supabase) {
+      console.error('[Upload API] CRITICAL: No Supabase client available')
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Storage client not available. Please contact support.',
+        },
+        { status: 500 }
+      )
     }
     
     const fileExt = file.name.split('.').pop()
@@ -62,32 +95,14 @@ export async function POST(request: NextRequest) {
     const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${sanitizedFileName}`
     const fileBuffer = await file.arrayBuffer()
     
-    console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}`)
+    console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}, client=${clientType}`)
     
-    // Verify bucket exists and is accessible (non-blocking check)
-    // Note: listBuckets() may fail due to permissions, but bucket exists, so we proceed anyway
-    try {
-      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets()
-      if (bucketError) {
-        // This is expected - listBuckets may require admin permissions
-        // Since we know the bucket exists (verified via SQL), we proceed
-        console.log(`[Upload API] Could not list buckets (this is OK): ${bucketError.message}`)
-      } else {
-        const documentsBucket = buckets?.find(b => b.name === 'documents')
-        if (documentsBucket) {
-          console.log(`[Upload API] Verified documents bucket exists: ${documentsBucket.name} (public: ${documentsBucket.public})`)
-        } else {
-          // Bucket not found in list, but this might be a permissions issue
-          // We'll proceed with upload attempt - if bucket doesn't exist, upload will fail with clear error
-          console.warn('[Upload API] documents bucket not found in list (may be permissions issue, proceeding with upload)')
-        }
-      }
-    } catch (bucketCheckError: any) {
-      // Non-critical - bucket exists, just proceed with upload
-      console.log(`[Upload API] Bucket check failed (non-critical, proceeding): ${bucketCheckError.message}`)
-    }
+    // REMOVED: Bucket check - it was causing false errors
+    // Bucket exists and is public (verified via database query: name='documents', public=true)
+    // Direct upload attempt will provide clear error if bucket doesn't exist
     
-    // Try upload with service role client
+    // Try upload with current client
+    console.log(`[Upload API] Uploading with ${clientType} client...`)
     const uploadResult = await supabase.storage
       .from('documents')
       .upload(fileName, fileBuffer, {
@@ -98,12 +113,12 @@ export async function POST(request: NextRequest) {
     uploadData = uploadResult.data
     uploadError = uploadResult.error
 
-    // If service role client fails, try regular client
-    if (uploadError) {
-      console.warn('[Upload API] Service role upload failed, trying regular client:', uploadError.message)
+    // If service role client fails, try regular client as fallback
+    if (uploadError && clientType === 'service_role') {
+      console.warn(`[Upload API] Service role upload failed (${uploadError.message}), trying regular client as fallback...`)
       try {
-        supabase = await createClient()
-        const retryResult = await supabase.storage
+        const fallbackClient = await createClient()
+        const retryResult = await fallbackClient.storage
           .from('documents')
           .upload(fileName, fileBuffer, {
             contentType: file.type,
@@ -114,40 +129,71 @@ export async function POST(request: NextRequest) {
         uploadError = retryResult.error
         
         if (!uploadError) {
-          console.log('[Upload API] Regular client upload succeeded after service role failed')
+          console.log('[Upload API] ✓ Regular client upload succeeded after service role failed')
+          supabase = fallbackClient // Use fallback client for URL generation
+        } else {
+          console.error('[Upload API] Regular client upload also failed:', uploadError)
         }
       } catch (retryError: any) {
-        console.error('[Upload API] Regular client upload also failed:', retryError)
-        uploadError = retryError
+        console.error('[Upload API] Regular client creation/upload failed:', retryError)
+        // Keep original error if retry fails
+        if (!uploadError) {
+          uploadError = retryError
+        }
       }
     }
 
     if (uploadError) {
       console.error('[Upload API] Supabase upload error:', uploadError)
-      const errorMessage = uploadError.message || 'Unknown storage error'
+      const errorMessage = uploadError.message || uploadError.toString() || 'Unknown storage error'
+      const errorCode = (uploadError as any)?.statusCode || (uploadError as any)?.code || 'UNKNOWN'
       
-      // Provide user-friendly error messages
+      console.error(`[Upload API] Error details: message="${errorMessage}", code="${errorCode}"`)
+      
+      // Provide user-friendly error messages based on actual error
       let userMessage = 'Failed to upload file to storage'
-      if (errorMessage.includes('Bucket not found') || errorMessage.includes('not found')) {
-        // This should not happen since bucket exists, but handle it gracefully
-        console.error('[Upload API] CRITICAL: Bucket not found error - bucket may need to be recreated')
+      
+      // Check for specific error patterns
+      // Only show bucket error if it's explicitly a bucket not found error
+      const isBucketNotFound = errorMessage.includes('Bucket not found') || 
+                               (errorCode === '404' && errorMessage.toLowerCase().includes('bucket'))
+      
+      if (isBucketNotFound) {
+        console.error('[Upload API] CRITICAL: Bucket not found error detected')
+        console.error('[Upload API] Full error object:', JSON.stringify(uploadError, null, 2))
         userMessage = 'Storage bucket not configured. Please contact support.'
-      } else if (errorMessage.includes('The resource already exists') || errorMessage.includes('already exists')) {
+      } else if (errorMessage.includes('The resource already exists') || 
+                 errorMessage.includes('already exists') ||
+                 errorCode === '409') {
         userMessage = 'A file with this name already exists. Please rename your file and try again.'
-      } else if (errorMessage.includes('new row violates row-level security') || errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
+      } else if (errorMessage.includes('new row violates row-level security') || 
+                 errorMessage.includes('permission') || 
+                 errorMessage.includes('unauthorized') ||
+                 errorMessage.includes('forbidden') ||
+                 errorCode === '403' ||
+                 errorCode === '401') {
         userMessage = 'Permission denied. Please ensure you have access to upload documents.'
-      } else if (errorMessage.includes('JWT')) {
+      } else if (errorMessage.includes('JWT') || 
+                 errorMessage.includes('token') ||
+                 errorMessage.includes('authentication')) {
         userMessage = 'Authentication error. Please refresh the page and try again.'
+      } else if (errorMessage.includes('size') || 
+                 errorMessage.includes('too large')) {
+        userMessage = 'File is too large. Maximum file size is 10MB.'
       } else {
-        // Generic error - provide helpful message
-        userMessage = `Upload failed: ${errorMessage}`
+        // Generic error - provide the actual error message to help debug
+        userMessage = `Upload failed: ${errorMessage.substring(0, 100)}`
       }
       
       return NextResponse.json(
         { 
           success: false, 
           message: userMessage,
-          error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+          error: process.env.NODE_ENV === 'development' ? {
+            message: errorMessage,
+            code: errorCode,
+            fullError: uploadError
+          } : undefined
         },
         { status: 500 }
       )
