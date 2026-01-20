@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const applicationId = searchParams.get('applicationId')
+    const documentType = searchParams.get('documentType') // Optional filter
 
     if (!applicationId) {
       return NextResponse.json(
@@ -62,10 +63,17 @@ export async function GET(request: NextRequest) {
 
     // Fetch documents
     try {
+      const whereClause: any = {
+        applicationId,
+      }
+      
+      // Optional: filter by documentType
+      if (documentType) {
+        whereClause.documentType = documentType
+      }
+      
       const documents = await prisma.document.findMany({
-        where: {
-          applicationId,
-        },
+        where: whereClause,
         orderBy: {
           uploadedAt: 'desc',
         },

@@ -47,12 +47,22 @@ export async function POST(request: NextRequest) {
 
     // Upload file to Supabase Storage
     // Try service role client first for better reliability, fallback to regular client
-    let supabase = createServiceRoleClient()
+    let supabase
+    let uploadData, uploadError, fileUrl
+    
+    try {
+      supabase = createServiceRoleClient()
+    } catch (serviceRoleError: any) {
+      console.warn('Service role client creation failed, using regular client:', serviceRoleError.message)
+      supabase = await createClient()
+    }
+    
     const fileExt = file.name.split('.').pop()
-    const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`
+    const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
+    const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${sanitizedFileName}`
     const fileBuffer = await file.arrayBuffer()
     
-    let uploadData, uploadError, fileUrl
+    console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}`)
     
     // Try upload with service role client
     const uploadResult = await supabase.storage
@@ -68,16 +78,21 @@ export async function POST(request: NextRequest) {
     // If service role client fails, try regular client
     if (uploadError) {
       console.warn('Service role upload failed, trying regular client:', uploadError.message)
-      supabase = await createClient()
-      const retryResult = await supabase.storage
-        .from('documents')
-        .upload(fileName, fileBuffer, {
-          contentType: file.type,
-          upsert: false,
-        })
-      
-      uploadData = retryResult.data
-      uploadError = retryResult.error
+      try {
+        supabase = await createClient()
+        const retryResult = await supabase.storage
+          .from('documents')
+          .upload(fileName, fileBuffer, {
+            contentType: file.type,
+            upsert: false,
+          })
+        
+        uploadData = retryResult.data
+        uploadError = retryResult.error
+      } catch (retryError: any) {
+        console.error('Regular client upload also failed:', retryError)
+        uploadError = retryError
+      }
     }
 
     if (uploadError) {
@@ -85,26 +100,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { 
           success: false, 
-          message: `Failed to upload file to storage: ${uploadError.message}`,
+          message: `Failed to upload file to storage: ${uploadError.message || 'Unknown error'}`,
           error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
         },
         { status: 500 }
       )
     }
+    
+    console.log(`[Upload API] Upload successful: path=${uploadData?.path}`)
 
     // Get public URL for the uploaded file
     const urlResult = supabase.storage
       .from('documents')
-      .getPublicUrl(fileName)
+      .getPublicUrl(uploadData.path || fileName)
 
     fileUrl = urlResult.data.publicUrl
 
     if (!fileUrl) {
+      console.error('[Upload API] Failed to generate file URL. uploadData:', uploadData)
       return NextResponse.json(
         { success: false, message: 'Failed to generate file URL' },
         { status: 500 }
       )
     }
+    
+    console.log(`[Upload API] Generated file URL: ${fileUrl.substring(0, 100)}...`)
 
     // Check if a document of this type already exists for this application
     // If it does, we'll update it instead of creating a new one
