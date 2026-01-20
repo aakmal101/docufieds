@@ -410,7 +410,29 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 
                 // If our file is newer or same, use ours (don't overwrite with older data)
                 if (preserveDate >= fetchedDate) {
-                  console.log(`[Frontend] ✓ Using ${hasLockedFile ? 'locked' : 'current'} file (newer or same timestamp)`)
+                  console.log(`[Frontend] ✓ Using ${hasLockedFile ? 'locked' : 'current'} file (newer or same timestamp) - NOT clearing lock`)
+                  // DO NOT clear lock - our file is newer or same
+                  return {
+                    ...fetchedDoc,
+                    status: 'uploaded' as const,
+                    uploadedFile: finalFileToPreserve
+                  }
+                }
+                
+                // Fetched file is significantly newer (more than 1 second) - use it and clear lock
+                const timeDiff = fetchedDate.getTime() - preserveDate.getTime()
+                if (timeDiff > 1000) {
+                  // Fetched is significantly newer - database has updated file
+                  uploadLocks.current.delete(normalizedFetchedType)
+                  console.log(`[Frontend] ✓ Using fetched data (${timeDiff}ms newer) for "${fetchedDoc.documentType}" (lock cleared)`)
+                  logStateChange('MERGE_USE_FETCHED', fetchedDoc.documentType, fetchedDoc.status, true, {
+                    fileUrl: fetchedDoc.uploadedFile.fileUrl.substring(0, 50),
+                    timeDiff
+                  })
+                  return fetchedDoc
+                } else {
+                  // Files are very close in time - preserve ours (might be same upload)
+                  console.log(`[Frontend] ✓ Preserving ${hasLockedFile ? 'locked' : 'current'} file (timestamps very close: ${timeDiff}ms)`)
                   return {
                     ...fetchedDoc,
                     status: 'uploaded' as const,
@@ -419,7 +441,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 }
               }
               
-              // Fetched file is newer or we don't have a file - use fetched
+              // Fetched file exists but we don't have a file to compare - use fetched
               // Only clear lock if we're actually using fetched (not preserving)
               uploadLocks.current.delete(normalizedFetchedType)
               console.log(`[Frontend] ✓ Using fetched data for "${fetchedDoc.documentType}" (lock cleared)`)
