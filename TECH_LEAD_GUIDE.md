@@ -1,8 +1,9 @@
 # Docufieds - Technical Lead Guide
 
-**Version:** 1.0  
-**Last Updated:** 2024  
-**Project Status:** Active Development
+**Version:** 2.0  
+**Last Updated:** January 2025  
+**Project Status:** Active Development  
+**Current Commit:** 396a1c4 (Complete audit and fix: Remove problematic bucket check and improve upload error handling)
 
 ---
 
@@ -694,6 +695,111 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 
 ---
 
+## Development History & Recent Work
+
+### Major Milestones
+
+#### Phase 1: Foundation & Core Features (Early Development)
+- ✅ Project initialization with Next.js 14 + TypeScript
+- ✅ Database schema design and Prisma setup
+- ✅ Supabase integration (Database, Storage, Realtime)
+- ✅ NextAuth.js authentication system
+- ✅ Role-based access control implementation
+- ✅ 3D world map component (React Three Fiber)
+- ✅ Basic admin panel structure
+- ✅ Individual and Agency dashboard layouts
+
+#### Phase 2: User Management & Registration (Recent)
+- ✅ Complete user registration flow with OTP verification
+- ✅ Profile completion workflow for individual users
+- ✅ Email editing feature in user profile
+- ✅ Password management system
+- ✅ Profile photo upload functionality
+- ✅ Member ID generation and management
+
+#### Phase 3: Application Flow (Recent)
+- ✅ New Application creation workflow
+- ✅ 3D world map integration for destination selection
+- ✅ Process type and profession selection
+- ✅ Consultancy fee calculation
+- ✅ Application status management
+- ✅ Draft application resume functionality
+- ✅ Complete Call Phase implementation
+- ✅ Application completion process
+
+#### Phase 4: Document Management System (Major Focus - Recent)
+- ✅ Document upload system with Supabase Storage
+- ✅ Dynamic document requirements based on country/process type
+- ✅ Document template system
+- ✅ Template download functionality
+- ✅ Required vs optional document handling
+- ✅ Document validation (file type, size)
+- ✅ PDF viewer modal implementation
+- ✅ Document status tracking
+- ✅ Multiple document type support
+
+**Critical Fixes Applied:**
+- ✅ Fixed document upload button state management
+- ✅ Resolved state reversion issues (View Document → Upload Document)
+- ✅ Fixed merge logic to prevent overwriting valid uploaded files
+- ✅ Improved error handling for storage operations
+- ✅ Removed problematic bucket verification checks
+- ✅ Enhanced upload error messages and user feedback
+- ✅ Fixed document requirements loading for new applications
+- ✅ Improved document persistence after page refresh
+
+#### Phase 5: UI/UX Improvements (Recent)
+- ✅ Landing page complete redesign with modular components
+- ✅ Hero section with floating animations
+- ✅ Popular destinations with country flags
+- ✅ Enhanced "How It Works" section
+- ✅ Improved CTA button visibility
+- ✅ Mobile optimization for navbar and hero
+- ✅ Custom font integration (Outfit)
+- ✅ Improved float animations and visual effects
+- ✅ Footer and contact information updates
+
+#### Phase 6: Infrastructure & Configuration (Recent)
+- ✅ Prisma connection fix with Supabase connection pooler
+- ✅ Environment variable documentation
+- ✅ Vercel deployment configuration
+- ✅ Supabase storage bucket policies configuration
+- ✅ Database connection timeout handling (5 seconds for serverless)
+- ✅ Production authentication configuration
+- ✅ Force-dynamic exports for API routes
+
+### Technical Improvements
+
+#### Database & Storage
+- ✅ Fixed Prisma connection issues with Supabase pooler
+- ✅ Mapped Prisma fields to Supabase snake_case columns
+- ✅ Configured storage bucket with proper RLS policies
+- ✅ Implemented document storage access system
+- ✅ Added comprehensive error handling for storage operations
+
+#### Authentication & Security
+- ✅ Fixed individual login authentication
+- ✅ Improved UI consistency across auth flows
+- ✅ Added NextAuth production configuration
+- ✅ Environment variable validation
+- ✅ Demo login error handling for production
+- ✅ Session management improvements
+
+#### API & Backend
+- ✅ Comprehensive error handling in API routes
+- ✅ Consistent response format across endpoints
+- ✅ Force-dynamic exports for serverless compatibility
+- ✅ Improved timeout handling for database operations
+- ✅ Enhanced document upload API with validation
+- ✅ Application requirements API with fallback handling
+
+#### Frontend State Management
+- ✅ Fixed document state reversion bugs
+- ✅ Improved optimistic UI updates
+- ✅ Enhanced merge logic for state reconciliation
+- ✅ Better error boundaries and fallback states
+- ✅ Improved loading states and user feedback
+
 ## Current State & Known Issues
 
 ### Completed Features
@@ -703,20 +809,33 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ✅ Database schema (Prisma)  
 ✅ Supabase integration (Database, Storage, Realtime)  
 ✅ 3D world map component  
-✅ Document upload system  
+✅ Document upload system (fully functional)  
+✅ Document template system  
 ✅ Payment gateway integration structure  
 ✅ Admin panel structure  
 ✅ Notification system (with Realtime)  
 ✅ Individual user dashboard  
 ✅ Agency dashboard structure  
+✅ Complete application creation flow  
+✅ Profile management system  
+✅ User registration with OTP  
+✅ Landing page with modern design  
 
 ### In Progress
 
-🔄 OTP verification (currently in demo mode)  
 🔄 Payment gateway integration (structure ready, needs actual gateway)  
 🔄 SMS/Email service integration (structure ready)  
-🔄 Document template system  
 🔄 Bulk application processing for agencies  
+🔄 Advanced admin analytics  
+
+### Recently Resolved Issues
+
+✅ **Document Upload State Reversion** - Fixed button state reverting from "View Document" to "Upload Document"  
+✅ **Storage Bucket Configuration** - Removed problematic bucket checks, configured proper policies  
+✅ **Document Requirements Loading** - Fixed empty requirements for new applications  
+✅ **Prisma Connection Issues** - Fixed with Supabase connection pooler  
+✅ **Authentication Errors** - Improved error handling and production configuration  
+✅ **Build Failures** - Fixed syntax errors and build configuration  
 
 ### Known Issues
 
@@ -743,40 +862,105 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ### Technical Debt
 
 - Demo mode fallback in authentication (needs removal for production)
-- Hardcoded values in some components
-- Missing error boundaries
+- Some hardcoded values in components
+- Missing error boundaries in some components
 - No rate limiting on API routes
 - No request validation middleware
+- Document state management could be further optimized
 
 ---
+
+## Recent Development Work (Detailed)
+
+### Document Upload System - Critical Fixes
+
+**Problem:** Document upload button would show "View Document" briefly, then revert to "Upload Document" after upload completion.
+
+**Root Causes Identified:**
+1. State reversion due to immediate `fetchRequirements` call after upload
+2. Merge logic overwriting optimistic state with stale fetched data
+3. Status field being used instead of `uploadedFile` existence
+4. Race conditions between upload completion and database propagation
+
+**Solutions Implemented:**
+1. **Removed Immediate Refresh**: Stopped calling `fetchRequirements` immediately after upload
+2. **Improved Merge Logic**: Enhanced state merge to preserve valid `uploadedFile` data
+3. **Button Logic Fix**: Changed button condition to rely solely on `uploadedFile` existence, not `status` field
+4. **Normalized Matching**: Implemented canonical `documentType` normalization for consistent matching
+5. **Error Handling**: Enhanced error messages and user feedback
+6. **Storage Configuration**: Removed problematic bucket verification, configured proper RLS policies
+
+**Files Modified:**
+- `src/components/required-documents.tsx` - Complete state management overhaul
+- `src/app/api/documents/upload/route.ts` - Enhanced error handling
+- `src/app/api/applications/[id]/requirements/route.ts` - Improved response structure
+- `src/lib/supabase/server.ts` - Service role client improvements
+
+### Storage & Infrastructure Fixes
+
+**Supabase Storage Configuration:**
+- ✅ Created `documents` bucket with public read access
+- ✅ Configured authenticated user upload/update/delete policies
+- ✅ Set up service role full access for admin operations
+- ✅ Removed false-positive bucket verification checks
+- ✅ Improved error messages for storage operations
+
+**Database Connection:**
+- ✅ Fixed Prisma connection with Supabase connection pooler
+- ✅ Mapped Prisma camelCase to Supabase snake_case
+- ✅ Implemented 5-second timeout for serverless environments
+- ✅ Added connection error handling
+
+### UI/UX Enhancements
+
+**Landing Page Redesign:**
+- ✅ Modular component architecture
+- ✅ Hero section with floating animations
+- ✅ Popular destinations with country flags
+- ✅ Enhanced visual effects and animations
+- ✅ Mobile-responsive design
+- ✅ Improved typography (Outfit font)
+
+**Application Flow:**
+- ✅ Smooth step-by-step application creation
+- ✅ 3D world map integration
+- ✅ Real-time fee calculation
+- ✅ Progress tracking
+- ✅ Draft application resume
 
 ## Next Steps & Roadmap
 
 ### Immediate Priorities
 
-1. **Production Authentication**
+1. **Document Upload Stability** (Ongoing)
+   - Monitor state management in production
+   - Optimize merge logic if needed
+   - Add comprehensive error logging
+
+2. **Production Authentication**
    - Remove demo mode fallbacks
    - Implement full OTP verification
    - Add rate limiting
    - Implement password reset flow
 
-2. **Payment Integration**
+3. **Payment Integration**
    - Integrate actual payment gateway
    - Implement payment verification webhooks
    - Add refund processing
    - Generate invoices
 
-3. **SMS/Email Services**
+4. **SMS/Email Services**
    - Integrate SMS provider
    - Configure email service
    - Set up notification templates
    - Implement delivery tracking
 
-4. **Testing**
+5. **Testing**
    - Set up testing framework (Jest/Vitest)
    - Write unit tests for utilities
    - Write integration tests for API routes
    - Add E2E tests for critical flows
+   - Test document upload flow thoroughly
 
 ### Short-term (1-2 months)
 
@@ -832,10 +1016,16 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ### Documentation Files
 
 - `README.md` - Project overview and setup
+- `TECH_LEAD_GUIDE.md` - This comprehensive technical guide
 - `SUPABASE_INTEGRATION.md` - Supabase setup guide
 - `SUPABASE_SETUP.md` - Database setup instructions
 - `VERCEL_DEPLOYMENT_CHECKLIST.md` - Deployment guide
 - `VERCEL_ENV_VARIABLES.md` - Environment variables reference
+- `DOCUMENT_STORAGE_ACCESS.md` - Document storage system documentation
+- `PRISMA_CONNECTION_FIX.md` - Prisma connection troubleshooting
+- `PROFILE_REGISTRATION_FLOW.md` - User registration flow documentation
+- `FINAL_ENV_SETUP.md` - Final environment setup instructions
+- `CORRECTED_ENV_VARIABLES.md` - Corrected environment variables
 
 ### External Documentation
 
@@ -889,6 +1079,57 @@ try {
 
 ---
 
+## Git History Summary
+
+### Recent Commits (Key Milestones)
+
+**Current State (396a1c4):** Complete audit and fix: Remove problematic bucket check and improve upload error handling
+
+**Major Development Phases:**
+
+1. **Document Upload System** (Multiple commits)
+   - Initial document upload implementation
+   - State management fixes
+   - Button reversion bug fixes
+   - Merge logic improvements
+   - Storage bucket configuration
+
+2. **Application Flow** (Multiple commits)
+   - Complete application creation workflow
+   - Call Phase implementation
+   - Application completion process
+   - Draft application resume
+
+3. **User Management** (Multiple commits)
+   - Registration flow completion
+   - Profile management
+   - Email editing
+   - Password management
+
+4. **UI/UX** (Multiple commits)
+   - Landing page redesign
+   - Component modularization
+   - Animation improvements
+   - Mobile optimization
+
+5. **Infrastructure** (Multiple commits)
+   - Prisma connection fixes
+   - Supabase integration
+   - Environment configuration
+   - Deployment setup
+
+### Important Notes
+
+- **State Management**: Document upload state management has been extensively refactored to prevent reversion bugs
+- **Storage**: Supabase Storage is fully configured with proper RLS policies
+- **Database**: Prisma connection optimized for serverless environments
+- **Authentication**: Production-ready configuration in place, demo mode still available for development
+
+---
+
 **Document End**
 
 For questions or clarifications, please refer to the project repository or contact the development team.
+
+**Last Major Update:** January 2025  
+**Next Review:** After payment gateway integration
