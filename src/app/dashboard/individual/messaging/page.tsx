@@ -98,6 +98,7 @@ export default function MessagingPage() {
   }
 
   const activeChatHead = chatHeads.find(chat => chat.id === activeChat)
+  const ActiveChatIcon = activeChatHead?.icon
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -144,10 +145,10 @@ export default function MessagingPage() {
             <Card className="flex flex-col h-[600px]">
               <CardHeader className="border-b">
                 <div className="flex items-center">
-                  {activeChatHead && (
+                  {activeChatHead && ActiveChatIcon && (
                     <>
                       <div className={`w-10 h-10 rounded-full ${activeChatHead.color} flex items-center justify-center mr-3`}>
-                        <activeChatHead.icon className="h-5 w-5 text-white" />
+                        <ActiveChatIcon className="h-5 w-5 text-white" />
                       </div>
                       <div>
                         <CardTitle className="text-lg">{activeChatHead.name}</CardTitle>
@@ -237,7 +238,6 @@ export default function MessagingPage() {
             </Card>
           </div>
         </div>
-      </div>
     </div>
   )
 }

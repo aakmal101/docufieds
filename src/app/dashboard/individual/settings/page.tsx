@@ -323,7 +323,6 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
     </div>
   )
 }
