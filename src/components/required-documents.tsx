@@ -429,6 +429,20 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               return fetchedDoc
             }
             
+            // FINAL SAFETY CHECK: Before returning fetchedDoc, verify we're not overwriting a valid file
+            // This is the last line of defense - if we have ANY valid file anywhere, preserve it
+            if (finalFileToPreserve && (!hasValidFetchedFile || 
+                (finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt &&
+                 new Date(finalFileToPreserve.uploadedAt) >= new Date(fetchedFile.uploadedAt)))) {
+              // We have a valid file that should be preserved
+              console.log(`[Frontend] 🛡️ FINAL SAFETY: Preserving ${hasLockedFile ? 'locked' : 'current'} file for "${fetchedDoc.documentType}"`)
+              return {
+                ...fetchedDoc,
+                status: 'uploaded' as const,
+                uploadedFile: finalFileToPreserve
+              }
+            }
+            
             // If neither has file, use fetched (it's the source of truth)
             logStateChange('MERGE_NO_FILE', fetchedDoc.documentType, fetchedDoc.status, false, {
               source: 'fetched'
@@ -436,14 +450,42 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             return fetchedDoc
           })
           
+          // CRITICAL FINAL CHECK: Verify no valid uploadedFile was lost in merge
+          // This is a safety net to catch any edge cases
+          const mergedWithValidation = merged.map(doc => {
+            const normalizedType = normalizeDocType(doc.documentType)
+            
+            // Check if we have a lock for this document
+            const lock = uploadLocks.current.get(normalizedType)
+            const hasValidLock = lock && 
+                               lock.fileUrl && 
+                               lock.fileUrl.trim().length > 0 &&
+                               lock.fileName && 
+                               lock.fileName.trim().length > 0
+            
+            // If we have a lock but merged doc doesn't have file, restore from lock
+            if (hasValidLock && (!doc.uploadedFile || 
+                !doc.uploadedFile.fileUrl || 
+                doc.uploadedFile.fileUrl.trim().length === 0)) {
+              console.log(`[Frontend] 🛡️ FINAL VALIDATION: Restoring from lock for "${doc.documentType}" - merge lost the file`)
+              return {
+                ...doc,
+                status: 'uploaded' as const,
+                uploadedFile: lock
+              }
+            }
+            
+            return doc
+          })
+          
           // TEMPORARY: Log final merged state
-          merged.forEach(doc => {
+          mergedWithValidation.forEach(doc => {
             logStateChange('AFTER_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
               fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
             })
           })
           
-          return merged
+          return mergedWithValidation
         })
         
         // Fetch templates for each document type (only if we have documents)
