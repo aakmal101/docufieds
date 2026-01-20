@@ -1034,14 +1034,19 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       </div>
 
       {/* Required Documents */}
-      {requiredDocuments.length > 0 && (
+      {requiredDocuments.length > 0 ? (
         <div className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
             <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
             Required Documents ({requiredDocuments.length})
           </h2>
           <div className="grid gap-4">
-            {requiredDocuments.map((document) => (
+            {Array.isArray(requiredDocuments) && requiredDocuments.map((document) => {
+              // SAFETY: Ensure document exists before rendering
+              if (!document || !document.documentType) {
+                return null
+              }
+              return (
               <Card key={document.id} className="border-l-4 border-l-red-500">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
