@@ -64,6 +64,29 @@ export async function POST(request: NextRequest) {
     
     console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}`)
     
+    // Verify bucket exists and is accessible
+    try {
+      const { data: buckets, error: bucketError } = await supabase.storage.listBuckets()
+      if (bucketError) {
+        console.warn('[Upload API] Could not list buckets:', bucketError.message)
+      } else {
+        const documentsBucket = buckets?.find(b => b.name === 'documents')
+        if (!documentsBucket) {
+          console.error('[Upload API] CRITICAL: documents bucket does not exist!')
+          return NextResponse.json(
+            { 
+              success: false, 
+              message: 'Storage bucket not configured. Please contact support.',
+            },
+            { status: 500 }
+          )
+        }
+        console.log(`[Upload API] Verified documents bucket exists: ${documentsBucket.name} (public: ${documentsBucket.public})`)
+      }
+    } catch (bucketCheckError: any) {
+      console.warn('[Upload API] Bucket check failed, proceeding with upload:', bucketCheckError.message)
+    }
+    
     // Try upload with service role client
     const uploadResult = await supabase.storage
       .from('documents')
@@ -77,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // If service role client fails, try regular client
     if (uploadError) {
-      console.warn('Service role upload failed, trying regular client:', uploadError.message)
+      console.warn('[Upload API] Service role upload failed, trying regular client:', uploadError.message)
       try {
         supabase = await createClient()
         const retryResult = await supabase.storage
@@ -89,25 +112,52 @@ export async function POST(request: NextRequest) {
         
         uploadData = retryResult.data
         uploadError = retryResult.error
+        
+        if (!uploadError) {
+          console.log('[Upload API] Regular client upload succeeded after service role failed')
+        }
       } catch (retryError: any) {
-        console.error('Regular client upload also failed:', retryError)
+        console.error('[Upload API] Regular client upload also failed:', retryError)
         uploadError = retryError
       }
     }
 
     if (uploadError) {
-      console.error('Supabase upload error:', uploadError)
+      console.error('[Upload API] Supabase upload error:', uploadError)
+      const errorMessage = uploadError.message || 'Unknown storage error'
+      
+      // Provide user-friendly error messages
+      let userMessage = 'Failed to upload file to storage'
+      if (errorMessage.includes('Bucket not found')) {
+        userMessage = 'Storage bucket not configured. Please contact support.'
+      } else if (errorMessage.includes('The resource already exists')) {
+        userMessage = 'A file with this name already exists. Please rename your file and try again.'
+      } else if (errorMessage.includes('new row violates row-level security')) {
+        userMessage = 'Permission denied. Please ensure you have access to upload documents.'
+      }
+      
       return NextResponse.json(
         { 
           success: false, 
-          message: `Failed to upload file to storage: ${uploadError.message || 'Unknown error'}`,
-          error: process.env.NODE_ENV === 'development' ? uploadError.message : undefined
+          message: userMessage,
+          error: process.env.NODE_ENV === 'development' ? errorMessage : undefined
         },
         { status: 500 }
       )
     }
     
-    console.log(`[Upload API] Upload successful: path=${uploadData?.path}`)
+    if (!uploadData || !uploadData.path) {
+      console.error('[Upload API] Upload succeeded but no data returned:', uploadData)
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Upload completed but file path not returned. Please try again.',
+        },
+        { status: 500 }
+      )
+    }
+    
+    console.log(`[Upload API] Upload successful: path=${uploadData.path}`)
 
     // Get public URL for the uploaded file
     const urlResult = supabase.storage

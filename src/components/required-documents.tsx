@@ -83,11 +83,13 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
   useEffect(() => {
     if (applicationId) {
+      console.log(`[Frontend] RequiredDocuments mounted with applicationId: ${applicationId}`)
       fetchRequirements(true)
       fetchApplication()
     } else {
+      console.error('[Frontend] RequiredDocuments: applicationId is missing!')
       setLoading(false)
-      toast.error('Application ID is missing')
+      toast.error('Application ID is missing. Please go back and create an application first.')
     }
   }, [applicationId])
 
@@ -120,10 +122,43 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       })
       
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorText = await response.text()
+        let errorData
+        try {
+          errorData = JSON.parse(errorText)
+        } catch {
+          errorData = { message: `HTTP error! status: ${response.status}` }
+        }
+        console.error(`[Frontend] Requirements API error (${response.status}):`, errorData)
+        throw new Error(errorData.message || `Failed to fetch requirements: ${response.status}`)
       }
       
       const data = await response.json()
+      
+      // CRITICAL: Validate API response structure
+      if (!data || typeof data !== 'object') {
+        console.error('[Frontend] Invalid API response structure:', data)
+        throw new Error('Invalid response from server. Please refresh the page and try again.')
+      }
+      
+      if (!data.success) {
+        console.error('[Frontend] API returned error:', data.message)
+        // If API fails, we'll use fallback documents, so don't throw here
+        // Just log and let the fallback logic handle it
+        console.warn('[Frontend] API returned unsuccessful response, will use fallback documents')
+        throw new Error(data.message || 'Failed to fetch document requirements')
+      }
+      
+      if (!Array.isArray(data.data)) {
+        console.error('[Frontend] API data is not an array:', data.data)
+        throw new Error('Invalid data format from server. Please refresh the page.')
+      }
+      
+      if (data.data.length === 0) {
+        console.warn('[Frontend] API returned empty requirements array. This may be normal for new applications.')
+      }
+      
+      console.log(`[Frontend] Successfully fetched ${data.data.length} document requirements`)
 
       // TEMPORARY: Store API response for debugging
       if (typeof window !== 'undefined') {
@@ -605,21 +640,46 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       formData.append('applicationId', applicationId)
       formData.append('documentType', documentType)
 
-      console.log(`[Frontend] Starting upload: documentType="${documentType}", fileName="${file.name}", size=${file.size}`)
+      console.log(`[Frontend] Starting upload: documentType="${documentType}", fileName="${file.name}", size=${file.size}, applicationId="${applicationId}"`)
 
       const response = await fetch('/api/documents/upload', {
         method: 'POST',
         body: formData,
       })
 
+      // Get response text first to handle both JSON and text errors
+      const responseText = await response.text()
+      let errorData
+      try {
+        errorData = JSON.parse(responseText)
+      } catch {
+        errorData = { message: responseText || `Upload failed with status ${response.status}` }
+      }
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
         const errorMessage = errorData.message || `Upload failed with status ${response.status}`
-        console.error(`[Frontend] Upload failed: ${errorMessage}`, errorData)
+        console.error(`[Frontend] Upload failed (${response.status}): ${errorMessage}`, errorData)
         throw new Error(errorMessage)
       }
 
-      const data = await response.json()
+      // Parse successful response
+      const data = JSON.parse(responseText)
+
+      // Validate response structure
+      if (!data || typeof data !== 'object') {
+        console.error('[Frontend] Invalid upload response structure:', data)
+        throw new Error('Invalid response from server')
+      }
+
+      if (!data.success) {
+        console.error('[Frontend] Upload API returned error:', data.message)
+        throw new Error(data.message || 'Upload failed')
+      }
+
+      if (!data.data) {
+        console.error('[Frontend] Upload response missing data:', data)
+        throw new Error('Upload response missing document data')
+      }
 
       if (data.success && data.data) {
         // The API returns the saved document from database (SOURCE OF TRUTH)
@@ -706,12 +766,17 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           return updated
         })
 
-        toast.success(`${documentType} uploaded successfully`)
+        toast.success(`${documentType} uploaded successfully!`, {
+          duration: 3000,
+          icon: '✅',
+        })
         
         // Reset file input immediately
         if (fileInputRefs.current[documentType]) {
           fileInputRefs.current[documentType].value = ''
         }
+        
+        console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated, verification will run in background.`)
 
         // TEMPORARY: Log before fetchRequirements call
         console.log(`[INSPECTION] About to call fetchRequirements(false) after upload`)
@@ -775,8 +840,23 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         throw new Error(data.message || 'Failed to upload document')
       }
     } catch (error: any) {
-      console.error('Error uploading document:', error)
-      toast.error(error.message || 'Failed to upload document. Please try again.')
+      console.error('[Frontend] Upload error:', error)
+      const errorMessage = error.message || 'Failed to upload document. Please try again.'
+      
+      // Provide user-friendly error messages
+      let userMessage = errorMessage
+      if (errorMessage.includes('Storage bucket not configured')) {
+        userMessage = 'Storage is not configured. Please contact support.'
+      } else if (errorMessage.includes('Permission denied')) {
+        userMessage = 'You do not have permission to upload documents. Please contact support.'
+      } else if (errorMessage.includes('already exists')) {
+        userMessage = 'A file with this name already exists. Please rename your file and try again.'
+      }
+      
+      toast.error(userMessage, {
+        duration: 5000,
+        icon: '❌',
+      })
       
       // Clear lock on error
       const normalizedType = normalizeDocType(documentType)
@@ -788,10 +868,11 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       try {
         await fetchRequirements(false)
       } catch (fetchError) {
-        console.error('Error refreshing requirements after upload failure:', fetchError)
+        console.error('[Frontend] Error refreshing requirements after upload failure:', fetchError)
       }
     } finally {
       setUploading(prev => ({ ...prev, [documentType]: false }))
+      console.log(`[Frontend] Upload process completed for "${documentType}"`)
     }
   }
 

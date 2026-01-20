@@ -69,27 +69,49 @@ export async function GET(
           { documentType: 'Educational Certificates', isRequired: false, description: 'Academic certificates and transcripts' },
         ]
 
-        // Create default requirements
-        const createPromises = defaultDocumentTypes.map((doc) =>
-          prisma.documentRequirement.create({
-            data: {
-              country: application.country,
-              processType: application.processType,
-              profession: application.profession || null,
-              documentType: doc.documentType,
-              isRequired: doc.isRequired,
-              description: doc.description,
-            },
-          })
+        console.log(`[Requirements API] No requirements found for country="${application.country}", processType="${application.processType}". Creating defaults...`)
+
+        // Create default requirements with error handling for each
+        const createResults = await Promise.allSettled(
+          defaultDocumentTypes.map((doc) =>
+            prisma.documentRequirement.create({
+              data: {
+                country: application.country,
+                processType: application.processType,
+                profession: application.profession || null,
+                documentType: doc.documentType,
+                isRequired: doc.isRequired,
+                description: doc.description,
+              },
+            })
+          )
         )
 
-        requirements = await Promise.all(createPromises)
-        console.log(`Created ${requirements.length} default document requirements for application ${applicationId}`)
+        // Filter successful creations
+        requirements = createResults
+          .filter((result): result is PromiseFulfilledResult<any> => result.status === 'fulfilled')
+          .map(result => result.value)
+
+        // Log any failures
+        const failures = createResults.filter(result => result.status === 'rejected')
+        if (failures.length > 0) {
+          console.warn(`[Requirements API] Failed to create ${failures.length} default requirements:`, failures.map(f => (f as PromiseRejectedResult).reason))
+        }
+
+        console.log(`[Requirements API] Successfully created ${requirements.length}/${defaultDocumentTypes.length} default document requirements for application ${applicationId}`)
+        
+        // If we couldn't create any requirements, this is a critical error
+        if (requirements.length === 0) {
+          console.error(`[Requirements API] CRITICAL: Failed to create any default requirements for application ${applicationId}`)
+          // Still return empty array - component will use fallback
+        }
       } catch (createError: any) {
-        console.error('Error creating default requirements:', createError)
+        console.error('[Requirements API] Error creating default requirements:', createError)
         // If creation fails, return empty array - component will handle fallback
         requirements = []
       }
+    } else {
+      console.log(`[Requirements API] Found ${requirements.length} existing requirements for application ${applicationId}`)
     }
 
     // Fetch uploaded documents for this application
