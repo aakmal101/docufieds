@@ -75,6 +75,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const [viewingDocument, setViewingDocument] = useState<{ url: string; fileName: string } | null>(null)
   const [application, setApplication] = useState<any>(null)
   const [checkingReadiness, setCheckingReadiness] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
   
   // CRITICAL: Lock mechanism to prevent overwriting valid uploadedFile
@@ -82,14 +83,38 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const uploadLocks = useRef<Map<string, { fileUrl: string; fileName: string; uploadedAt: Date }>>(new Map())
 
   useEffect(() => {
-    if (applicationId) {
-      console.log(`[Frontend] RequiredDocuments mounted with applicationId: ${applicationId}`)
-      fetchRequirements(true)
-      fetchApplication()
-    } else {
-      console.error('[Frontend] RequiredDocuments: applicationId is missing!')
+    // SAFETY: Wrap entire effect in try/catch to prevent crashes
+    try {
+      if (applicationId) {
+        console.log(`[Frontend] RequiredDocuments mounted with applicationId: ${applicationId}`)
+        // SAFETY: Ensure fetchRequirements doesn't crash
+        fetchRequirements(true).catch(err => {
+          console.error('[Frontend] fetchRequirements failed on mount:', err)
+          setError('Failed to load document requirements. Please try refreshing the page.')
+          setLoading(false)
+        })
+        // SAFETY: Ensure fetchApplication doesn't crash
+        fetchApplication().catch(err => {
+          console.error('[Frontend] fetchApplication failed on mount:', err)
+          // Don't set error - application fetch is not critical
+        })
+      } else {
+        console.error('[Frontend] RequiredDocuments: applicationId is missing!')
+        setLoading(false)
+        setError('Application ID is missing. Please go back and create an application first.')
+        try {
+          toast.error('Application ID is missing. Please go back and create an application first.')
+        } catch (toastError) {
+          console.error('Toast error:', toastError)
+        }
+      }
+    } catch (error) {
+      // SAFETY: Never let useEffect crash the component
+      console.error('[Frontend] CRITICAL ERROR in useEffect:', error)
       setLoading(false)
-      toast.error('Application ID is missing. Please go back and create an application first.')
+      setError('An error occurred while loading. Please try refreshing the page.')
+      // Ensure documents is always an array
+      setDocuments([])
     }
   }, [applicationId])
 
@@ -497,6 +522,9 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       }
     } catch (error) {
       console.error('Error fetching requirements:', error)
+      // SAFETY: Always set loading to false on error
+      setLoading(false)
+      
       // Show fallback default documents on error
       const fallbackDocuments: DocumentRequirement[] = [
         {
@@ -946,8 +974,10 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     }
   }
 
-  const requiredDocuments = documents.filter(doc => doc.isRequired)
-  const optionalDocuments = documents.filter(doc => !doc.isRequired)
+  // SAFETY: Ensure documents is always an array before filtering
+  const safeDocuments = Array.isArray(documents) ? documents : []
+  const requiredDocuments = safeDocuments.filter(doc => doc && doc.isRequired)
+  const optionalDocuments = safeDocuments.filter(doc => doc && !doc.isRequired)
 
   if (loading) {
     return (
@@ -955,6 +985,39 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-red-600" />
           <span className="ml-3 text-gray-600">Loading document requirements...</span>
+        </div>
+      </div>
+    )
+  }
+
+  // SAFETY: Show error state if there's an error
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+            <h2 className="text-lg font-semibold text-red-900">Error Loading Documents</h2>
+          </div>
+          <p className="text-red-800 mb-4">{error}</p>
+          <div className="flex gap-4">
+            <Button onClick={() => {
+              setError(null)
+              setLoading(true)
+              if (applicationId) {
+                fetchRequirements(true).catch(err => {
+                  console.error('Retry failed:', err)
+                  setError('Failed to load. Please try refreshing the page.')
+                  setLoading(false)
+                })
+              }
+            }}>
+              Try Again
+            </Button>
+            <Button variant="outline" onClick={onBack}>
+              Go Back
+            </Button>
+          </div>
         </div>
       </div>
     )
