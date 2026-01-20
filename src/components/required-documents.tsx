@@ -209,12 +209,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         })
         
         // TEMPORARY: Log current state before merge
-        console.log(`[INSPECTION] BEFORE merge - current documents state:`, documents.map(d => ({
+        console.log(`[INSPECTION] BEFORE merge - current documents state:`, Array.isArray(documents) ? documents.map(d => ({
           type: d.documentType,
           status: d.status,
           hasFile: !!d.uploadedFile,
           fileUrl: d.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
-        })))
+        })) : [])
         
         // CRITICAL: Merge fetched data with existing state intelligently
         // NEVER overwrite valid optimistic state with stale/empty fetched data
@@ -725,11 +725,11 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         }
         
         // TEMPORARY: Log before optimistic update
-        console.log(`[INSPECTION] BEFORE optimistic update - current state:`, documents.map(d => ({
+        console.log(`[INSPECTION] BEFORE optimistic update - current state:`, Array.isArray(documents) ? documents.map(d => ({
           type: d.documentType,
           status: d.status,
           hasFile: !!d.uploadedFile
-        })))
+        })) : [])
         
         // CRITICAL: Lock this uploadedFile to prevent overwrite
         const normalizedType = normalizeDocType(documentType)
