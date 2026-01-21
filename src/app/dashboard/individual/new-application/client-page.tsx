@@ -446,25 +446,22 @@ function NewApplicationContent() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  {/* WorldMap Temporarily Disabled for Debugging */}
-                  <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg text-center">
-                    <MapPin className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-gray-500">World Map Component (Disabled)</p>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      {['United States', 'United Kingdom', 'Canada', 'Australia'].map(c => (
-                        <Button key={c} variant="outline" size="sm" onClick={() => {
-                          // Mock selection
-                          handleCountrySelect({
-                            id: c.toLowerCase().replace(' ', ''),
-                            name: c,
-                            code: c.substring(0, 2).toUpperCase(),
-                            continent: 'North America',
-                            position: [0, 0, 0],
-                            color: 'blue'
-                          })
-                        }}>{c}</Button>
-                      ))}
-                    </div>
+                  {/* WorldMap */}
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <WorldMap
+                      countries={[]} // Pass necessary props or use default
+                      onSelect={(country) => {
+                        handleCountrySelect({
+                          id: country.code.toLowerCase(), // Ensure ID format matches expectations
+                          name: country.name,
+                          code: country.code,
+                          continent: 'Unknown', // Map component needs to provide this or we default
+                          position: [0, 0, 0],
+                          color: 'blue'
+                        })
+                      }}
+                      selectedCountry={selectedCountry?.code}
+                    />
                   </div>
                 </div>
               )}
