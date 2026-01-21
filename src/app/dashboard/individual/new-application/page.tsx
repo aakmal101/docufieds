@@ -1,6 +1,8 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+export const dynamic = 'force-dynamic'
+
+import React, { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,6 +60,41 @@ const consultancyFees = {
   [ProcessType.BUSINESS]: 250,
   [ProcessType.SPORTS]: 180,
   [ProcessType.VISIT]: 120,
+}
+
+// Custom Error Boundary for component-level isolation
+class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: Error | null }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: null }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('NewApplication Error:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-6 bg-red-50 border border-red-200 rounded-lg text-center">
+          <h3 className="text-red-800 font-semibold mb-2">Application Form Error</h3>
+          <p className="text-red-600 mb-4">Something went wrong loading this form.</p>
+          <p className="text-xs font-mono bg-white p-2 border rounded mb-4 overflow-auto max-w-full">
+            {this.state.error?.message}
+          </p>
+          <Button onClick={() => window.location.reload()} variant="outline">
+            Reload Page
+          </Button>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
 }
 
 // Wrapped component to use search params
@@ -703,16 +740,18 @@ function NewApplicationContent() {
 
 export default function NewApplicationPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-          <p className="text-gray-600">Loading page...</p>
+    <ErrorBoundary>
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+            <p className="text-gray-600">Loading page...</p>
+          </div>
         </div>
-      </div>
-    }>
-      <NewApplicationContent />
-    </Suspense>
+      }>
+        <NewApplicationContent />
+      </Suspense>
+    </ErrorBoundary>
   )
 }
 
