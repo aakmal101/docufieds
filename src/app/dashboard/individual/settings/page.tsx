@@ -20,19 +20,33 @@ import {
 import toast from 'react-hot-toast'
 
 export default function SettingsPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  // Password state
   const [hasPassword, setHasPassword] = useState(false)
   const [showCurrentPassword, setShowCurrentPassword] = useState(false)
   const [showNewPassword, setShowNewPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [formData, setFormData] = useState({
+  const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   })
+
+  // Account Info state
+  const [isEditingAccount, setIsEditingAccount] = useState(false)
+  const [accountData, setAccountData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    memberId: '',
+    status: '',
+    userId: ''
+  })
+  const [originalAccountData, setOriginalAccountData] = useState<any>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -48,7 +62,41 @@ export default function SettingsPage() {
     }
 
     checkPasswordStatus()
+    fetchUserData()
   }, [session, status, router])
+
+  const fetchUserData = async () => {
+    try {
+      const response = await fetch('/api/user/profile')
+      const data = await response.json()
+
+      if (data.success) {
+        setAccountData({
+          fullName: data.data.fullName || '',
+          email: data.data.email || '',
+          phone: data.data.phone || '',
+          memberId: data.data.memberId || '',
+          status: data.data.status || '',
+          userId: data.data.userId || ''
+        })
+        setOriginalAccountData(data.data)
+      } else {
+        // Fallback to session data
+        if (session?.user) {
+          setAccountData({
+            fullName: session.user.fullName || '',
+            email: session.user.email || '',
+            phone: session.user.phone || '',
+            memberId: session.user.memberId || '',
+            status: session.user.status || '',
+            userId: session.user.userId || ''
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error)
+    }
+  }
 
   const checkPasswordStatus = async () => {
     try {
@@ -66,8 +114,80 @@ export default function SettingsPage() {
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+  const handlePasswordChange = (field: string, value: string) => {
+    setPasswordForm(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleAccountChange = (field: string, value: string) => {
+    setAccountData(prev => ({ ...prev, [field]: value }))
+  }
+
+  const toggleAccountEdit = () => {
+    if (isEditingAccount) {
+      // Cancelled editing, revert to original
+      if (originalAccountData) {
+        setAccountData({
+          fullName: originalAccountData.fullName || '',
+          email: originalAccountData.email || '',
+          phone: originalAccountData.phone || '',
+          memberId: originalAccountData.memberId || '',
+          status: originalAccountData.status || '',
+          userId: originalAccountData.userId || ''
+        })
+      }
+    }
+    setIsEditingAccount(!isEditingAccount)
+  }
+
+  const handleAccountSave = async () => {
+    setSaving(true)
+    try {
+      // Validate email
+      if (accountData.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        if (!emailRegex.test(accountData.email)) {
+          toast.error('Invalid email format')
+          setSaving(false)
+          return
+        }
+      }
+
+      const response = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: accountData.fullName,
+          email: accountData.email,
+          phone: accountData.phone
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast.success('Account information updated!')
+        setIsEditingAccount(false)
+        setOriginalAccountData({ ...originalAccountData, ...accountData })
+
+        // Update session
+        update({
+          ...session,
+          user: {
+            ...session?.user,
+            fullName: accountData.fullName,
+            email: accountData.email,
+            phone: accountData.phone
+          }
+        })
+      } else {
+        toast.error(data.message || 'Failed to update account info')
+      }
+    } catch (error) {
+      console.error('Error updating account:', error)
+      toast.error('Something went wrong')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,21 +196,24 @@ export default function SettingsPage() {
 
     try {
       // Validate passwords match
-      if (formData.newPassword !== formData.confirmPassword) {
+      // Validate passwords match
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
         toast.error('New passwords do not match')
         setSaving(false)
         return
       }
 
       // Validate password length
-      if (formData.newPassword.length < 6) {
+      // Validate password length
+      if (passwordForm.newPassword.length < 6) {
         toast.error('Password must be at least 6 characters long')
         setSaving(false)
         return
       }
 
       // If updating password, require current password
-      if (hasPassword && !formData.currentPassword) {
+      // If updating password, require current password
+      if (hasPassword && !passwordForm.currentPassword) {
         toast.error('Please enter your current password')
         setSaving(false)
         return
@@ -100,8 +223,8 @@ export default function SettingsPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          password: formData.newPassword,
-          currentPassword: hasPassword ? formData.currentPassword : undefined,
+          password: passwordForm.newPassword,
+          currentPassword: hasPassword ? passwordForm.currentPassword : undefined,
         }),
       })
 
@@ -110,7 +233,8 @@ export default function SettingsPage() {
       if (data.success) {
         toast.success(hasPassword ? 'Password updated successfully!' : 'Password set successfully!')
         // Clear form
-        setFormData({
+        // Clear form
+        setPasswordForm({
           currentPassword: '',
           newPassword: '',
           confirmPassword: '',
@@ -191,8 +315,8 @@ export default function SettingsPage() {
                     id="currentPassword"
                     type={showCurrentPassword ? 'text' : 'password'}
                     placeholder="Enter your current password"
-                    value={formData.currentPassword}
-                    onChange={(e) => handleInputChange('currentPassword', e.target.value)}
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => handlePasswordChange('currentPassword', e.target.value)}
                     required
                   />
                   <button
@@ -215,8 +339,8 @@ export default function SettingsPage() {
                   id="newPassword"
                   type={showNewPassword ? 'text' : 'password'}
                   placeholder={hasPassword ? 'Enter new password' : 'Enter password (min 6 characters)'}
-                  value={formData.newPassword}
-                  onChange={(e) => handleInputChange('newPassword', e.target.value)}
+                  value={passwordForm.newPassword}
+                  onChange={(e) => handlePasswordChange('newPassword', e.target.value)}
                   required
                   minLength={6}
                 />
@@ -242,8 +366,8 @@ export default function SettingsPage() {
                   id="confirmPassword"
                   type={showConfirmPassword ? 'text' : 'password'}
                   placeholder="Confirm password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => handlePasswordChange('confirmPassword', e.target.value)}
                   required
                   minLength={6}
                 />
@@ -285,28 +409,70 @@ export default function SettingsPage() {
 
       {/* Account Information Card */}
       <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Account Information</CardTitle>
-          <CardDescription>
-            Your account details
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Account Information</CardTitle>
+            <CardDescription>Your account details</CardDescription>
+          </div>
+          {!isEditingAccount ? (
+            <Button variant="outline" size="sm" onClick={toggleAccountEdit}>
+              Edit
+            </Button>
+          ) : (
+            <div className="flex space-x-2">
+              <Button variant="ghost" size="sm" onClick={toggleAccountEdit} disabled={saving}>
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleAccountSave} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex justify-between items-center py-2 border-b">
+            <span className="text-sm font-medium text-gray-500">Full Name</span>
+            {isEditingAccount ? (
+              <Input
+                value={accountData.fullName}
+                onChange={(e) => handleAccountChange('fullName', e.target.value)}
+                className="h-8 w-64"
+              />
+            ) : (
+              <span className="text-sm text-gray-900">{accountData.fullName || 'Not set'}</span>
+            )}
+          </div>
+          <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm font-medium text-gray-500">Member ID</span>
-            <span className="text-sm text-gray-900">{session?.user?.memberId || 'Not assigned'}</span>
+            <span className="text-sm text-gray-900">{accountData.memberId || 'Not assigned'}</span>
           </div>
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm font-medium text-gray-500">Email</span>
-            <span className="text-sm text-gray-900">{session?.user?.email || 'Not set'}</span>
+            {isEditingAccount ? (
+              <Input
+                value={accountData.email}
+                onChange={(e) => handleAccountChange('email', e.target.value)}
+                className="h-8 w-64"
+              />
+            ) : (
+              <span className="text-sm text-gray-900">{accountData.email || 'Not set'}</span>
+            )}
           </div>
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm font-medium text-gray-500">Phone</span>
-            <span className="text-sm text-gray-900">{session?.user?.phone || 'Not set'}</span>
+            {isEditingAccount ? (
+              <Input
+                value={accountData.phone}
+                onChange={(e) => handleAccountChange('phone', e.target.value)}
+                className="h-8 w-64"
+              />
+            ) : (
+              <span className="text-sm text-gray-900">{accountData.phone || 'Not set'}</span>
+            )}
           </div>
           <div className="flex justify-between items-center py-2 border-b">
             <span className="text-sm font-medium text-gray-500">Account Status</span>
-            <span className="text-sm text-gray-900">{session?.user?.status || 'PENDING'}</span>
+            <span className="text-sm text-gray-900">{accountData.status || 'PENDING'}</span>
           </div>
           <div className="flex justify-between items-center py-2">
             <span className="text-sm font-medium text-gray-500">Password Status</span>

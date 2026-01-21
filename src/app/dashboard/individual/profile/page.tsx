@@ -42,6 +42,7 @@ export default function ProfilePage() {
   })
   const [profilePhoto, setProfilePhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -264,223 +265,332 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Profile Form */}
+      {/* Profile Content */}
       <Card>
-        <CardHeader>
-          <CardTitle>Personal Information</CardTitle>
-          <CardDescription>
-            Provide accurate information as it will be used for your visa applications
-          </CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Personal Information</CardTitle>
+            <CardDescription>
+              {isEditing
+                ? 'Provide accurate information as it will be used for your visa applications'
+                : 'Your personal and contact information'}
+            </CardDescription>
+          </div>
+          {!isEditing && (
+            <Button onClick={() => setIsEditing(true)}>
+              Edit Profile
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="fullName">Full Name *</Label>
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={formData.fullName}
-                  onChange={(e) => handleInputChange('fullName', e.target.value)}
-                  required
-                />
-              </div>
+          {!isEditing ? (
+            // VIEW MODE
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Full Name</h4>
+                    <p className="text-gray-900 font-medium">{user?.fullName || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Email Address</h4>
+                    <p className="text-gray-900">{user?.email || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Date of Birth</h4>
+                    <p className="text-gray-900">
+                      {user?.dateOfBirth ? new Date(user.dateOfBirth).toLocaleDateString() : 'Not set'}
+                    </p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Place of Birth</h4>
+                    <p className="text-gray-900">{user?.placeOfBirth || 'Not set'}</p>
+                  </div>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email address"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                />
-                <p className="text-xs text-gray-500">
-                  Update your email address for account notifications
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="dateOfBirth">Date of Birth *</Label>
-                <Input
-                  id="dateOfBirth"
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="placeOfBirth">Place of Birth *</Label>
-                <Select value={formData.placeOfBirth} onValueChange={(value) => handleInputChange('placeOfBirth', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select place of birth" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Dhaka">Dhaka</SelectItem>
-                    <SelectItem value="Chittagong">Chittagong</SelectItem>
-                    <SelectItem value="Sylhet">Sylhet</SelectItem>
-                    <SelectItem value="Rajshahi">Rajshahi</SelectItem>
-                    <SelectItem value="Khulna">Khulna</SelectItem>
-                    <SelectItem value="Barisal">Barisal</SelectItem>
-                    <SelectItem value="Rangpur">Rangpur</SelectItem>
-                    <SelectItem value="Mymensingh">Mymensingh</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="profilePhoto">Profile Photo</Label>
-                <div className="space-y-4">
-                  {/* Photo Preview */}
-                  {(photoPreview || user?.photoUrl) && (
-                    <div className="flex items-center space-x-4">
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
-                        <img
-                          src={photoPreview || user?.photoUrl}
-                          alt="Profile preview"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {profilePhoto ? 'New photo selected' : 'Current photo'}
-                      </div>
+                <div>
+                  <h4 className="text-sm font-medium text-gray-500 mb-2">Profile Photo</h4>
+                  {user?.photoUrl ? (
+                    <div className="w-32 h-32 rounded-lg overflow-hidden border border-gray-200">
+                      <img
+                        src={user.photoUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ) : (
+                    <div className="w-32 h-32 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+                      <User className="h-12 w-12" />
                     </div>
                   )}
+                </div>
+              </div>
 
-                  {/* File Upload */}
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="file"
-                      id="profilePhoto"
-                      accept="image/*"
-                      onChange={handlePhotoUpload}
-                      className="hidden"
-                    />
-                    <label
-                      htmlFor="profilePhoto"
-                      className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      {profilePhoto ? 'Change Photo' : 'Upload Photo'}
-                    </label>
-                    {profilePhoto && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setProfilePhoto(null)
-                          setPhotoPreview(null)
-                        }}
-                        className="text-sm text-red-600 hover:text-red-700"
-                      >
-                        Remove
-                      </button>
-                    )}
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-medium mb-4">Document Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Birth Certificate Number</h4>
+                    <p className="text-gray-900 font-mono">{user?.birthCertificateNumber || 'Not set'}</p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Supported formats: JPG, PNG, GIF. Max size: 5MB
-                  </p>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">National ID Number</h4>
+                    <p className="text-gray-900 font-mono">{user?.nidNumber || 'Not set'}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Passport Number</h4>
+                    <p className="text-gray-900 font-mono">{user?.passportNumber || 'Not set'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t">
+                <h3 className="text-lg font-medium mb-4">Address Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Present Address</h4>
+                    <p className="text-gray-900">{user?.presentAddress || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-500 mb-1">Permanent Address</h4>
+                    <p className="text-gray-900">{user?.permanentAddress || 'Not set'}</p>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Document Information */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium mb-4">Document Information</h3>
+          ) : (
+            // EDIT MODE
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Basic Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="birthCertificateNumber">Birth Certificate Number *</Label>
+                  <Label htmlFor="fullName">Full Name *</Label>
                   <Input
-                    id="birthCertificateNumber"
+                    id="fullName"
                     type="text"
-                    placeholder="Enter birth certificate number"
-                    value={formData.birthCertificateNumber}
-                    onChange={(e) => handleInputChange('birthCertificateNumber', e.target.value)}
+                    placeholder="Enter your full name"
+                    value={formData.fullName}
+                    onChange={(e) => handleInputChange('fullName', e.target.value)}
                     required
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="nidNumber">National ID Number *</Label>
+                  <Label htmlFor="email">Email Address</Label>
                   <Input
-                    id="nidNumber"
-                    type="text"
-                    placeholder="Enter NID number"
-                    value={formData.nidNumber}
-                    onChange={(e) => handleInputChange('nidNumber', e.target.value)}
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                  />
+                  <p className="text-xs text-gray-500">
+                    Update your email address for account notifications
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth *</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={formData.dateOfBirth}
+                    onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                     required
                   />
                 </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor="passportNumber">Passport Number *</Label>
-                  <Input
-                    id="passportNumber"
-                    type="text"
-                    placeholder="Enter passport number"
-                    value={formData.passportNumber}
-                    onChange={(e) => handleInputChange('passportNumber', e.target.value)}
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="placeOfBirth">Place of Birth *</Label>
+                  <Select value={formData.placeOfBirth} onValueChange={(value) => handleInputChange('placeOfBirth', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select place of birth" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Dhaka">Dhaka</SelectItem>
+                      <SelectItem value="Chittagong">Chittagong</SelectItem>
+                      <SelectItem value="Sylhet">Sylhet</SelectItem>
+                      <SelectItem value="Rajshahi">Rajshahi</SelectItem>
+                      <SelectItem value="Khulna">Khulna</SelectItem>
+                      <SelectItem value="Barisal">Barisal</SelectItem>
+                      <SelectItem value="Rangpur">Rangpur</SelectItem>
+                      <SelectItem value="Mymensingh">Mymensingh</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="profilePhoto">Profile Photo</Label>
+                  <div className="space-y-4">
+                    {/* Photo Preview */}
+                    {(photoPreview || user?.photoUrl) && (
+                      <div className="flex items-center space-x-4">
+                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
+                          <img
+                            src={photoPreview || user?.photoUrl}
+                            alt="Profile preview"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {profilePhoto ? 'New photo selected' : 'Current photo'}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* File Upload */}
+                    <div className="flex items-center space-x-4">
+                      <input
+                        type="file"
+                        id="profilePhoto"
+                        accept="image/*"
+                        onChange={handlePhotoUpload}
+                        className="hidden"
+                      />
+                      <label
+                        htmlFor="profilePhoto"
+                        className="cursor-pointer inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                      >
+                        <User className="mr-2 h-4 w-4" />
+                        {profilePhoto ? 'Change Photo' : 'Upload Photo'}
+                      </label>
+                      {profilePhoto && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setProfilePhoto(null)
+                            setPhotoPreview(null)
+                          }}
+                          className="text-sm text-red-600 hover:text-red-700"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Supported formats: JPG, PNG, GIF. Max size: 5MB
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Address Information */}
-            <div className="border-t pt-6">
-              <h3 className="text-lg font-medium mb-4">Address Information</h3>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="presentAddress">Present Address *</Label>
-                  <Input
-                    id="presentAddress"
-                    type="text"
-                    placeholder="Enter your present address"
-                    value={formData.presentAddress}
-                    onChange={(e) => handleInputChange('presentAddress', e.target.value)}
-                    required
-                  />
-                </div>
+              {/* Document Information */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Document Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="birthCertificateNumber">Birth Certificate Number *</Label>
+                    <Input
+                      id="birthCertificateNumber"
+                      type="text"
+                      placeholder="Enter birth certificate number"
+                      value={formData.birthCertificateNumber}
+                      onChange={(e) => handleInputChange('birthCertificateNumber', e.target.value)}
+                      required
+                    />
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="permanentAddress">Permanent Address *</Label>
-                  <Input
-                    id="permanentAddress"
-                    type="text"
-                    placeholder="Enter your permanent address"
-                    value={formData.permanentAddress}
-                    onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
-                    required
-                  />
+                  <div className="space-y-2">
+                    <Label htmlFor="nidNumber">National ID Number *</Label>
+                    <Input
+                      id="nidNumber"
+                      type="text"
+                      placeholder="Enter NID number"
+                      value={formData.nidNumber}
+                      onChange={(e) => handleInputChange('nidNumber', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="passportNumber">Passport Number *</Label>
+                    <Input
+                      id="passportNumber"
+                      type="text"
+                      placeholder="Enter passport number"
+                      value={formData.passportNumber}
+                      onChange={(e) => handleInputChange('passportNumber', e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Submit Button */}
-            <div className="flex justify-end space-x-4 pt-6 border-t">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push('/dashboard/individual')}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={saving}>
-                {saving ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  'Save Profile'
-                )}
-              </Button>
-            </div>
-          </form>
+              {/* Address Information */}
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium mb-4">Address Information</h3>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="presentAddress">Present Address *</Label>
+                    <Input
+                      id="presentAddress"
+                      type="text"
+                      placeholder="Enter your present address"
+                      value={formData.presentAddress}
+                      onChange={(e) => handleInputChange('presentAddress', e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="permanentAddress">Permanent Address *</Label>
+                    <Input
+                      id="permanentAddress"
+                      type="text"
+                      placeholder="Enter your permanent address"
+                      value={formData.permanentAddress}
+                      onChange={(e) => handleInputChange('permanentAddress', e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex justify-end space-x-4 pt-6 border-t">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditing(false)
+                    // Reset form to user data if needed? 
+                    // For now, keeping form data as is allows resuming edits if they misclicked cancel.
+                    // But standard is usually to reset. 
+                    // Let's reset to ensure clean state next edit.
+                    if (user) {
+                      setFormData({
+                        fullName: user.fullName || '',
+                        email: user.email || '',
+                        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
+                        placeOfBirth: user.placeOfBirth || '',
+                        birthCertificateNumber: user.birthCertificateNumber || '',
+                        nidNumber: user.nidNumber || '',
+                        passportNumber: user.passportNumber || '',
+                        presentAddress: user.presentAddress || '',
+                        permanentAddress: user.permanentAddress || '',
+                        photoUrl: user.photoUrl || ''
+                      })
+                      setProfilePhoto(null)
+                      if (user.photoUrl) setPhotoPreview(user.photoUrl)
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Profile'
+                  )}
+                </Button>
+              </div>
+            </form>
+          )}
         </CardContent>
       </Card>
     </div>

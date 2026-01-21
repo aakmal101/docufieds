@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       }
     } catch (prismaError: any) {
       console.warn('Prisma connection failed, trying Supabase fallback:', prismaError.message)
-      
+
       // Fallback to Supabase
       try {
         const supabase = await createClient()
@@ -88,7 +88,7 @@ export async function GET(request: NextRequest) {
             createdAt: user.created_at,
             updatedAt: user.updated_at,
           }
-          
+
           return NextResponse.json({
             success: true,
             data: transformedUser,
@@ -172,8 +172,8 @@ export async function PUT(request: NextRequest) {
     }
 
     // Validate required fields
-    if (!fullName || !dateOfBirth || !placeOfBirth || !birthCertificateNumber || 
-        !nidNumber || !passportNumber || !presentAddress || !permanentAddress) {
+    if (!fullName || !dateOfBirth || !placeOfBirth || !birthCertificateNumber ||
+      !nidNumber || !passportNumber || !presentAddress || !permanentAddress) {
       return NextResponse.json(
         { success: false, message: 'All required fields must be provided' },
         { status: 400 }
@@ -307,24 +307,24 @@ export async function PUT(request: NextRequest) {
         },
       })
 
-        // If user was just created, mark for auto-login
-        const wasJustCreated = !existingUser
-        
-        return NextResponse.json({
-          success: true,
-          message: wasJustCreated 
-            ? 'Profile created and saved successfully. You are now registered!'
-            : 'Profile updated successfully',
-          data: updatedUser,
-          autoLogin: wasJustCreated,
-        })
+      // If user was just created, mark for auto-login
+      const wasJustCreated = !existingUser
+
+      return NextResponse.json({
+        success: true,
+        message: wasJustCreated
+          ? 'Profile created and saved successfully. You are now registered!'
+          : 'Profile updated successfully',
+        data: updatedUser,
+        autoLogin: wasJustCreated,
+      })
     } catch (prismaError: any) {
       console.warn('Prisma update failed, trying Supabase fallback:', prismaError.message)
-      
+
       // Fallback to Supabase - use service role client to bypass RLS if needed
       try {
         const supabase = createServiceRoleClient()
-        
+
         // Check if user exists
         const { data: existingUser } = await supabase
           .from('users')
@@ -342,7 +342,7 @@ export async function PUT(request: NextRequest) {
               .select('id')
               .eq('email', email.trim())
               .single()
-            
+
             if (emailExists && emailExists.id !== session.user.id) {
               return NextResponse.json(
                 { success: false, message: 'Email address is already in use' },
@@ -389,14 +389,14 @@ export async function PUT(request: NextRequest) {
               .select('email')
               .eq('id', session.user.id)
               .single()
-            
+
             if (email.trim() !== currentUser?.email) {
               const { data: emailExists } = await supabase
                 .from('users')
                 .select('id')
                 .eq('email', email.trim())
                 .single()
-              
+
               if (emailExists && emailExists.id !== session.user.id) {
                 return NextResponse.json(
                   { success: false, message: 'Email address is already in use' },
@@ -480,8 +480,8 @@ export async function PUT(request: NextRequest) {
       } catch (supabaseError: any) {
         console.error('Supabase update also failed:', supabaseError)
         return NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             message: 'Failed to update profile. Please check your database connection.',
             error: process.env.NODE_ENV === 'development' ? supabaseError.message : undefined
           },
@@ -491,12 +491,109 @@ export async function PUT(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Profile update error:', error)
+
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
+      { status: 500 }
+    )
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { success: false, message: 'Unauthorized' },
+        { status: 401 }
+      )
+    }
+
+    const body = await request.json()
+    const { email, phone, fullName } = body
+
+    // 1. Validate email format if provided
+    if (email !== undefined && email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return NextResponse.json(
+          { success: false, message: 'Invalid email format' },
+          { status: 400 }
+        )
+      }
+    }
+
+    // 2. Check for email uniqueness if email is being changed
+    if (email !== undefined) {
+      // Note: we check strictly against undefined because empty string might be valid check? 
+      // Actually usually email is required unique.
+      // Let's assume we only check if it's a non-empty string different from current.
+      if (email.trim() !== '') {
+        const existingUser = await prisma.user.findUnique({
+          where: { id: session.user.id }
+        })
+
+        if (existingUser && email.trim() !== existingUser.email) {
+          const emailExists = await prisma.user.findUnique({
+            where: { email: email.trim() },
+          })
+          if (emailExists && emailExists.id !== session.user.id) {
+            return NextResponse.json(
+              { success: false, message: 'Email address is already in use' },
+              { status: 409 }
+            )
+          }
+        }
+      }
+    }
+
+    // 3. Update User
+    const updatedUser = await prisma.user.update({
+      where: { id: session.user.id },
+      data: {
+        ...(fullName && { fullName }),
+        ...(email !== undefined && { email: email.trim() !== '' ? email.trim() : null }),
+        ...(phone !== undefined && { phone }),
+      },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        status: true,
+        memberId: true,
+        // Add other common fields consistent with GET/PUT responses if needed by frontend
+        role: true,
+        userId: true,
+        dateOfBirth: true,
+        placeOfBirth: true,
+        photoUrl: true,
+        birthCertificateNumber: true,
+        nidNumber: true,
+        passportNumber: true,
+        presentAddress: true,
+        permanentAddress: true,
+        isVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    })
+
+    return NextResponse.json({
+      success: true,
+      message: 'Account information updated successfully',
+      data: updatedUser
+    })
+
+  } catch (error: any) {
+    console.error('Profile PATCH error:', error)
+    return NextResponse.json(
+      { success: false, message: 'Internal server error', error: error.message },
       { status: 500 }
     )
   }
