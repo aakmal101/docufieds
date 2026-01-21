@@ -449,8 +449,7 @@ function NewApplicationContent() {
                   {/* WorldMap */}
                   <div className="border border-gray-200 rounded-lg overflow-hidden">
                     <WorldMap
-                      countries={[]} // Pass necessary props or use default
-                      onSelect={(country) => {
+                      onCountrySelect={(country) => {
                         handleCountrySelect({
                           id: country.code.toLowerCase(), // Ensure ID format matches expectations
                           name: country.name,
