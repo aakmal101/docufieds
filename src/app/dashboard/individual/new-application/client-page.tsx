@@ -3,6 +3,7 @@
 
 
 import React, { useState, useEffect, Suspense } from 'react'
+import { ComponentErrorBoundary } from '@/components/ui/component-error-boundary'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +23,7 @@ import {
   CheckCircle
 } from 'lucide-react'
 import WorldMap from '@/components/world-map'
-// import RequiredDocuments from '@/components/required-documents'
+import RequiredDocuments from '@/components/required-documents'
 import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
@@ -574,10 +575,13 @@ function NewApplicationContent() {
               )}
               */}
               {step === 'documents' && applicationId && (
-                <div className="p-8 text-center border rounded">
-                  <p>Documents Component Temporarily Disabled for Debugging</p>
-                  <Button onClick={() => setStep('call')}>Skip to Call</Button>
-                </div>
+                <ComponentErrorBoundary name="RequiredDocuments">
+                  <RequiredDocuments
+                    applicationId={applicationId}
+                    onComplete={() => setStep('call')}
+                    onBack={() => setStep('review')}
+                  />
+                </ComponentErrorBoundary>
               )}
               {step === 'documents' && !applicationId && (
                 <div className="text-center py-12">
