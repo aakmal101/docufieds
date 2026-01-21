@@ -44,28 +44,13 @@ const getStatusIcon = (status: string) => {
   }
 }
 
-// TEMPORARY: State timeline for debugging
-if (typeof window !== 'undefined' && !(window as any).__docStateTimeline) {
-  (window as any).__docStateTimeline = []
-  (window as any).__lastRequirementsResponse = null
-}
-
 const logStateChange = (action: string, documentType: string, status: string | null, hasUploadedFile: boolean, details?: any) => {
-  if (typeof window !== 'undefined') {
-    const timeline = (window as any).__docStateTimeline
-    timeline.push({
-      ts: new Date().toISOString(),
-      action,
-      documentType,
-      status,
-      hasUploadedFile,
-      details: details || {}
-    })
-    // Keep only last 50 entries
-    if (timeline.length > 50) timeline.shift()
-    console.log(`[STATE TIMELINE] ${action} | ${documentType} | status=${status} | hasFile=${hasUploadedFile}`, details || '')
+  // Debug logging removed for production stability
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[STATE] ${action} | ${documentType}`, details)
   }
 }
+
 
 export default function RequiredDocuments({ applicationId, onComplete, onBack }: RequiredDocumentsProps) {
   const [documents, setDocuments] = useState<DocumentRequirement[]>([])
@@ -77,7 +62,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
   const [checkingReadiness, setCheckingReadiness] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
-  
+
   // CRITICAL: Lock mechanism to prevent overwriting valid uploadedFile
   // Maps documentType -> uploadedFile data that must be preserved
   const uploadLocks = useRef<Map<string, { fileUrl: string; fileName: string; uploadedAt: Date }>>(new Map())
@@ -142,16 +127,16 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         const UPLOAD_COOLDOWN = 5000 // 5 seconds - increased for extra safety
         const recentUploads = Array.from((window as any).__uploadTimestamps.entries())
           .filter(([_, timestamp]: [string, number]) => now - timestamp < UPLOAD_COOLDOWN)
-        
+
         if (recentUploads.length > 0) {
           const uploadTypes = recentUploads.map(([type]: [string]) => type).join(', ')
           const oldestTime = Math.min(...recentUploads.map(([_, ts]: [string, number]) => ts))
           const timeRemaining = UPLOAD_COOLDOWN - (now - oldestTime)
-          console.log(`[Frontend] ⏸ BLOCKING fetchRequirements - upload cooldown active for: ${uploadTypes} (${Math.round(timeRemaining/1000)}s remaining)`)
+          console.log(`[Frontend] ⏸ BLOCKING fetchRequirements - upload cooldown active for: ${uploadTypes} (${Math.round(timeRemaining / 1000)}s remaining)`)
           return // Skip refresh during cooldown - state is already correct
         }
       }
-      
+
       if (showLoading) {
         setLoading(true)
       }
@@ -162,7 +147,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           'Cache-Control': 'no-store, no-cache, must-revalidate',
         },
       })
-      
+
       if (!response.ok) {
         const errorText = await response.text()
         let errorData
@@ -174,15 +159,15 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         console.error(`[Frontend] Requirements API error (${response.status}):`, errorData)
         throw new Error(errorData.message || `Failed to fetch requirements: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       // CRITICAL: Validate API response structure
       if (!data || typeof data !== 'object') {
         console.error('[Frontend] Invalid API response structure:', data)
         throw new Error('Invalid response from server. Please refresh the page and try again.')
       }
-      
+
       if (!data.success) {
         console.error('[Frontend] API returned error:', data.message)
         // If API fails, we'll use fallback documents, so don't throw here
@@ -190,16 +175,16 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         console.warn('[Frontend] API returned unsuccessful response, will use fallback documents')
         throw new Error(data.message || 'Failed to fetch document requirements')
       }
-      
+
       if (!Array.isArray(data.data)) {
         console.error('[Frontend] API data is not an array:', data.data)
         throw new Error('Invalid data format from server. Please refresh the page.')
       }
-      
+
       if (data.data.length === 0) {
         console.warn('[Frontend] API returned empty requirements array. This may be normal for new applications.')
       }
-      
+
       console.log(`[Frontend] Successfully fetched ${data.data.length} document requirements`)
 
       // TEMPORARY: Store API response for debugging
@@ -210,19 +195,19 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       if (data.success) {
         // TEMPORARY: Log before processing
         console.log(`[INSPECTION] fetchRequirements called | applicationId: ${applicationId} | response data length: ${data.data?.length || 0}`)
-        
+
         // This is the SOURCE OF TRUTH - data comes directly from the database
         // Map requirements with their upload status from database
         const documentsWithStatus = (data.data || []).map((doc: any) => {
           // CRITICAL: Check if document has valid uploaded file data
           // Database is the source of truth - if uploadedFile exists with valid data, document is uploaded
           const uploadedFile = doc.uploadedFile
-          const hasUploadedFile = uploadedFile && 
-                                 uploadedFile.fileUrl && 
-                                 uploadedFile.fileUrl.trim().length > 0 &&
-                                 uploadedFile.fileName && 
-                                 uploadedFile.fileName.trim().length > 0
-          
+          const hasUploadedFile = uploadedFile &&
+            uploadedFile.fileUrl &&
+            uploadedFile.fileUrl.trim().length > 0 &&
+            uploadedFile.fileName &&
+            uploadedFile.fileName.trim().length > 0
+
           return {
             ...doc,
             // Status is determined by database record existence
@@ -230,26 +215,26 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             uploadedFile: hasUploadedFile ? {
               fileUrl: uploadedFile.fileUrl.trim(),
               fileName: uploadedFile.fileName.trim(),
-              uploadedAt: uploadedFile.uploadedAt 
-                ? (uploadedFile.uploadedAt instanceof Date 
-                    ? uploadedFile.uploadedAt 
-                    : new Date(uploadedFile.uploadedAt))
+              uploadedAt: uploadedFile.uploadedAt
+                ? (uploadedFile.uploadedAt instanceof Date
+                  ? uploadedFile.uploadedAt
+                  : new Date(uploadedFile.uploadedAt))
                 : new Date()
             } : null
           }
         })
-        
+
         // Canonical documentType normalization (must match server-side)
         const normalizeDocType = (value: string): string => {
           return value.trim().toLowerCase().replace(/\s+/g, ' ')
         }
-        
+
         // TEMPORARY DEBUG: Log fetched requirements response
         console.log(`[Frontend] fetchRequirements response for applicationId: ${applicationId}`)
         documentsWithStatus.forEach((d, idx) => {
           console.log(`  [${idx}] Requirement: "${d.documentType}" | Status: ${d.status} | Has File: ${!!d.uploadedFile} | File URL: ${d.uploadedFile?.fileUrl?.substring(0, 60) || 'N/A'}...`)
         })
-        
+
         // TEMPORARY: Log current state before merge
         console.log(`[INSPECTION] BEFORE merge - current documents state:`, Array.isArray(documents) ? documents.map(d => ({
           type: d.documentType,
@@ -257,7 +242,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           hasFile: !!d.uploadedFile,
           fileUrl: d.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
         })) : [])
-        
+
         // CRITICAL: Merge fetched data with existing state intelligently
         // NEVER overwrite valid optimistic state with stale/empty fetched data
         setDocuments(prev => {
@@ -267,25 +252,25 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
             })
           })
-          
+
           const merged = documentsWithStatus.map(fetchedDoc => {
             // Find corresponding document in current state using normalized matching
             const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
             const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
-            
+
             // CRITICAL: Check upload cooldown - if upload just happened, preserve current state completely
             if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
               const now = Date.now()
               const UPLOAD_COOLDOWN = 5000 // Increased to 5 seconds for extra safety
               const uploadTime = (window as any).__uploadTimestamps.get(normalizedFetchedType)
-              
+
               if (uploadTime && (now - uploadTime) < UPLOAD_COOLDOWN) {
                 // Upload just happened - preserve current state completely, no questions asked
-                if (currentDoc?.uploadedFile && 
-                    currentDoc.uploadedFile.fileUrl && 
-                    currentDoc.uploadedFile.fileUrl.trim().length > 0 &&
-                    currentDoc.uploadedFile.fileName &&
-                    currentDoc.uploadedFile.fileName.trim().length > 0) {
+                if (currentDoc?.uploadedFile &&
+                  currentDoc.uploadedFile.fileUrl &&
+                  currentDoc.uploadedFile.fileUrl.trim().length > 0 &&
+                  currentDoc.uploadedFile.fileName &&
+                  currentDoc.uploadedFile.fileName.trim().length > 0) {
                   console.log(`[Frontend] 🛡️ COOLDOWN PROTECTION: Preserving state for "${fetchedDoc.documentType}" (upload ${now - uploadTime}ms ago)`)
                   logStateChange('COOLDOWN_PRESERVE', fetchedDoc.documentType, 'uploaded', true, {
                     timeSinceUpload: now - uploadTime,
@@ -299,43 +284,43 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 }
               }
             }
-            
+
             // If current state has a valid uploaded file, preserve it unless fetched has a newer valid file
             // CRITICAL: Do NOT check status - it's a derived field that can be overwritten
             // Only check uploadedFile existence (matching button logic)
             const currentFile = currentDoc?.uploadedFile
             const fetchedFile = fetchedDoc.uploadedFile
-            
+
             // Check if current state has valid uploadedFile (same condition as button)
-            const hasValidCurrentFile = currentFile && 
-                                      currentFile.fileUrl && 
-                                      currentFile.fileUrl.trim().length > 0 &&
-                                      currentFile.fileName && 
-                                      currentFile.fileName.trim().length > 0
-            
+            const hasValidCurrentFile = currentFile &&
+              currentFile.fileUrl &&
+              currentFile.fileUrl.trim().length > 0 &&
+              currentFile.fileName &&
+              currentFile.fileName.trim().length > 0
+
             // CRITICAL: Also check upload locks - if a documentType is locked, preserve it
             const lockedFile = uploadLocks.current.get(normalizedFetchedType)
-            const hasLockedFile = lockedFile && 
-                                 lockedFile.fileUrl && 
-                                 lockedFile.fileUrl.trim().length > 0 &&
-                                 lockedFile.fileName && 
-                                 lockedFile.fileName.trim().length > 0
-            
+            const hasLockedFile = lockedFile &&
+              lockedFile.fileUrl &&
+              lockedFile.fileUrl.trim().length > 0 &&
+              lockedFile.fileName &&
+              lockedFile.fileName.trim().length > 0
+
             // Use locked file if available, otherwise use current file
             const fileToPreserve = hasLockedFile ? lockedFile : (hasValidCurrentFile ? currentFile : null)
             const shouldPreserve = hasLockedFile || hasValidCurrentFile
-            
+
             // Check if fetched has valid file (compute once)
-            const hasValidFetchedFile = fetchedFile && 
-                                      fetchedFile.fileUrl && 
-                                      fetchedFile.fileUrl.trim().length > 0 &&
-                                      fetchedFile.fileName && 
-                                      fetchedFile.fileName.trim().length > 0
-            
+            const hasValidFetchedFile = fetchedFile &&
+              fetchedFile.fileUrl &&
+              fetchedFile.fileUrl.trim().length > 0 &&
+              fetchedFile.fileName &&
+              fetchedFile.fileName.trim().length > 0
+
             if (shouldPreserve && fileToPreserve) {
               // CRITICAL: If fetched data doesn't have the file, preserve current/locked state
               // This handles race conditions where fetch happens before DB is updated
-              
+
               if (!hasValidFetchedFile) {
                 const preserveReason = hasLockedFile ? 'locked_file' : 'fetched_missing_file'
                 console.log(`[Frontend] ✓ Preserving ${preserveReason} for "${fetchedDoc.documentType}" - fetched data missing file`)
@@ -349,12 +334,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                   uploadedFile: fileToPreserve
                 }
               }
-              
+
               // If both have files, use the one with newer upload date
               if (fetchedFile.uploadedAt && fileToPreserve.uploadedAt) {
                 const preserveDate = fileToPreserve.uploadedAt instanceof Date ? fileToPreserve.uploadedAt : new Date(fileToPreserve.uploadedAt)
                 const fetchedDate = fetchedFile.uploadedAt instanceof Date ? fetchedFile.uploadedAt : new Date(fetchedFile.uploadedAt)
-                
+
                 if (preserveDate > fetchedDate) {
                   console.log(`[Frontend] ✓ Using newer ${hasLockedFile ? 'locked' : 'local'} state for "${fetchedDoc.documentType}" (preserve: ${preserveDate.toISOString()}, fetched: ${fetchedDate.toISOString()})`)
                   logStateChange('MERGE_PRESERVE_NEWER', fetchedDoc.documentType, 'uploaded', true, {
@@ -369,7 +354,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 }
               }
             }
-            
+
             // CRITICAL: Check locks even if current state doesn't have file
             // This handles case where state was overwritten but lock still exists
             if (hasLockedFile && !hasValidFetchedFile) {
@@ -384,7 +369,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 uploadedFile: lockedFile
               }
             }
-            
+
             // CRITICAL FINAL CHECK: If we have ANY valid file (lock or current) but fetched doesn't, ALWAYS preserve
             // This is the ultimate protection against state reversion
             const finalFileToPreserve = hasLockedFile ? lockedFile : (hasValidCurrentFile ? currentFile : null)
@@ -404,13 +389,13 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 uploadedFile: finalFileToPreserve
               }
             }
-            
+
             // ADDITIONAL SAFETY: If fetched has file but it's empty/invalid, still preserve our file
             if (finalFileToPreserve && hasValidFetchedFile) {
               // Both have files - check if fetched is actually valid
               const fetchedFileUrl = fetchedFile.fileUrl?.trim() || ''
               const fetchedFileName = fetchedFile.fileName?.trim() || ''
-              
+
               if (fetchedFileUrl.length === 0 || fetchedFileName.length === 0) {
                 // Fetched file is invalid - preserve ours
                 console.log(`[Frontend] ✓ CRITICAL: Preserving ${hasLockedFile ? 'locked' : 'current'} file - fetched file is invalid`)
@@ -421,18 +406,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 }
               }
             }
-            
+
             // If fetched has valid file, compare with our file to decide which to use
             if (hasValidFetchedFile) {
               // If we have a locked or current file, compare timestamps
               if (finalFileToPreserve && finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt) {
-                const preserveDate = finalFileToPreserve.uploadedAt instanceof Date 
-                  ? finalFileToPreserve.uploadedAt 
+                const preserveDate = finalFileToPreserve.uploadedAt instanceof Date
+                  ? finalFileToPreserve.uploadedAt
                   : new Date(finalFileToPreserve.uploadedAt)
-                const fetchedDate = fetchedFile.uploadedAt instanceof Date 
-                  ? fetchedFile.uploadedAt 
+                const fetchedDate = fetchedFile.uploadedAt instanceof Date
+                  ? fetchedFile.uploadedAt
                   : new Date(fetchedFile.uploadedAt)
-                
+
                 // If our file is newer or same, use ours (don't overwrite with older data)
                 if (preserveDate >= fetchedDate) {
                   console.log(`[Frontend] ✓ Using ${hasLockedFile ? 'locked' : 'current'} file (newer or same timestamp) - NOT clearing lock`)
@@ -443,7 +428,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                     uploadedFile: finalFileToPreserve
                   }
                 }
-                
+
                 // Fetched file is significantly newer (more than 1 second) - use it and clear lock
                 const timeDiff = fetchedDate.getTime() - preserveDate.getTime()
                 if (timeDiff > 1000) {
@@ -465,7 +450,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                   }
                 }
               }
-              
+
               // Fetched file exists but we don't have a file to compare - use fetched
               // Only clear lock if we're actually using fetched (not preserving)
               uploadLocks.current.delete(normalizedFetchedType)
@@ -475,12 +460,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               })
               return fetchedDoc
             }
-            
+
             // FINAL SAFETY CHECK: Before returning fetchedDoc, verify we're not overwriting a valid file
             // This is the last line of defense - if we have ANY valid file anywhere, preserve it
-            if (finalFileToPreserve && (!hasValidFetchedFile || 
-                (finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt &&
-                 new Date(finalFileToPreserve.uploadedAt) >= new Date(fetchedFile.uploadedAt)))) {
+            if (finalFileToPreserve && (!hasValidFetchedFile ||
+              (finalFileToPreserve.uploadedAt && fetchedFile.uploadedAt &&
+                new Date(finalFileToPreserve.uploadedAt) >= new Date(fetchedFile.uploadedAt)))) {
               // We have a valid file that should be preserved
               console.log(`[Frontend] 🛡️ FINAL SAFETY: Preserving ${hasLockedFile ? 'locked' : 'current'} file for "${fetchedDoc.documentType}"`)
               return {
@@ -489,31 +474,31 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 uploadedFile: finalFileToPreserve
               }
             }
-            
+
             // If neither has file, use fetched (it's the source of truth)
             logStateChange('MERGE_NO_FILE', fetchedDoc.documentType, fetchedDoc.status, false, {
               source: 'fetched'
             })
             return fetchedDoc
           })
-          
+
           // CRITICAL FINAL CHECK: Verify no valid uploadedFile was lost in merge
           // This is a safety net to catch any edge cases
           const mergedWithValidation = merged.map(doc => {
             const normalizedType = normalizeDocType(doc.documentType)
-            
+
             // Check if we have a lock for this document
             const lock = uploadLocks.current.get(normalizedType)
-            const hasValidLock = lock && 
-                               lock.fileUrl && 
-                               lock.fileUrl.trim().length > 0 &&
-                               lock.fileName && 
-                               lock.fileName.trim().length > 0
-            
+            const hasValidLock = lock &&
+              lock.fileUrl &&
+              lock.fileUrl.trim().length > 0 &&
+              lock.fileName &&
+              lock.fileName.trim().length > 0
+
             // If we have a lock but merged doc doesn't have file, restore from lock
-            if (hasValidLock && (!doc.uploadedFile || 
-                !doc.uploadedFile.fileUrl || 
-                doc.uploadedFile.fileUrl.trim().length === 0)) {
+            if (hasValidLock && (!doc.uploadedFile ||
+              !doc.uploadedFile.fileUrl ||
+              doc.uploadedFile.fileUrl.trim().length === 0)) {
               console.log(`[Frontend] 🛡️ FINAL VALIDATION: Restoring from lock for "${doc.documentType}" - merge lost the file`)
               return {
                 ...doc,
@@ -521,20 +506,20 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 uploadedFile: lock
               }
             }
-            
+
             return doc
           })
-          
+
           // TEMPORARY: Log final merged state
           mergedWithValidation.forEach(doc => {
             logStateChange('AFTER_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
               fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
             })
           })
-          
+
           return mergedWithValidation
         })
-        
+
         // Fetch templates for each document type (only if we have documents)
         if (data.data && data.data.length > 0) {
           const templatePromises = data.data.map(async (doc: DocumentRequirement) => {
@@ -620,26 +605,26 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           // If we have existing documents with uploaded files, preserve them
           if (prev.length > 0) {
             const merged = fallbackDocuments.map(fallbackDoc => {
-              const existingDoc = prev.find(p => 
+              const existingDoc = prev.find(p =>
                 normalizeDocType(p.documentType) === normalizeDocType(fallbackDoc.documentType)
               )
-              
+
               // If existing doc has uploaded file, preserve it
-              if (existingDoc?.uploadedFile && 
-                  existingDoc.uploadedFile.fileUrl && 
-                  existingDoc.uploadedFile.fileUrl.trim().length > 0) {
+              if (existingDoc?.uploadedFile &&
+                existingDoc.uploadedFile.fileUrl &&
+                existingDoc.uploadedFile.fileUrl.trim().length > 0) {
                 return {
                   ...fallbackDoc,
                   status: 'uploaded' as const,
                   uploadedFile: existingDoc.uploadedFile
                 }
               }
-              
+
               return fallbackDoc
             })
             return merged
           }
-          
+
           return fallbackDocuments
         })
         // Try to fetch templates for fallback documents
@@ -674,7 +659,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       console.error('Error fetching requirements:', error)
       // SAFETY: Always set loading to false on error
       setLoading(false)
-      
+
       // Show fallback default documents on error
       const fallbackDocuments: DocumentRequirement[] = [
         {
@@ -862,18 +847,18 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       if (data.success && data.data) {
         // The API returns the saved document from database (SOURCE OF TRUTH)
         const documentData = data.data
-        
+
         // Extract file data - API returns both formats for compatibility
         const uploadedFileData = documentData.uploadedFile || {
           fileUrl: documentData.fileUrl,
           fileName: documentData.fileName,
           uploadedAt: documentData.uploadedAt || new Date()
         }
-        
+
         // CRITICAL: Validate we have valid file data from database
-        if (!uploadedFileData.fileUrl || !uploadedFileData.fileName || 
-            uploadedFileData.fileUrl.trim().length === 0 || 
-            uploadedFileData.fileName.trim().length === 0) {
+        if (!uploadedFileData.fileUrl || !uploadedFileData.fileName ||
+          uploadedFileData.fileUrl.trim().length === 0 ||
+          uploadedFileData.fileName.trim().length === 0) {
           console.error('Invalid document data from server:', documentData)
           throw new Error('Invalid document data received from server. Please try again.')
         }
@@ -883,11 +868,11 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         const uploadedFile = {
           fileUrl: uploadedFileData.fileUrl.trim(),
           fileName: uploadedFileData.fileName.trim(),
-          uploadedAt: uploadedFileData.uploadedAt instanceof Date 
-            ? uploadedFileData.uploadedAt 
+          uploadedAt: uploadedFileData.uploadedAt instanceof Date
+            ? uploadedFileData.uploadedAt
             : new Date(uploadedFileData.uploadedAt)
         }
-        
+
         // TEMPORARY DEBUG: Log upload success with all details
         console.log(`[Frontend] ✓ Upload SUCCESS:`)
         console.log(`  - applicationId: ${applicationId}`)
@@ -896,24 +881,24 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         console.log(`  - returned fileUrl: ${uploadedFile.fileUrl.substring(0, 80)}...`)
         console.log(`  - returned fileName: "${uploadedFile.fileName}"`)
         console.log(`  - uploadedAt: ${uploadedFile.uploadedAt.toISOString()}`)
-        
+
         // Canonical normalization for matching
         const normalizeDocType = (value: string): string => {
           return value.trim().toLowerCase().replace(/\s+/g, ' ')
         }
-        
+
         // TEMPORARY: Log before optimistic update
         console.log(`[INSPECTION] BEFORE optimistic update - current state:`, Array.isArray(documents) ? documents.map(d => ({
           type: d.documentType,
           status: d.status,
           hasFile: !!d.uploadedFile
         })) : [])
-        
+
         // CRITICAL: Lock this uploadedFile to prevent overwrite
         const normalizedType = normalizeDocType(documentType)
         uploadLocks.current.set(normalizedType, uploadedFile)
         console.log(`[Frontend] ✓ Locked uploadedFile for "${documentType}" (normalized: "${normalizedType}")`)
-        
+
         setDocuments(prev => {
           const updated = prev.map(doc => {
             // Use normalized matching to find the correct document
@@ -931,7 +916,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             }
             return doc
           })
-          
+
           // TEMPORARY: Log after optimistic update
           updated.forEach(doc => {
             if (normalizeDocType(doc.documentType) === normalizedType) {
@@ -940,7 +925,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               })
             }
           })
-          
+
           return updated
         })
 
@@ -948,14 +933,14 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           duration: 3000,
           icon: '✅',
         })
-        
+
         // Reset file input immediately
         if (fileInputRefs.current[documentType]) {
           fileInputRefs.current[documentType].value = ''
         }
-        
+
         console.log(`[Frontend] ✓ Upload complete for "${documentType}". State updated with uploadedFile.`)
-        
+
         // CRITICAL: Do NOT call fetchRequirements after upload
         // The optimistic update is correct - we have valid file data from the API response
         // Calling fetchRequirements causes state reversion because:
@@ -967,7 +952,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         // - On next component mount (if user navigates away and back)
         // - On manual page refresh
         // - The merge logic + locks + cooldown will preserve the state when it does sync
-        
+
         // Set upload timestamp for cooldown protection (5 seconds - prevents any fetchRequirements)
         const uploadTimestamp = Date.now()
         if (typeof window !== 'undefined') {
@@ -977,7 +962,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           (window as any).__uploadTimestamps.set(normalizedType, uploadTimestamp)
           console.log(`[Frontend] ✓ Upload timestamp set for "${documentType}" - 5 second cooldown active (blocks fetchRequirements)`)
         }
-        
+
         console.log(`[Frontend] ✓ Lock set and state updated. No immediate refresh - state is already correct.`)
       } else {
         throw new Error(data.message || 'Failed to upload document')
@@ -985,7 +970,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
     } catch (error: any) {
       console.error('[Frontend] Upload error:', error)
       const errorMessage = error.message || 'Failed to upload document. Please try again.'
-      
+
       // Provide user-friendly error messages
       let userMessage = errorMessage
       if (errorMessage.includes('Storage bucket not configured')) {
@@ -995,17 +980,17 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       } else if (errorMessage.includes('already exists')) {
         userMessage = 'A file with this name already exists. Please rename your file and try again.'
       }
-      
+
       toast.error(userMessage, {
         duration: 5000,
         icon: '❌',
       })
-      
+
       // Clear lock on error
       const normalizedType = normalizeDocType(documentType)
       uploadLocks.current.delete(normalizedType)
       console.log(`[Frontend] ✓ Lock cleared for "${documentType}" - upload failed`)
-      
+
       // Re-fetch to ensure state is correct after error
       // This ensures we don't show stale "uploaded" state if upload failed
       // But respect cooldown - don't refresh if we just uploaded
@@ -1151,7 +1136,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Required Documents</h1>
         <p className="text-gray-600">
-          Please prepare the following documents for your visa application. 
+          Please prepare the following documents for your visa application.
           Required documents are mandatory, while supporting documents are optional but recommended.
         </p>
       </div>
@@ -1170,100 +1155,100 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 return null
               }
               return (
-              <Card key={document.id} className="border-l-4 border-l-red-500">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center">
-                      <FileText className="h-5 w-5 text-red-600 mr-2" />
-                      {document.documentType}
-                    </CardTitle>
-                    <Badge className={getStatusColor(document.status)}>
-                      {getStatusIcon(document.status)}
-                      <span className="ml-1">{document.status}</span>
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4">
-                    {document.description || 'No description available'}
-                  </p>
-                  {document.uploadedFile && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-green-800">
-                        <CheckCircle className="h-4 w-4 inline mr-1" />
-                        Uploaded: {document.uploadedFile.fileName}
-                      </p>
+                <Card key={document.id} className="border-l-4 border-l-red-500">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center">
+                        <FileText className="h-5 w-5 text-red-600 mr-2" />
+                        {document.documentType}
+                      </CardTitle>
+                      <Badge className={getStatusColor(document.status)}>
+                        {getStatusIcon(document.status)}
+                        <span className="ml-1">{document.status}</span>
+                      </Badge>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => handleDownloadTemplate(document.documentType)}
-                      disabled={!templates[document.documentType]}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Download Template
-                    </Button>
-                    <input
-                      type="file"
-                      ref={(el) => (fileInputRefs.current[document.documentType] = el)}
-                      onChange={(e) => handleFileSelect(document.documentType, e)}
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      className="hidden"
-                    />
-                    {(() => {
-                      // SOURCE OF TRUTH: uploadedFile existence determines button state
-                      // A document is uploaded IF AND ONLY IF:
-                      // 1. uploadedFile exists
-                      // 2. fileUrl is valid (non-empty string)
-                      // 3. fileName is valid (non-empty string)
-                      // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
-                      const uploadedFile = document.uploadedFile
-                      const hasUploadedDocument = uploadedFile && 
-                                                uploadedFile.fileUrl && 
-                                                uploadedFile.fileUrl.trim().length > 0 &&
-                                                uploadedFile.fileName && 
-                                                uploadedFile.fileName.trim().length > 0
-                      
-                      if (hasUploadedDocument) {
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600 mb-4">
+                      {document.description || 'No description available'}
+                    </p>
+                    {document.uploadedFile && (
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <CheckCircle className="h-4 w-4 inline mr-1" />
+                          Uploaded: {document.uploadedFile.fileName}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadTemplate(document.documentType)}
+                        disabled={!templates[document.documentType]}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download Template
+                      </Button>
+                      <input
+                        type="file"
+                        ref={(el) => (fileInputRefs.current[document.documentType] = el)}
+                        onChange={(e) => handleFileSelect(document.documentType, e)}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        className="hidden"
+                      />
+                      {(() => {
+                        // SOURCE OF TRUTH: uploadedFile existence determines button state
+                        // A document is uploaded IF AND ONLY IF:
+                        // 1. uploadedFile exists
+                        // 2. fileUrl is valid (non-empty string)
+                        // 3. fileName is valid (non-empty string)
+                        // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
+                        const uploadedFile = document.uploadedFile
+                        const hasUploadedDocument = uploadedFile &&
+                          uploadedFile.fileUrl &&
+                          uploadedFile.fileUrl.trim().length > 0 &&
+                          uploadedFile.fileName &&
+                          uploadedFile.fileName.trim().length > 0
+
+                        if (hasUploadedDocument) {
+                          return (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Document
+                            </Button>
+                          )
+                        }
+
                         return (
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
+                          <Button
+                            size="sm"
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                            disabled={uploading[document.documentType]}
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Document
+                            {uploading[document.documentType] ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 mr-1" />
+                                Upload Document
+                              </>
+                            )}
                           </Button>
                         )
-                      }
-                      
-                      return (
-                        <Button 
-                          size="sm" 
-                          className="bg-red-600 hover:bg-red-700 text-white"
-                          onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                          disabled={uploading[document.documentType]}
-                        >
-                          {uploading[document.documentType] ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-4 w-4 mr-1" />
-                              Upload Document
-                            </>
-                          )}
-                        </Button>
-                      )
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            )
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
             })}
           </div>
         </div>
@@ -1277,8 +1262,8 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             <p className="text-yellow-800 mb-4">
               Document requirements are being loaded. If this message persists, please contact support.
             </p>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setLoading(true)
                 setError(null)
@@ -1311,100 +1296,100 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 return null
               }
               return (
-              <Card key={document.id} className="border-l-4 border-l-blue-500">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center">
-                      <FileText className="h-5 w-5 text-blue-600 mr-2" />
-                      {document.documentType}
-                    </CardTitle>
-                    <Badge className={getStatusColor(document.status)}>
-                      {getStatusIcon(document.status)}
-                      <span className="ml-1">{document.status}</span>
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-gray-600 mb-4">
-                    {document.description || 'No description available'}
-                  </p>
-                  {document.uploadedFile && (
-                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                      <p className="text-sm text-green-800">
-                        <CheckCircle className="h-4 w-4 inline mr-1" />
-                        Uploaded: {document.uploadedFile.fileName}
-                      </p>
+                <Card key={document.id} className="border-l-4 border-l-blue-500">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-lg flex items-center">
+                        <FileText className="h-5 w-5 text-blue-600 mr-2" />
+                        {document.documentType}
+                      </CardTitle>
+                      <Badge className={getStatusColor(document.status)}>
+                        {getStatusIcon(document.status)}
+                        <span className="ml-1">{document.status}</span>
+                      </Badge>
                     </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => handleDownloadTemplate(document.documentType)}
-                      disabled={!templates[document.documentType]}
-                    >
-                      <Download className="h-4 w-4 mr-1" />
-                      Download Template
-                    </Button>
-                    <input
-                      type="file"
-                      ref={(el) => (fileInputRefs.current[document.documentType] = el)}
-                      onChange={(e) => handleFileSelect(document.documentType, e)}
-                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                      className="hidden"
-                    />
-                    {(() => {
-                      // SOURCE OF TRUTH: uploadedFile existence determines button state
-                      // A document is uploaded IF AND ONLY IF:
-                      // 1. uploadedFile exists
-                      // 2. fileUrl is valid (non-empty string)
-                      // 3. fileName is valid (non-empty string)
-                      // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
-                      const uploadedFile = document.uploadedFile
-                      const hasUploadedDocument = uploadedFile && 
-                                                uploadedFile.fileUrl && 
-                                                uploadedFile.fileUrl.trim().length > 0 &&
-                                                uploadedFile.fileName && 
-                                                uploadedFile.fileName.trim().length > 0
-                      
-                      if (hasUploadedDocument) {
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-gray-600 mb-4">
+                      {document.description || 'No description available'}
+                    </p>
+                    {document.uploadedFile && (
+                      <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <CheckCircle className="h-4 w-4 inline mr-1" />
+                          Uploaded: {document.uploadedFile.fileName}
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDownloadTemplate(document.documentType)}
+                        disabled={!templates[document.documentType]}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        Download Template
+                      </Button>
+                      <input
+                        type="file"
+                        ref={(el) => (fileInputRefs.current[document.documentType] = el)}
+                        onChange={(e) => handleFileSelect(document.documentType, e)}
+                        accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                        className="hidden"
+                      />
+                      {(() => {
+                        // SOURCE OF TRUTH: uploadedFile existence determines button state
+                        // A document is uploaded IF AND ONLY IF:
+                        // 1. uploadedFile exists
+                        // 2. fileUrl is valid (non-empty string)
+                        // 3. fileName is valid (non-empty string)
+                        // NOTE: Do NOT check document.status - it's a derived field that can be overwritten
+                        const uploadedFile = document.uploadedFile
+                        const hasUploadedDocument = uploadedFile &&
+                          uploadedFile.fileUrl &&
+                          uploadedFile.fileUrl.trim().length > 0 &&
+                          uploadedFile.fileName &&
+                          uploadedFile.fileName.trim().length > 0
+
+                        if (hasUploadedDocument) {
+                          return (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Document
+                            </Button>
+                          )
+                        }
+
                         return (
-                          <Button 
-                            size="sm" 
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => handleViewDocument(uploadedFile.fileUrl, uploadedFile.fileName)}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fileInputRefs.current[document.documentType]?.click()}
+                            disabled={uploading[document.documentType]}
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View Document
+                            {uploading[document.documentType] ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4 mr-1" />
+                                Upload Document
+                              </>
+                            )}
                           </Button>
                         )
-                      }
-                      
-                      return (
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => fileInputRefs.current[document.documentType]?.click()}
-                          disabled={uploading[document.documentType]}
-                        >
-                          {uploading[document.documentType] ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              Uploading...
-                            </>
-                          ) : (
-                            <>
-                              <Upload className="h-4 w-4 mr-1" />
-                              Upload Document
-                            </>
-                          )}
-                        </Button>
-                      )
-                    })()}
-                  </div>
-                </CardContent>
-              </Card>
-            )
+                      })()}
+                    </div>
+                  </CardContent>
+                </Card>
+              )
             })}
           </div>
         </div>
@@ -1423,7 +1408,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         <Button variant="outline" onClick={onBack}>
           Back
         </Button>
-        <Button 
+        <Button
           className="bg-red-600 hover:bg-red-700"
           onClick={handleContinueToCallPhase}
           disabled={checkingReadiness}
@@ -1441,7 +1426,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
       {/* PDF Viewer Modal */}
       {viewingDocument && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
           onClick={(e) => {
             // Close modal when clicking backdrop
@@ -1467,27 +1452,27 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            
+
             {/* Modal Content */}
             <div className="flex-1 overflow-auto p-4">
               {(() => {
                 const url = viewingDocument.url.toLowerCase()
                 const fileName = viewingDocument.fileName.toLowerCase()
-                
+
                 // Determine file type
-                const isPDF = fileName.endsWith('.pdf') || 
-                             url.includes('.pdf') || 
-                             url.includes('application/pdf') ||
-                             url.includes('content-type=application/pdf')
-                
-                const isImage = fileName.endsWith('.jpg') || 
-                              fileName.endsWith('.jpeg') || 
-                              fileName.endsWith('.png') || 
-                              fileName.endsWith('.gif') ||
-                              url.includes('image/jpeg') ||
-                              url.includes('image/png') ||
-                              url.includes('image/jpg')
-                
+                const isPDF = fileName.endsWith('.pdf') ||
+                  url.includes('.pdf') ||
+                  url.includes('application/pdf') ||
+                  url.includes('content-type=application/pdf')
+
+                const isImage = fileName.endsWith('.jpg') ||
+                  fileName.endsWith('.jpeg') ||
+                  fileName.endsWith('.png') ||
+                  fileName.endsWith('.gif') ||
+                  url.includes('image/jpeg') ||
+                  url.includes('image/png') ||
+                  url.includes('image/jpg')
+
                 if (isPDF) {
                   return (
                     <div className="w-full h-full flex flex-col">
@@ -1500,7 +1485,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                     </div>
                   )
                 }
-                
+
                 if (isImage) {
                   return (
                     <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -1535,7 +1520,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                     </div>
                   )
                 }
-                
+
                 // For other file types, show download option
                 return (
                   <div className="flex items-center justify-center h-full min-h-[400px]">
@@ -1556,7 +1541,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                 )
               })()}
             </div>
-            
+
             {/* Modal Footer */}
             <div className="flex items-center justify-end gap-2 p-4 border-t flex-shrink-0">
               <Button

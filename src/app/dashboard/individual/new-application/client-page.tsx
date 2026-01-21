@@ -23,10 +23,19 @@ import {
   CheckCircle
 } from 'lucide-react'
 import WorldMap from '@/components/world-map'
-import RequiredDocuments from '@/components/required-documents'
+// import RequiredDocuments directly removed to prevent SSR/Module crashes
 import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
+import dynamic from 'next/dynamic'
+
+const RequiredDocuments = dynamic(
+  () => import('@/components/required-documents'),
+  {
+    ssr: false,
+    loading: () => <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" /><p>Loading Documents...</p></div>
+  }
+)
 
 interface Country {
   id: string
