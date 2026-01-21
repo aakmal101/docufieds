@@ -2,6 +2,8 @@
 
 import IndividualHeader from '@/components/layout/individual-header'
 
+import { ComponentErrorBoundary } from '@/components/ui/component-error-boundary'
+
 export default function IndividualLayout({
   children,
 }: {
@@ -9,7 +11,9 @@ export default function IndividualLayout({
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <IndividualHeader />
+      <ComponentErrorBoundary name="Header">
+        <IndividualHeader />
+      </ComponentErrorBoundary>
       {children}
     </div>
   )

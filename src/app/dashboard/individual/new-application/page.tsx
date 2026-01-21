@@ -357,6 +357,10 @@ function NewApplicationContent() {
     )
   }
 
+  if (status === 'unauthenticated') {
+    return null
+  }
+
   // Debug log for render
   console.log('[NewApplication] Rendering step:', step)
 
