@@ -21,9 +21,9 @@ import {
   CreditCard,
   CheckCircle
 } from 'lucide-react'
-// import WorldMap from '@/components/world-map'
-import RequiredDocuments from '@/components/required-documents'
-import CallPhaseScreen from '@/components/call-phase-screen'
+import WorldMap from '@/components/world-map'
+// import RequiredDocuments from '@/components/required-documents'
+// import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
 
@@ -564,12 +564,20 @@ function NewApplicationContent() {
                 </div>
               )}
 
+              {/* 
               {step === 'documents' && applicationId && (
                 <RequiredDocuments
                   applicationId={applicationId}
                   onComplete={() => setStep('call')}
                   onBack={() => setStep('review')}
                 />
+              )}
+              */}
+              {step === 'documents' && applicationId && (
+                <div className="p-8 text-center border rounded">
+                  <p>Documents Component Temporarily Disabled for Debugging</p>
+                  <Button onClick={() => setStep('call')}>Skip to Call</Button>
+                </div>
               )}
               {step === 'documents' && !applicationId && (
                 <div className="text-center py-12">
@@ -584,6 +592,7 @@ function NewApplicationContent() {
                 </div>
               )}
 
+              {/* 
               {step === 'call' && applicationId && (
                 <CallPhaseScreen
                   applicationId={applicationId}
@@ -644,6 +653,13 @@ function NewApplicationContent() {
                     }
                   }}
                 />
+              )}
+              */}
+              {step === 'call' && applicationId && (
+                <div className="p-8 text-center border rounded">
+                  <p>Call Phase Component Temporarily Disabled for Debugging</p>
+                  <Button onClick={() => router.push('/dashboard/individual')}>Back to Dashboard</Button>
+                </div>
               )}
 
               {step !== 'documents' && step !== 'call' && (
