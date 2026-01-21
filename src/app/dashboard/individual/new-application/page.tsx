@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -60,9 +60,11 @@ const consultancyFees = {
   [ProcessType.VISIT]: 120,
 }
 
-export default function NewApplicationPage() {
+// Wrapped component to use search params
+function NewApplicationContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [step, setStep] = useState<'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('destination')
   const [loading, setLoading] = useState(false)
   const [loadingApplication, setLoadingApplication] = useState(false)
@@ -79,26 +81,30 @@ export default function NewApplicationPage() {
   const [isReadOnly, setIsReadOnly] = useState(false)
 
   useEffect(() => {
+    console.log('[NewApplication] Status:', status, 'Session:', session?.user ? 'exists' : 'null')
+
     if (status === 'loading') return
 
     if (status === 'unauthenticated') {
-      router.push('/auth/signin')
+      console.log('[NewApplication] User unauthenticated, redirecting to signin')
+      router.push('/auth/signin?callbackUrl=/dashboard/individual/new-application')
       return
     }
 
     if (session?.user?.role !== 'INDIVIDUAL') {
+      console.log('[NewApplication] User has wrong role:', session?.user?.role)
       router.push('/dashboard')
       return
     }
 
     // Check if there's an application ID in the URL
-    const urlParams = new URLSearchParams(window.location.search)
-    const appId = urlParams.get('id')
+    const appId = searchParams.get('id')
+    console.log('[NewApplication] App ID from params:', appId)
 
     if (appId) {
       loadApplication(appId)
     }
-  }, [session, status, router])
+  }, [session, status, router, searchParams])
 
   const loadApplication = async (id: string) => {
     try {
@@ -305,11 +311,17 @@ export default function NewApplicationPage() {
 
   if (status === 'loading' || loadingApplication) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <p>Loading...</p>
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading {loadingApplication ? 'application' : 'session'}...</p>
+        </div>
       </div>
     )
   }
+
+  // Debug log for render
+  console.log('[NewApplication] Rendering step:', step)
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -686,6 +698,21 @@ export default function NewApplicationPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function NewApplicationPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading page...</p>
+        </div>
+      </div>
+    }>
+      <NewApplicationContent />
+    </Suspense>
   )
 }
 
