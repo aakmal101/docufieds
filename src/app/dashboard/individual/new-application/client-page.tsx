@@ -21,7 +21,7 @@ import {
   CreditCard,
   CheckCircle
 } from 'lucide-react'
-import WorldMap from '@/components/world-map'
+// import WorldMap from '@/components/world-map'
 import RequiredDocuments from '@/components/required-documents'
 import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
@@ -436,10 +436,26 @@ function NewApplicationContent() {
                       </AlertDescription>
                     </Alert>
                   )}
-                  <WorldMap
-                    onCountrySelect={isReadOnly ? () => { } : handleCountrySelect}
-                    selectedCountry={selectedCountry?.id}
-                  />
+                  {/* WorldMap Temporarily Disabled for Debugging */}
+                  <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                    <MapPin className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-gray-500">World Map Component (Disabled)</p>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      {['United States', 'United Kingdom', 'Canada', 'Australia'].map(c => (
+                        <Button key={c} variant="outline" size="sm" onClick={() => {
+                          // Mock selection
+                          handleCountrySelect({
+                            id: c.toLowerCase().replace(' ', ''),
+                            name: c,
+                            code: c.substring(0, 2).toUpperCase(),
+                            continent: 'North America',
+                            position: [0, 0, 0],
+                            color: 'blue'
+                          })
+                        }}>{c}</Button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
 
