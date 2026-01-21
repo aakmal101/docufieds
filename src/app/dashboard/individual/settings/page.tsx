@@ -35,6 +35,8 @@ export default function SettingsPage() {
   })
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
       return
@@ -126,7 +128,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading) {
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

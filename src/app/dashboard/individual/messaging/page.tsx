@@ -25,6 +25,8 @@ export default function MessagingPage() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
       return
@@ -99,6 +101,17 @@ export default function MessagingPage() {
 
   const activeChatHead = chatHeads.find(c => c.id === activeChat)
   const ActiveChatIcon = activeChatHead?.icon
+
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p>Loading messages...</p>
+        </div>
+      </div>
+    )
+  }
 
   // Re-rendering
   return (

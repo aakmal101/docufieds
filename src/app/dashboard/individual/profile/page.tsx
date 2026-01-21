@@ -44,6 +44,8 @@ export default function ProfilePage() {
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
       return
@@ -210,7 +212,7 @@ export default function ProfilePage() {
     return Math.round((completedFields / requiredFields.length) * 100)
   }
 
-  if (loading) {
+  if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

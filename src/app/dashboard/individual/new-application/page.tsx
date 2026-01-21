@@ -79,6 +79,8 @@ export default function NewApplicationPage() {
   const [isReadOnly, setIsReadOnly] = useState(false)
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
       return
@@ -301,7 +303,7 @@ export default function NewApplicationPage() {
     }
   }
 
-  if (loadingApplication) {
+  if (status === 'loading' || loadingApplication) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p>Loading...</p>

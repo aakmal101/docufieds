@@ -7,10 +7,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { 
-  FileText, 
-  CreditCard, 
-  Clock, 
+import {
+  FileText,
+  CreditCard,
+  Clock,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -26,6 +26,8 @@ export default function IndividualDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (status === 'loading') return
+
     if (status === 'unauthenticated') {
       router.push('/auth/signin')
       return
@@ -43,14 +45,14 @@ export default function IndividualDashboard() {
     try {
       const response = await fetch('/api/user/profile')
       const data = await response.json()
-      
+
       if (data.success) {
         setUser(data.data)
       }
 
       const appsResponse = await fetch('/api/applications')
       const appsData = await appsResponse.json()
-      
+
       if (appsData.success) {
         setApplications(appsData.data)
       }
@@ -118,18 +120,18 @@ export default function IndividualDashboard() {
 
   const calculateProfileCompletion = () => {
     if (!user) return 0
-    
+
     const requiredFields = [
       'fullName', 'dateOfBirth', 'placeOfBirth', 'photoUrl',
       'birthCertificateNumber', 'nidNumber', 'passportNumber',
       'presentAddress', 'permanentAddress'
     ]
-    
+
     const completedFields = requiredFields.filter(field => {
       const value = user[field]
       return value && (typeof value !== 'object' || Object.keys(value).length > 0)
     }).length
-    
+
     return Math.round((completedFields / requiredFields.length) * 100)
   }
 
@@ -231,7 +233,7 @@ export default function IndividualDashboard() {
                 <Clock className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
                   <p className="text-2xl font-bold text-gray-900">
-                    {applications.filter(app => 
+                    {applications.filter(app =>
                       ['UNDER_REVIEW', 'DOCUMENT_UNDER_REVIEW', 'DOCUMENT_UNDER_PROCESSING'].includes(app.status)
                     ).length}
                   </p>
@@ -310,8 +312,8 @@ export default function IndividualDashboard() {
                         </div>
                       </div>
                       {application.status === 'DRAFT' ? (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             router.push(`/dashboard/individual/new-application?id=${application.id}`)
@@ -320,8 +322,8 @@ export default function IndividualDashboard() {
                           Continue Application
                         </Button>
                       ) : (
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           size="sm"
                           onClick={() => {
                             // Navigate to Call Phase (read-only view)
