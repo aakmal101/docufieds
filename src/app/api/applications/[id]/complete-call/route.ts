@@ -89,7 +89,7 @@ export async function POST(
     if (submittedStatuses.includes(application.status as ApplicationStatus)) {
       // Check if StatusUpdate already exists for this transition
       const existingStatusUpdate = application.statusUpdates?.[0]
-      
+
       return NextResponse.json({
         success: true,
         message: 'Application is already submitted and under processing.',
@@ -126,7 +126,7 @@ export async function POST(
 
     // Get uploaded document types
     const uploadedDocumentTypes = application.documents.map(doc => doc.documentType)
-    
+
     // Check if all required documents are uploaded
     const missingDocuments = documentRequirements.filter(
       req => !uploadedDocumentTypes.includes(req.documentType)
@@ -186,7 +186,7 @@ export async function POST(
       // Update application status to UNDER_REVIEW atomically
       const updatedApplication = await tx.application.update({
         where: { id: applicationId },
-        data: { 
+        data: {
           status: ApplicationStatus.UNDER_REVIEW,
           updatedAt: new Date(),
         },
@@ -243,7 +243,7 @@ export async function POST(
         submittedAt: result.statusUpdate.createdAt,
         documentsCount: application.documents.length,
         requiredDocumentsCount: documentRequirements.length,
-        paymentStatus: application.consultancyFee > 0 
+        paymentStatus: application.consultancyFee > 0
           ? (totalPaid >= application.consultancyFee ? 'PAID' : 'PARTIAL')
           : 'NOT_REQUIRED',
         totalPaid: totalPaid,
@@ -253,7 +253,7 @@ export async function POST(
     })
   } catch (error: any) {
     console.error('Call completion error:', error)
-    
+
     // Handle transaction errors gracefully
     if (error.message?.includes('status changed')) {
       return NextResponse.json({
@@ -264,10 +264,12 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { 
-        success: false, 
-        message: 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      {
+        success: false,
+        // TEMPORARY: Expose error message in production for debugging
+        message: `Server Error: ${error.message || 'Unknown error'}`,
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     )
