@@ -185,7 +185,7 @@ model DocumentRequirement {
   country     String
   processType String @map("process_type")
   profession  String?
-  documentType String
+  documentType String @map("document_type")
   isRequired  Boolean @default(true) @map("is_required")
   description String?
   createdAt   DateTime @default(now()) @map("created_at")
