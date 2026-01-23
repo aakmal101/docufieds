@@ -155,6 +155,11 @@ export async function POST(
     if (application.consultancyFee > 0) {
       if (validPayments.length === 0 || totalPaid < application.consultancyFee) {
         const remaining = application.consultancyFee - totalPaid
+        // TEMPORARY: Allow proceeding without payment as per user request
+        console.log(`[Backend] Allowing submission with pending payment: Required: ${application.consultancyFee}, Paid: ${totalPaid}`)
+
+        /* 
+        // DISABLED strict payment check
         return NextResponse.json({
           success: false,
           message: `Please complete the payment before finalizing the application. Required: ${application.consultancyFee} BDT, Paid: ${totalPaid} BDT, Remaining: ${remaining} BDT`,
@@ -162,6 +167,7 @@ export async function POST(
           paidAmount: totalPaid,
           remainingAmount: remaining,
         }, { status: 400 })
+        */
       }
     }
 
