@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { signOut } from 'next-auth/react'
-import { User, Settings, LogOut, Mail, Building2, HelpCircle } from 'lucide-react'
+import { User, Settings, LogOut, Mail, Building2, HelpCircle, BarChart3, CreditCard, Bell } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -125,6 +125,30 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                     >
                         <Settings className="mr-2 h-4 w-4 text-gray-500" />
                         <span>Settings</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/agency/analytics')}
+                        className="cursor-pointer"
+                    >
+                        <BarChart3 className="mr-2 h-4 w-4 text-gray-500" />
+                        <span>Analytics</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/agency/billing')}
+                        className="cursor-pointer"
+                    >
+                        <CreditCard className="mr-2 h-4 w-4 text-gray-500" />
+                        <span>Billing & Invoices</span>
+                    </DropdownMenuItem>
+
+                    <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/agency/notifications')}
+                        className="cursor-pointer"
+                    >
+                        <Bell className="mr-2 h-4 w-4 text-gray-500" />
+                        <span>Notifications</span>
                     </DropdownMenuItem>
 
                     <DropdownMenuItem
