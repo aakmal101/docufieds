@@ -45,6 +45,12 @@ model User {
   
   // Authentication
   passwordHash      String?     @map("password_hash")
+
+  // Additional Profile Fields (for Bulk Upload)
+  nationality       String?
+  passportExpiry    DateTime?   @map("passport_expiry")
+  gender            String?
+  maritalStatus     String?     @map("marital_status")
   
   // Relations
   applications      Application[]

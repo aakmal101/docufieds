@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import prisma from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { parseUploadedFile } from '@/lib/bulk-upload-parser';
 import { validateBulkUploadRow, validateBulkUploadFile } from '@/lib/bulk-upload-validator';
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Upload file to Supabase Storage
-        const supabase = createClient();
+        const supabase = await createClient();
         const timestamp = Date.now();
         const fileName = `${session.user.id}/${timestamp}_${file.name}`;
 
@@ -151,7 +151,7 @@ async function processUploadInBackground(uploadId: string, data: any[]) {
         const countries = await prisma.country.findMany({
             select: { name: true, code: true }
         });
-        const countryNames = countries.map(c => c.name);
+        const countryNames = countries.map((c: { name: string }) => c.name);
 
         // Validate all rows first
         const validationResults = data.map((row, index) => ({
@@ -282,7 +282,7 @@ async function processIndividualRecord(uploadId: string, rowNumber: number, rowD
                 passportExpiry: rowData.passport_expiry ? new Date(rowData.passport_expiry) : undefined,
                 gender: rowData.gender,
                 maritalStatus: rowData.marital_status,
-                address: rowData.address,
+                presentAddress: rowData.address,
                 role: 'INDIVIDUAL',
                 status: 'APPROVED', // Auto-approve for bulk upload
                 isVerified: true

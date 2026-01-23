@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
         id: applicationId,
         userId: session.user.id,
       },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+      }
     })
 
     if (!application) {
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
     let supabase
     let uploadData, uploadError, fileUrl
     let clientType = 'unknown'
-    
+
     try {
       // Try service role client first (if SUPABASE_SERVICE_ROLE_KEY is set)
       supabase = createServiceRoleClient()
@@ -68,8 +73,8 @@ export async function POST(request: NextRequest) {
       } catch (clientError: any) {
         console.error('[Upload API] CRITICAL: Failed to create any Supabase client:', clientError)
         return NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             message: 'Failed to initialize storage client. Please check your configuration.',
             error: process.env.NODE_ENV === 'development' ? clientError.message : undefined
           },
@@ -77,30 +82,30 @@ export async function POST(request: NextRequest) {
         )
       }
     }
-    
+
     // Verify we have a valid client
     if (!supabase) {
       console.error('[Upload API] CRITICAL: No Supabase client available')
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Storage client not available. Please contact support.',
         },
         { status: 500 }
       )
     }
-    
+
     const fileExt = file.name.split('.').pop()
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
     const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${sanitizedFileName}`
     const fileBuffer = await file.arrayBuffer()
-    
+
     console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}, client=${clientType}`)
-    
+
     // REMOVED: Bucket check - it was causing false errors
     // Bucket exists and is public (verified via database query: name='documents', public=true)
     // Direct upload attempt will provide clear error if bucket doesn't exist
-    
+
     // Try upload with current client
     console.log(`[Upload API] Uploading with ${clientType} client...`)
     const uploadResult = await supabase.storage
@@ -109,7 +114,7 @@ export async function POST(request: NextRequest) {
         contentType: file.type,
         upsert: false,
       })
-    
+
     uploadData = uploadResult.data
     uploadError = uploadResult.error
 
@@ -124,10 +129,10 @@ export async function POST(request: NextRequest) {
             contentType: file.type,
             upsert: false,
           })
-        
+
         uploadData = retryResult.data
         uploadError = retryResult.error
-        
+
         if (!uploadError) {
           console.log('[Upload API] ✓ Regular client upload succeeded after service role failed')
           supabase = fallbackClient // Use fallback client for URL generation
@@ -147,47 +152,47 @@ export async function POST(request: NextRequest) {
       console.error('[Upload API] Supabase upload error:', uploadError)
       const errorMessage = uploadError.message || uploadError.toString() || 'Unknown storage error'
       const errorCode = (uploadError as any)?.statusCode || (uploadError as any)?.code || 'UNKNOWN'
-      
+
       console.error(`[Upload API] Error details: message="${errorMessage}", code="${errorCode}"`)
-      
+
       // Provide user-friendly error messages based on actual error
       let userMessage = 'Failed to upload file to storage'
-      
+
       // Check for specific error patterns
       // Only show bucket error if it's explicitly a bucket not found error
-      const isBucketNotFound = errorMessage.includes('Bucket not found') || 
-                               (errorCode === '404' && errorMessage.toLowerCase().includes('bucket'))
-      
+      const isBucketNotFound = errorMessage.includes('Bucket not found') ||
+        (errorCode === '404' && errorMessage.toLowerCase().includes('bucket'))
+
       if (isBucketNotFound) {
         console.error('[Upload API] CRITICAL: Bucket not found error detected')
         console.error('[Upload API] Full error object:', JSON.stringify(uploadError, null, 2))
         userMessage = 'Storage bucket not configured. Please contact support.'
-      } else if (errorMessage.includes('The resource already exists') || 
-                 errorMessage.includes('already exists') ||
-                 errorCode === '409') {
+      } else if (errorMessage.includes('The resource already exists') ||
+        errorMessage.includes('already exists') ||
+        errorCode === '409') {
         userMessage = 'A file with this name already exists. Please rename your file and try again.'
-      } else if (errorMessage.includes('new row violates row-level security') || 
-                 errorMessage.includes('permission') || 
-                 errorMessage.includes('unauthorized') ||
-                 errorMessage.includes('forbidden') ||
-                 errorCode === '403' ||
-                 errorCode === '401') {
+      } else if (errorMessage.includes('new row violates row-level security') ||
+        errorMessage.includes('permission') ||
+        errorMessage.includes('unauthorized') ||
+        errorMessage.includes('forbidden') ||
+        errorCode === '403' ||
+        errorCode === '401') {
         userMessage = 'Permission denied. Please ensure you have access to upload documents.'
-      } else if (errorMessage.includes('JWT') || 
-                 errorMessage.includes('token') ||
-                 errorMessage.includes('authentication')) {
+      } else if (errorMessage.includes('JWT') ||
+        errorMessage.includes('token') ||
+        errorMessage.includes('authentication')) {
         userMessage = 'Authentication error. Please refresh the page and try again.'
-      } else if (errorMessage.includes('size') || 
-                 errorMessage.includes('too large')) {
+      } else if (errorMessage.includes('size') ||
+        errorMessage.includes('too large')) {
         userMessage = 'File is too large. Maximum file size is 10MB.'
       } else {
         // Generic error - provide the actual error message to help debug
         userMessage = `Upload failed: ${errorMessage.substring(0, 100)}`
       }
-      
+
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: userMessage,
           error: process.env.NODE_ENV === 'development' ? {
             message: errorMessage,
@@ -198,18 +203,18 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-    
+
     if (!uploadData || !uploadData.path) {
       console.error('[Upload API] Upload succeeded but no data returned:', uploadData)
       return NextResponse.json(
-        { 
-          success: false, 
+        {
+          success: false,
           message: 'Upload completed but file path not returned. Please try again.',
         },
         { status: 500 }
       )
     }
-    
+
     console.log(`[Upload API] Upload successful: path=${uploadData.path}`)
 
     // Get public URL for the uploaded file
@@ -226,7 +231,7 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
-    
+
     console.log(`[Upload API] Generated file URL: ${fileUrl.substring(0, 100)}...`)
 
     // Check if a document of this type already exists for this application
@@ -322,8 +327,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Document upload error:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: error?.message || 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
