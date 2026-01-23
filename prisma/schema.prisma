@@ -53,6 +53,7 @@ model User {
   notifications     Notification[]
   sessions          Session[]
   messages          Message[]
+  bulkUploads       BulkUpload[]
   
   @@map("users")
 }
@@ -85,7 +86,12 @@ model Application {
   payments          Payment[]
   statusUpdates     StatusUpdate[]
   messages          Message[]
+  bulkUploadId       String?
+  bulkUpload         BulkUpload? @relation(fields: [bulkUploadId], references: [id])
+  bulkUploadRecordId String?
+  bulkUploadRecord   BulkUploadRecord?
   
+  @@index([bulkUploadId])
   @@map("applications")
 }
 
@@ -227,4 +233,72 @@ model Message {
   @@index([applicationId])
   @@index([userId])
   @@index([createdAt])
+}
+
+model BulkUpload {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // File Information
+  fileName          String
+  fileUrl           String
+  fileSize          Int
+  uploadedAt        DateTime @default(now())
+  
+  // Processing Stats
+  totalRecords      Int
+  processedRecords  Int      @default(0)
+  successfulRecords Int      @default(0)
+  failedRecords     Int      @default(0)
+  skippedRecords    Int      @default(0)
+  
+  // Status Tracking
+  status            String   @default("PENDING") // PENDING, VALIDATING, PROCESSING, COMPLETED, FAILED, CANCELLED
+  currentPhase      String?  // Upload, Validation, Processing, Completed
+  errorSummary      Json?    // Summary of errors
+  
+  // Timestamps
+  startedAt         DateTime?
+  completedAt       DateTime?
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  records           BulkUploadRecord[]
+  applications      Application[]
+  
+  @@index([userId])
+  @@index([status])
+  @@map("bulk_uploads")
+}
+
+model BulkUploadRecord {
+  id              String   @id @default(cuid())
+  bulkUploadId    String
+  bulkUpload      BulkUpload @relation(fields: [bulkUploadId], references: [id], onDelete: Cascade)
+  
+  // Record Information
+  rowNumber       Int
+  originalData    Json     // Store complete row data for audit
+  
+  // Processing Status
+  status          String   // PENDING, VALIDATING, PROCESSING, SUCCESS, FAILED, SKIPPED
+  errorMessage    String?  @db.Text
+  warningMessage  String?  @db.Text
+  
+  // Created Application
+  applicationId   String?  @unique
+  application     Application? @relation(fields: [applicationId], references: [id])
+  
+  // User Association
+  createdUserId   String?  // If new user was created
+  existingUserId  String?  // If matched to existing user
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  processedAt     DateTime?
+  
+  @@index([bulkUploadId])
+  @@index([status])
+  @@map("bulk_upload_records")
 }
