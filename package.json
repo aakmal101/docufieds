@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/jszip": "^3.4.0",
     "@types/node": "^20",
     "@types/papaparse": "^5.5.2",
     "@types/react": "^18",

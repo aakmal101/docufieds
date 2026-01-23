@@ -4,16 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import {
     Upload,
     FileText,
@@ -23,7 +14,7 @@ import {
     Clock,
     RefreshCw,
     XCircle,
-    FileSpreadsheet
+    FileArchive // For ZIP icon
 } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { toast } from 'react-hot-toast';
@@ -49,6 +40,11 @@ export default function BulkUploadPage() {
     const [isUploading, setIsUploading] = useState(false);
     const [loadingHistory, setLoadingHistory] = useState(true);
 
+    // New state for ZIP upload
+    const [isZipMode, setIsZipMode] = useState(false); // Toggle logic if needed, or simple flow
+    const [selectedUploadForZip, setSelectedUploadForZip] = useState<string | null>(null);
+    const [zipUploadResult, setZipUploadResult] = useState<any>(null);
+
     // Fetch history on mount
     useEffect(() => {
         fetchHistory();
@@ -68,13 +64,18 @@ export default function BulkUploadPage() {
                         setUploadProgress(data);
 
                         if (data.status === 'COMPLETED' || data.status === 'FAILED' || data.status === 'CANCELLED') {
-                            setActiveUploadId(null);
-                            fetchHistory(); // Refresh history
-                            if (data.status === 'COMPLETED') {
-                                toast.success('Bulk upload completed');
-                            } else {
+                            // If completed successfully, we can prompt for ZIP
+                            const isSuccess = data.status === 'COMPLETED';
+
+                            if (isSuccess && !selectedUploadForZip) {
+                                setSelectedUploadForZip(activeUploadId);
+                                toast.success('Excel processed! Now upload documents if needed.');
+                            } else if (!isSuccess) {
                                 toast.error('Bulk upload failed');
                             }
+
+                            setActiveUploadId(null);
+                            fetchHistory(); // Refresh history
                         }
                     }
                 } catch (error) {
@@ -86,7 +87,7 @@ export default function BulkUploadPage() {
         return () => {
             if (interval) clearInterval(interval);
         };
-    }, [activeUploadId]);
+    }, [activeUploadId, selectedUploadForZip]);
 
     const fetchHistory = async () => {
         try {
@@ -103,11 +104,13 @@ export default function BulkUploadPage() {
         }
     };
 
-    const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    // EXCEL DROPZONE
+    const onDropExcel = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
         if (!file) return;
 
         setIsUploading(true);
+        setZipUploadResult(null); // Reset previous results
         const formData = new FormData();
         formData.append('file', file);
 
@@ -133,8 +136,8 @@ export default function BulkUploadPage() {
         }
     }, []);
 
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
-        onDrop,
+    const { getRootProps: getExcelRoot, getInputProps: getExcelInput, isDragActive: isExcelDrag } = useDropzone({
+        onDrop: onDropExcel,
         accept: {
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
             'application/vnd.ms-excel': ['.xls'],
@@ -144,6 +147,51 @@ export default function BulkUploadPage() {
         multiple: false,
         disabled: isUploading || !!activeUploadId,
     });
+
+    // ZIP DROPZONE
+    const onDropZip = useCallback(async (acceptedFiles: File[]) => {
+        const file = acceptedFiles[0];
+        if (!file || !selectedUploadForZip) {
+            toast.error("Please select a completed upload first");
+            return;
+        }
+
+        setIsUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('bulkUploadId', selectedUploadForZip);
+
+        try {
+            const response = await fetch('/api/bulk-upload/upload-zip', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                setZipUploadResult(data.data);
+                toast.success(`Processed details: ${data.data.matchedDocuments} matched.`);
+                fetchHistory(); // Refresh statuses
+            } else {
+                toast.error(data.error || 'ZIP Processing Failed');
+            }
+        } catch (error) {
+            toast.error("Network error uploading ZIP");
+        } finally {
+            setIsUploading(false);
+        }
+    }, [selectedUploadForZip]);
+
+    const { getRootProps: getZipRoot, getInputProps: getZipInput, isDragActive: isZipDrag } = useDropzone({
+        onDrop: onDropZip,
+        accept: {
+            'application/zip': ['.zip'],
+            'application/x-zip-compressed': ['.zip']
+        },
+        maxFiles: 1,
+        disabled: isUploading || !selectedUploadForZip
+    });
+
 
     const downloadTemplate = async () => {
         window.open('/api/bulk-upload/template', '_blank');
@@ -165,12 +213,23 @@ export default function BulkUploadPage() {
         }
     };
 
+    // Helper to select upload from history for ZIP attachment
+    const handleHistorySelect = (id: string, status: string) => {
+        if (status === 'COMPLETED') {
+            setSelectedUploadForZip(id);
+            setZipUploadResult(null);
+            toast.success("Ready to upload ZIP documents for this batch.");
+        } else {
+            toast.error("Only completed uploads can accept documents.");
+        }
+    }
+
     return (
         <div className="container mx-auto max-w-6xl py-8 space-y-8">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Bulk Upload</h1>
-                    <p className="text-gray-500 mt-1">Upload and process multiple visa applications at once.</p>
+                    <p className="text-gray-500 mt-1">Upload Excel data first, then upload ZIP documents.</p>
                 </div>
                 <Button variant="outline" onClick={downloadTemplate} className="gap-2">
                     <Download className="w-4 h-4" />
@@ -179,107 +238,99 @@ export default function BulkUploadPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Upload Section */}
+
                 <div className="lg:col-span-2 space-y-8">
-                    <Card>
+
+                    {/* STEP 1: EXCEL UPLOAD */}
+                    <Card className={selectedUploadForZip ? "opacity-60" : ""}>
                         <CardHeader>
-                            <CardTitle>Upload File</CardTitle>
+                            <CardTitle className="flex items-center gap-2">
+                                <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Step 1</span>
+                                Upload Data (Excel/CSV)
+                            </CardTitle>
                             <CardDescription>
-                                Drag and drop your Excel or CSV file here. Max 100 records per file.
+                                Max 100 records per file. Creates applications instantly.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <div
-                                {...getRootProps()}
-                                className={`border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors ${isDragActive ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                                {...getExcelRoot()}
+                                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isExcelDrag ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
                                     } ${isUploading || activeUploadId ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                <input {...getInputProps()} />
-                                <div className="flex flex-col items-center justify-center gap-4">
-                                    <div className="p-4 bg-gray-100 rounded-full">
-                                        {isUploading ? (
-                                            <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
-                                        ) : (
-                                            <Upload className="w-8 h-8 text-gray-500" />
-                                        )}
-                                    </div>
-                                    <div className="space-y-1">
-                                        <p className="text-lg font-medium">
-                                            {isUploading ? 'Uploading...' : 'Drop file here or click to browse'}
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                            Supported formats: .xlsx, .xls, .csv
-                                        </p>
-                                    </div>
+                                <input {...getExcelInput()} />
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    {isUploading && !selectedUploadForZip ? (
+                                        <RefreshCw className="w-8 h-8 text-blue-500 animate-spin" />
+                                    ) : (
+                                        <Upload className="w-8 h-8 text-gray-500" />
+                                    )}
+                                    <p className="font-medium text-sm">
+                                        Drag Excel file here
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Active Progress */}
+                    {/* STEP 2: ZIP UPLOAD */}
+                    <Card className={!selectedUploadForZip ? "border-dashed" : "border-blue-200 shadow-md"}>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <span className={`text-xs px-2 py-1 rounded-full ${selectedUploadForZip ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>Step 2</span>
+                                Upload Documents (ZIP)
+                            </CardTitle>
+                            <CardDescription>
+                                {selectedUploadForZip
+                                    ? "Upload ZIP containing files matched by filename."
+                                    : "Complete Step 1 or select a completed upload from history to unlock."}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div
+                                {...getZipRoot()}
+                                className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isZipDrag ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-50'
+                                    } ${!selectedUploadForZip || isUploading ? 'cursor-not-allowed opacity-50' : ''}`}
+                            >
+                                <input {...getZipInput()} />
+                                <div className="flex flex-col items-center justify-center gap-2">
+                                    {isUploading && selectedUploadForZip ? (
+                                        <RefreshCw className="w-8 h-8 text-green-600 animate-spin" />
+                                    ) : (
+                                        <FileArchive className={`w-8 h-8 ${selectedUploadForZip ? 'text-green-600' : 'text-gray-300'}`} />
+                                    )}
+                                    <p className="font-medium text-sm">
+                                        {selectedUploadForZip ? "Drag ZIP file here" : "Locked"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* ZIP RESULTS */}
+                            {zipUploadResult && (
+                                <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-100">
+                                    <h4 className="font-bold text-green-800 text-sm mb-2">ZIP Processing Results</h4>
+                                    <div className="grid grid-cols-2 gap-2 text-sm">
+                                        <div>Files Found: <b>{zipUploadResult.totalFilesFound}</b></div>
+                                        <div>Matches: <b className="text-green-600">{zipUploadResult.matchedDocuments}</b></div>
+                                        <div>Exist Skipped: <b>{zipUploadResult.existingSkipped}</b></div>
+                                        <div>Failures: <b className="text-red-600">{zipUploadResult.uploadFailures}</b></div>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {/* Active Progress (Exclusively for Excel currently, or could scale) */}
                     {uploadProgress && (
                         <Card className="border-blue-200 bg-blue-50/50">
-                            <CardHeader>
-                                <CardTitle className="flex justify-between items-center text-lg">
-                                    Processing Upload
-                                    <Badge variant="outline" className="bg-white">
-                                        {uploadProgress.status}
-                                    </Badge>
-                                </CardTitle>
-                                <CardDescription>{uploadProgress.currentPhase}</CardDescription>
+                            <CardHeader className="py-4">
+                                <CardTitle className="text-sm">Processing Data...</CardTitle>
                             </CardHeader>
-                            <CardContent className="space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                        <span>Progress</span>
-                                        <span>
-                                            {Math.round((uploadProgress.processedRecords / uploadProgress.totalRecords) * 100) || 0}%
-                                        </span>
-                                    </div>
-                                    <Progress
-                                        value={(uploadProgress.processedRecords / uploadProgress.totalRecords) * 100}
-                                        className="h-2"
-                                    />
+                            <CardContent>
+                                <Progress value={(uploadProgress.processedRecords / uploadProgress.totalRecords) * 100} className="h-2 mb-2" />
+                                <div className="text-xs text-center text-gray-500">
+                                    {uploadProgress.processedRecords} / {uploadProgress.totalRecords} records
                                 </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                        <div className="text-sm text-gray-500 mb-1">Total</div>
-                                        <div className="text-2xl font-bold">{uploadProgress.totalRecords}</div>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                        <div className="text-sm text-green-600 mb-1">Success</div>
-                                        <div className="text-2xl font-bold text-green-600">
-                                            {uploadProgress.successfulRecords}
-                                        </div>
-                                    </div>
-                                    <div className="bg-white p-4 rounded-lg border shadow-sm">
-                                        <div className="text-sm text-red-600 mb-1">Failed</div>
-                                        <div className="text-2xl font-bold text-red-600">
-                                            {uploadProgress.failedRecords}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {uploadProgress.errors.length > 0 && (
-                                    <div className="space-y-3 mt-6">
-                                        <h4 className="font-medium text-red-700 flex items-center gap-2">
-                                            <AlertCircle className="w-4 h-4" />
-                                            Error Summary
-                                        </h4>
-                                        <div className="max-h-48 overflow-y-auto bg-white rounded-md border p-4 space-y-2">
-                                            {uploadProgress.errors.map((error, idx) => (
-                                                <div key={idx} className="text-sm text-red-600 border-b last:border-0 pb-2">
-                                                    <span className="font-medium">Row {error.row}: </span>
-                                                    {error.message}
-                                                    {error.field !== 'multiple' && (
-                                                        <span className="text-gray-500 ml-1">({error.field})</span>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -291,7 +342,7 @@ export default function BulkUploadPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Clock className="w-5 h-5" />
-                                Recent Uploads
+                                History
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -306,30 +357,26 @@ export default function BulkUploadPage() {
                                     {uploadHistory.map((upload) => (
                                         <div
                                             key={upload.id}
-                                            className="p-4 rounded-lg border bg-white hover:bg-gray-50 transition-colors"
+                                            onClick={() => handleHistorySelect(upload.id, upload.status)}
+                                            className={`p-4 rounded-lg border transition-colors cursor-pointer ${selectedUploadForZip === upload.id
+                                                    ? 'bg-blue-50 border-blue-300 ring-1 ring-blue-300'
+                                                    : 'bg-white hover:bg-gray-50'
+                                                }`}
                                         >
                                             <div className="flex justify-between items-start mb-2">
-                                                <div className="font-medium truncate max-w-[150px]" title={upload.fileName}>
+                                                <div className="font-medium truncate max-w-[150px] text-sm" title={upload.fileName}>
                                                     {upload.fileName}
                                                 </div>
                                                 {getStatusBadge(upload.status)}
                                             </div>
                                             <div className="text-xs text-gray-500 mb-2">
-                                                {new Date(upload.uploadedAt).toLocaleDateString()} • {new Date(upload.uploadedAt).toLocaleTimeString()}
+                                                {new Date(upload.uploadedAt).toLocaleDateString()}
                                             </div>
-                                            <div className="flex items-center gap-4 text-sm">
-                                                <div className="flex items-center gap-1 text-green-600">
-                                                    <CheckCircle className="w-3 h-3" />
-                                                    {upload.successfulRecords}
+                                            {selectedUploadForZip === upload.id && (
+                                                <div className="text-xs text-blue-600 font-medium mt-1">
+                                                    Active for ZIP Upload
                                                 </div>
-                                                <div className="flex items-center gap-1 text-red-600">
-                                                    <XCircle className="w-3 h-3" />
-                                                    {upload.failedRecords}
-                                                </div>
-                                                <div className="text-gray-400 ml-auto text-xs">
-                                                    {upload.totalRecords} records
-                                                </div>
-                                            </div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
