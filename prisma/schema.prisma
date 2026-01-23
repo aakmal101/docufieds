@@ -42,6 +42,9 @@ model User {
   creditLimit       Float?      @default(0) @map("credit_limit")
   outstandingAmount Float?      @default(0) @map("outstanding_amount")
   documentLimit     Int?        @default(10) @map("document_limit")
+  documentsUsed     Int?        @default(0) @map("documents_used")
+  lastPaymentDate   DateTime?   @map("last_payment_date")
+  nextPaymentDue    DateTime?   @map("next_payment_due")
   
   // Authentication
   passwordHash      String?     @map("password_hash")
@@ -129,14 +132,18 @@ model Payment {
   method        String
   transactionId String?       @map("transaction_id")
   gatewayResponse String?     @map("gateway_response")
-  paidAt        DateTime?     @map("paid_at")
-  createdAt     DateTime      @default(now()) @map("created_at")
+  invoiceNumber   String?     @unique @map("invoice_number")
+  dueDate         DateTime?   @map("due_date")
+  description     String?
+  paidAt          DateTime?   @map("paid_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
   updatedAt     DateTime      @updatedAt @map("updated_at")
   
   // Relations
   application   Application?  @relation(fields: [applicationId], references: [id], onDelete: SetNull)
   user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([userId, createdAt])
   @@map("payments")
 }
 
@@ -160,12 +167,15 @@ model Notification {
   title     String
   message   String
   type      String
+  priority  String   @default("NORMAL")
+  actionUrl String?  @map("action_url")
   isRead    Boolean  @default(false) @map("is_read")
   createdAt DateTime @default(now()) @map("created_at")
   
   // Relations
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
+  @@index([userId, isRead, createdAt])
   @@map("notifications")
 }
 

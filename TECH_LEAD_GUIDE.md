@@ -20,8 +20,9 @@
 9. [Environment Configuration](#environment-configuration)
 10. [Deployment Setup](#deployment-setup)
 11. [Development Guidelines](#development-guidelines)
-12. [Current State & Known Issues](#current-state--known-issues)
-13. [Next Steps & Roadmap](#next-steps--roadmap)
+13. [Agency Portal & Features](#agency-portal--features)
+14. [Current State & Known Issues](#current-state--known-issues)
+15. [Next Steps & Roadmap](#next-steps--roadmap)
 
 ---
 
@@ -797,7 +798,41 @@ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 - ✅ Fixed document state reversion bugs
 - ✅ Improved optimistic UI updates
 - ✅ Enhanced merge logic for state reconciliation
+- ✅ Enhanced merge logic for state reconciliation
 - ✅ Better error boundaries and fallback states
+
+#### Phase 7: Agency Portal & Analytics (Completed)
+- ✅ Implemented comprehensive Agency Dashboard
+- ✅ Added Billing History with invoice listing and PDF download stubs
+- ✅ Created Credit Dashboard with visual limit tracking
+- ✅ Enhanced Application Management table with filtering and pagination
+- ✅ Integrated Recharts for Analytics (Country distribution, Monthly trends)
+- ✅ Built Real-time Notification system with Bell UI and management page
+- ✅ Added Automated Testing infrastructure (Jest)
+
+### Agency Portal & Features
+
+#### 1. Billing Management
+- **Invoices**: View paid, pending, and overdue invoices.
+- **Summary**: Real-time financial overview (Total Paid, Outstanding).
+- **PDF**: Infrastructure for PDF invoice generation.
+
+#### 2. Credit System
+- **Visual Tracking**: Progress bars for Credit Limit and Document Limit.
+- **Alerts**: Automatic warnings at 80% usage.
+- **Logic**: Blocks new applications if limits are exceeded.
+
+#### 3. Analytics Dashboard
+- **Charts**:
+  - `ApplicationsByCountry`: Pie chart distribution.
+  - `MonthlyTrend`: Line chart of application volume.
+  - `StatusDistribution`: Bar chart of application statuses.
+- **Metrics**: Key performance indicators (Revenue, Success Rate).
+
+#### 4. Notification Center
+- **Real-time**: Supabase Realtime integration for instant updates.
+- **UI**: Header bell icon with unread badge and dropdown.
+- **Management**: dedicated page for viewing and marking notifications as read.
 - ✅ Improved loading states and user feedback
 
 ## Current State & Known Issues
