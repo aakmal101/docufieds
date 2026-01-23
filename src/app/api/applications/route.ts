@@ -20,9 +20,28 @@ export async function GET(request: NextRequest) {
 
     // Try to fetch from database
     try {
+      let whereClause: any = { userId: session.user.id }
+
+      // If user is SUPPORT or ADMIN, fetch all submitted applications
+      if (['SUPPORT', 'ADMIN'].includes(session.user.role)) {
+        whereClause = {
+          status: {
+            not: 'DRAFT'
+          }
+        }
+      }
+
       const applications = await prisma.application.findMany({
-        where: { userId: session.user.id },
+        where: whereClause,
         include: {
+          user: { // Include user details for support view
+            select: {
+              fullName: true,
+              email: true,
+              phone: true,
+              memberId: true
+            }
+          },
           documents: {
             select: {
               id: true,

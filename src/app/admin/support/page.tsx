@@ -12,10 +12,10 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { 
-  Phone, 
-  FileText, 
-  Clock, 
+import {
+  Phone,
+  FileText,
+  Clock,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -63,23 +63,18 @@ export default function SupportDashboard() {
 
   const fetchApplications = async () => {
     try {
-      // Fetch all applications for stats
-      const response = await fetch('/api/admin/applications')
+      // Fetch all submitted applications using the updated main API
+      const response = await fetch('/api/applications')
       const data = await response.json()
-      
-      if (data.success) {
-        setApplications(data.data)
-      }
 
-      // Fetch submitted applications (status >= UNDER_REVIEW)
-      const submittedResponse = await fetch('/api/admin/applications?submittedOnly=true')
-      const submittedData = await submittedResponse.json()
-      
-      if (submittedData.success) {
-        setSubmittedApplications(submittedData.data)
+      if (data.success) {
+        // Both states can use the same data since the API now filters for us (non-DRAFT for Support)
+        setApplications(data.data)
+        setSubmittedApplications(data.data)
       }
     } catch (error) {
       console.error('Error fetching applications:', error)
+      toast.error('Failed to load applications')
     } finally {
       setLoading(false)
     }
@@ -89,7 +84,7 @@ export default function SupportDashboard() {
     try {
       const response = await fetch(`/api/admin/messages?applicationId=${applicationId}`)
       const data = await response.json()
-      
+
       if (data.success) {
         setMessages(data.data)
       }
@@ -289,7 +284,7 @@ export default function SupportDashboard() {
                 <Clock className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
                   <p className="text-2xl font-bold text-gray-900">
-                    {applications.filter(app => 
+                    {applications.filter(app =>
                       ['UNDER_REVIEW', 'DOCUMENT_UNDER_REVIEW'].includes(app.status)
                     ).length}
                   </p>
@@ -331,10 +326,10 @@ export default function SupportDashboard() {
               <div className="space-y-4">
                 {submittedApplications.map((application) => {
                   const lastActivity = application.statusUpdates?.[0]?.createdAt || application.updatedAt
-                  const unreadMessages = application.messages?.filter((m: any) => 
+                  const unreadMessages = application.messages?.filter((m: any) =>
                     m.senderRole !== session?.user?.role && !m.isRead
                   ).length || 0
-                  
+
                   return (
                     <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start">
@@ -371,8 +366,8 @@ export default function SupportDashboard() {
                           </div>
                         </div>
                         <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => handleOpenMessaging(application)}
                           >
@@ -380,7 +375,7 @@ export default function SupportDashboard() {
                             Message
                           </Button>
                           {application.status === 'UNDER_REVIEW' && (
-                            <Button 
+                            <Button
                               size="sm"
                               onClick={() => {
                                 const note = prompt('Add admin note (optional):')
@@ -421,50 +416,50 @@ export default function SupportDashboard() {
                   {applications
                     .filter(app => ['UNDER_REVIEW', 'DOCUMENT_UNDER_REVIEW'].includes(app.status))
                     .map((application) => (
-                    <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
-                            <h3 className="text-lg font-medium text-gray-900">
-                              {application.country} - {application.processType}
-                            </h3>
-                            <Badge className={getStatusColor(application.status)}>
-                              {application.status.replace(/_/g, ' ')}
-                            </Badge>
+                      <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h3 className="text-lg font-medium text-gray-900">
+                                {application.country} - {application.processType}
+                              </h3>
+                              <Badge className={getStatusColor(application.status)}>
+                                {application.status.replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center space-x-6 text-sm text-gray-600">
+                              <div className="flex items-center">
+                                <User className="h-4 w-4 mr-1" />
+                                {application.user?.fullName || 'Unknown User'}
+                              </div>
+                              <div className="flex items-center">
+                                <Calendar className="h-4 w-4 mr-1" />
+                                {new Date(application.createdAt).toLocaleDateString()}
+                              </div>
+                              <div className="flex items-center">
+                                <CreditCard className="h-4 w-4 mr-1" />
+                                {application.consultancyFee} BDT
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-6 text-sm text-gray-600">
-                            <div className="flex items-center">
-                              <User className="h-4 w-4 mr-1" />
-                              {application.user?.fullName || 'Unknown User'}
-                            </div>
-                            <div className="flex items-center">
-                              <Calendar className="h-4 w-4 mr-1" />
-                              {new Date(application.createdAt).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center">
-                              <CreditCard className="h-4 w-4 mr-1" />
-                              {application.consultancyFee} BDT
-                            </div>
+                          <div className="flex space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedApplication(application)}
+                            >
+                              Configure
+                            </Button>
+                            <Button
+                              size="sm"
+                              onClick={() => handleCallbackComplete(application.id)}
+                            >
+                              Callback Done
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedApplication(application)}
-                          >
-                            Configure
-                          </Button>
-                          <Button 
-                            size="sm"
-                            onClick={() => handleCallbackComplete(application.id)}
-                          >
-                            Callback Done
-                          </Button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
                 </div>
               )}
             </CardContent>
@@ -475,7 +470,7 @@ export default function SupportDashboard() {
             <CardHeader>
               <CardTitle>Document Configuration</CardTitle>
               <CardDescription>
-                {selectedApplication 
+                {selectedApplication
                   ? `Configure document requirements for ${selectedApplication.country} - ${selectedApplication.processType}`
                   : 'Select an application to configure document requirements'
                 }
@@ -531,13 +526,13 @@ export default function SupportDashboard() {
                   </div>
 
                   <div className="flex space-x-2">
-                    <Button 
+                    <Button
                       onClick={handleConfigureDocuments}
                       disabled={documentRequirements.length === 0}
                     >
                       Configure Documents
                     </Button>
-                    <Button 
+                    <Button
                       variant="outline"
                       onClick={() => {
                         setSelectedApplication(null)
@@ -594,26 +589,23 @@ export default function SupportDashboard() {
                   messages.map((message) => (
                     <div
                       key={message.id}
-                      className={`flex ${
-                        message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                      className={`flex ${message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
                           ? 'justify-end'
                           : 'justify-start'
-                      }`}
+                        }`}
                     >
                       <div
-                        className={`max-w-[70%] rounded-lg p-3 ${
-                          message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                        className={`max-w-[70%] rounded-lg p-3 ${message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
                             ? 'bg-red-600 text-white'
                             : 'bg-gray-100 text-gray-900'
-                        }`}
+                          }`}
                       >
                         <p className="text-sm">{message.text}</p>
                         <p
-                          className={`text-xs mt-1 ${
-                            message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
+                          className={`text-xs mt-1 ${message.senderRole === 'SUPPORT' || message.senderRole === 'ADMIN'
                               ? 'text-red-100'
                               : 'text-gray-500'
-                          }`}
+                            }`}
                         >
                           {new Date(message.createdAt).toLocaleString()}
                         </p>
