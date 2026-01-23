@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { country, processType, profession, consultancyFee } = await request.json()
+    const { country, processType, profession, consultancyFee, memberId } = await request.json()
 
     // Validate required fields
     if (!country || !processType || !consultancyFee) {
@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
           processType: processType as ProcessType,
           profession: profession ? (profession as Profession) : null,
           consultancyFee: parseFloat(consultancyFee),
+          memberId: memberId || null,
           status: 'DRAFT',
         },
       })
@@ -128,11 +129,11 @@ export async function POST(request: NextRequest) {
       })
     } catch (prismaError: any) {
       console.warn('Prisma connection failed, using demo mode:', prismaError.message)
-      
+
       // Fallback: Return demo application for demo purposes
       // Generate a unique ID for the application
       const applicationId = `app-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-      
+
       const demoApplication = {
         id: applicationId,
         userId: session.user.id,
