@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,9 +23,12 @@ import { UserStatus, ApplicationStatus } from '@/types'
 export default function IndividualDashboard() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [applications, setApplications] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+
+  // Throttle fetching: prevent fetch if last one was < 2 minutes ago
+  const lastFetchTime = useRef<number>(0)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -40,8 +43,17 @@ export default function IndividualDashboard() {
       return
     }
 
+    // Check throttle
+    const now = Date.now()
+    if (now - lastFetchTime.current < 120 * 1000) {
+      // Data is fresh enough
+      setLoading(false)
+      return
+    }
+
+    lastFetchTime.current = now
     fetchUserData()
-  }, [session, status, router])
+  }, [session?.user?.id, status, router])
 
   const fetchUserData = async () => {
     try {
