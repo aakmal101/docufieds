@@ -1,3 +1,5 @@
+'use client'
+
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { useState } from 'react'
 import Link from 'next/link'
