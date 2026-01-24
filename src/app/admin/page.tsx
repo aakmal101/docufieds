@@ -6,11 +6,11 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Users, 
-  FileText, 
-  CreditCard, 
-  Clock, 
+import {
+  Users,
+  FileText,
+  CreditCard,
+  Clock,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -176,40 +176,40 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-4">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
-                  onClick={() => router.push('/admin/support')}
+                  onClick={() => router.push('/admin/support-lead')}
                 >
                   <UserCheck className="h-6 w-6 mb-2" />
-                  <span>Support Team</span>
+                  <span>Support Portal</span>
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
                   onClick={() => router.push('/admin/applications')}
                 >
                   <FileText className="h-6 w-6 mb-2" />
                   <span>Applications</span>
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
                   onClick={() => router.push('/admin/payments')}
                 >
                   <CreditCard className="h-6 w-6 mb-2" />
                   <span>Payments</span>
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
                   onClick={() => router.push('/admin/users')}
                 >
                   <Users className="h-6 w-6 mb-2" />
                   <span>User Management</span>
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
                   onClick={() => router.push('/admin/templates')}
                 >

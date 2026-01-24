@@ -340,8 +340,8 @@ export default function IndividualDashboard() {
                           variant="outline"
                           size="sm"
                           onClick={() => {
-                            // Navigate to Call Phase (read-only view)
-                            router.push(`/dashboard/individual/new-application?id=${application.id}`)
+                            // Navigate to Status Page
+                            router.push(`/dashboard/individual/applications/${application.id}`)
                           }}
                         >
                           View Status

@@ -7,14 +7,14 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { 
-  Globe, 
-  ArrowLeft, 
-  Loader2, 
-  User, 
-  Building2, 
-  Shield, 
-  Users, 
+import {
+  Globe,
+  ArrowLeft,
+  Loader2,
+  User,
+  Building2,
+  Shield,
+  Users,
   FileText,
   CreditCard,
   Phone
@@ -50,10 +50,10 @@ export default function SignInPage() {
       } else {
         // Wait a moment for session to be created
         await new Promise(resolve => setTimeout(resolve, 500))
-        
+
         // Get the updated session
         const session = await getSession()
-        
+
         if (!session?.user) {
           setError('Session not created. Please try again.')
           toast.error('Session not created. Please try again.')
@@ -62,7 +62,7 @@ export default function SignInPage() {
         }
 
         toast.success('Signed in successfully!')
-        
+
         // Redirect based on user role
         const redirectPath = (() => {
           switch (session.user.role) {
@@ -73,7 +73,7 @@ export default function SignInPage() {
             case 'ADMIN':
               return '/admin'
             case 'SUPPORT':
-              return '/admin/support'
+              return '/dashboard/support'
             case 'LEGAL':
               return '/admin/legal'
             case 'ACCOUNTS':
@@ -84,7 +84,7 @@ export default function SignInPage() {
               return '/dashboard'
           }
         })()
-        
+
         // Use window.location for a full page reload to ensure session is loaded
         window.location.href = redirectPath
       }
@@ -105,7 +105,7 @@ export default function SignInPage() {
     try {
       // Create a mock identifier based on role
       const identifier = `${role.toLowerCase()}@demo.com`
-      
+
       const result = await signIn('credentials', {
         identifier,
         otp: '123456', // Dummy OTP since verification is disabled
@@ -119,10 +119,10 @@ export default function SignInPage() {
       } else {
         // Wait a moment for session to be created
         await new Promise(resolve => setTimeout(resolve, 500))
-        
+
         // Get the updated session
         const session = await getSession()
-        
+
         if (!session?.user) {
           setError('Session not created. Please try again.')
           toast.error('Session not created. Please try again.')
@@ -131,7 +131,7 @@ export default function SignInPage() {
         }
 
         toast.success(`Signed in as ${role}!`)
-        
+
         // Redirect based on user role
         const redirectPath = (() => {
           switch (session.user.role) {
@@ -142,7 +142,7 @@ export default function SignInPage() {
             case 'ADMIN':
               return '/admin'
             case 'SUPPORT':
-              return '/admin/support'
+              return '/dashboard/support'
             case 'LEGAL':
               return '/admin/legal'
             case 'ACCOUNTS':
@@ -153,7 +153,7 @@ export default function SignInPage() {
               return '/dashboard'
           }
         })()
-        
+
         // Use window.location for a full page reload to ensure session is loaded
         window.location.href = redirectPath
       }
@@ -240,9 +240,9 @@ export default function SignInPage() {
             Back to Home
           </Link>
           <div className="flex items-center justify-center mb-4">
-            <img 
-              src="/logo.png" 
-              alt="Docufieds Logo" 
+            <img
+              src="/logo.png"
+              alt="Docufieds Logo"
               className="h-20 w-36 object-contain"
             />
           </div>
@@ -269,22 +269,20 @@ export default function SignInPage() {
               <button
                 type="button"
                 onClick={() => setLoginMode('password')}
-                className={`px-4 py-2 font-medium text-sm transition-colors ${
-                  loginMode === 'password'
+                className={`px-4 py-2 font-medium text-sm transition-colors ${loginMode === 'password'
                     ? 'text-red-600 border-b-2 border-red-600'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 Password Login
               </button>
               <button
                 type="button"
                 onClick={() => setLoginMode('demo')}
-                className={`px-4 py-2 font-medium text-sm transition-colors ${
-                  loginMode === 'demo'
+                className={`px-4 py-2 font-medium text-sm transition-colors ${loginMode === 'demo'
                     ? 'text-red-600 border-b-2 border-red-600'
                     : 'text-gray-500 hover:text-gray-700'
-                }`}
+                  }`}
               >
                 Demo Mode
               </button>
@@ -340,28 +338,27 @@ export default function SignInPage() {
             {/* Demo Mode Role Selection */}
             {loginMode === 'demo' && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {roleButtons.map((button) => (
-                <Button
-                  key={button.role}
-                  variant="outline"
-                  className={`h-auto p-6 flex flex-col items-center space-y-3 hover:shadow-md transition-all border-2 ${
-                    button.bgColor
-                  } ${button.borderColor}`}
-                  onClick={() => handleRoleLogin(button.role)}
-                  disabled={loading}
-                >
-                  <div className={`${button.textColor}`}>
-                    {button.icon}
-                  </div>
-                  <div className="text-center">
-                    <h3 className="font-semibold text-gray-900">{button.title}</h3>
-                    <p className="text-sm text-gray-600 mt-1">{button.description}</p>
-                  </div>
-                  {loading && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                </Button>
-              ))}
+                {roleButtons.map((button) => (
+                  <Button
+                    key={button.role}
+                    variant="outline"
+                    className={`h-auto p-6 flex flex-col items-center space-y-3 hover:shadow-md transition-all border-2 ${button.bgColor
+                      } ${button.borderColor}`}
+                    onClick={() => handleRoleLogin(button.role)}
+                    disabled={loading}
+                  >
+                    <div className={`${button.textColor}`}>
+                      {button.icon}
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-semibold text-gray-900">{button.title}</h3>
+                      <p className="text-sm text-gray-600 mt-1">{button.description}</p>
+                    </div>
+                    {loading && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                  </Button>
+                ))}
               </div>
             )}
 
@@ -382,7 +379,7 @@ export default function SignInPage() {
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Phone className="h-4 w-4" />
               <span>
-                <strong>Demo Mode:</strong> Click any role button above to sign in instantly. 
+                <strong>Demo Mode:</strong> Click any role button above to sign in instantly.
                 No credentials required for testing.
               </span>
             </div>

@@ -7,6 +7,11 @@ import { Badge } from './ui/badge'
 import { CheckCircle, FileText, Download, AlertCircle, Upload, Loader2, X, Eye } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+// Helper for normalization
+const normalizeDocType = (value: string): string => {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
 interface DocumentRequirement {
   id: string
   documentType: string
@@ -50,6 +55,7 @@ const logStateChange = (action: string, documentType: string, status: string | n
     console.log(`[STATE] ${action} | ${documentType}`, details)
   }
 }
+
 
 
 export default function RequiredDocuments({ applicationId, onComplete, onBack }: RequiredDocumentsProps) {
@@ -882,10 +888,8 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         console.log(`  - returned fileName: "${uploadedFile.fileName}"`)
         console.log(`  - uploadedAt: ${uploadedFile.uploadedAt.toISOString()}`)
 
-        // Canonical normalization for matching
-        const normalizeDocType = (value: string): string => {
-          return value.trim().toLowerCase().replace(/\s+/g, ' ')
-        }
+        // Canonical normalization for matching (using module-level function)
+        // const normalizeDocType declared at top of file
 
         // TEMPORARY: Log before optimistic update
         console.log(`[INSPECTION] BEFORE optimistic update - current state:`, Array.isArray(documents) ? documents.map(d => ({

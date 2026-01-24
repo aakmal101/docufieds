@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { triggerAutoAssign } from '@/lib/support/auto-assign-trigger'
 import { ApplicationStatus } from '@/types'
 
 // Force dynamic rendering
@@ -240,12 +241,12 @@ export async function POST(
     })
 
     // Return success response with completion details
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: 'Application process completed successfully! Your application has been submitted and is now under review.',
       data: {
-        id: result.application.id,
-        status: result.application.status,
+        applicationId: application.id,
+        status: result.application.status, // Changed to result.application.status as per original
         submittedAt: result.statusUpdate.createdAt,
         documentsCount: application.documents.length,
         requiredDocumentsCount: documentRequirements.length,
