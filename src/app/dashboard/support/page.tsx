@@ -55,7 +55,7 @@ export default function SupportPortalLanding() {
                                     Manage team assignments, monitor workload, review escalations, and handle team operations.
                                 </p>
                                 <div className="pt-4">
-                                    <Link href="/api/auth/signin?callbackUrl=/admin/support-lead">
+                                    <Link href="/auth/support-lead/login">
                                         <Button className="w-full bg-purple-600 hover:bg-purple-700 h-11 text-base group">
                                             Login as Lead
                                             <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
