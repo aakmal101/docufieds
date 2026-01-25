@@ -16,7 +16,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         documentRequests: {
           orderBy: { requestedAt: 'desc' }
         },
-        // We don't include all messages here as MessageThread fetches them separately
+        statusUpdates: {
+          orderBy: { createdAt: 'desc' },
+          include: { member: { select: { fullName: true } } }
+        }
       }
     })
 

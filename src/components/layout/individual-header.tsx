@@ -30,7 +30,7 @@ export default function IndividualHeader() {
         cache: 'no-store',
       })
       const data = await response.json()
-      
+
       if (data.success) {
         setUser(data.data)
       }
@@ -59,14 +59,21 @@ export default function IndividualHeader() {
               </Button>
             )}
             <div className="flex items-center">
-              <img 
-                src="/logo.png" 
-                alt="Docufieds Logo" 
+              <img
+                src="/logo.png"
+                alt="Docufieds Logo"
                 className="h-16 w-36 object-contain"
               />
             </div>
+
+            {/* Navigation Links */}
+            <nav className="hidden md:flex ml-8 space-x-4">
+              <Button variant="ghost" onClick={() => router.push('/dashboard/individual/applications')}>
+                My Applications
+              </Button>
+            </nav>
           </div>
-          
+
           <div className="flex items-center gap-3">
             {session?.user?.id && (
               <>
