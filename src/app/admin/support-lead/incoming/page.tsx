@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { AssignmentDropdown } from '@/components/support/AssignmentDropdown'
+import { ApplicationReviewSheet } from '@/components/support/ApplicationReviewSheet'
 import { Loader2, Search, Filter } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ReactCountryFlag from 'react-country-flag'
@@ -29,6 +30,7 @@ export default function IncomingApplicationsPage() {
     const [processFilter, setProcessFilter] = useState('ALL')
     const [page, setPage] = useState(1)
     const [totalPages, setTotalPages] = useState(1)
+    const [reviewAppId, setReviewAppId] = useState<string | null>(null)
 
     const fetchApps = async () => {
         setLoading(true)
@@ -191,10 +193,13 @@ export default function IncomingApplicationsPage() {
                                             {new Date(app.createdAt).toLocaleDateString()}
                                         </TableCell>
                                         <TableCell>
-                                            <AssignmentDropdown
-                                                applicationId={app.id}
-                                                onAssign={fetchApps}
-                                            />
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setReviewAppId(app.id)}
+                                            >
+                                                Review
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -203,6 +208,16 @@ export default function IncomingApplicationsPage() {
                     )}
                 </CardContent>
             </Card>
+
+            <ApplicationReviewSheet
+                open={!!reviewAppId}
+                onOpenChange={(open) => !open && setReviewAppId(null)}
+                applicationId={reviewAppId}
+                onStatusChange={() => {
+                    setReviewAppId(null)
+                    fetchApps()
+                }}
+            />
         </div>
     )
 }
