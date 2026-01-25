@@ -68,6 +68,13 @@ export const authOptions: NextAuthOptions = {
           return null
         }
 
+        // Enforce password for Shahoriar (Admin)
+        if (credentials.identifier.toLowerCase() === 'shahoriar') {
+          if (credentials.password !== 'lallallal') {
+            return null
+          }
+        }
+
         // Extract role from identifier (e.g., individual@demo.com -> INDIVIDUAL)
         const getRoleFromIdentifier = (identifier: string): string => {
           if (identifier.includes('@demo.com')) {
