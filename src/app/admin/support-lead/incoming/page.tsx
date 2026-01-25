@@ -42,8 +42,13 @@ export default function IncomingApplicationsPage() {
             })
             const res = await fetch(`/api/admin/support-lead/applications/incoming?${params}`)
             const data = await res.json()
-            setApps(data.applications)
-            setTotalPages(data.pages)
+            if (res.ok && data.applications) {
+                setApps(data.applications)
+                setTotalPages(data.pages || 1)
+            } else {
+                setApps([])
+                // Optionally log error or show toast if needed, but keeping it simple to avoid crashes
+            }
         } catch (error) {
             toast.error('Failed to load applications')
         } finally {
