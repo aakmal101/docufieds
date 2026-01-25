@@ -80,12 +80,12 @@ export const authOptions: NextAuthOptions = {
               'LEGAL': 'LEGAL',
               'ACCOUNTS': 'ACCOUNTS',
               'CASH_OFFICER': 'CASH_OFFICER',
-              'MATHIN': 'ADMIN', // Demo Support Lead
+              'SHAHORIAR': 'ADMIN', // Designated Support Lead
             }
             return roleMap[rolePart] || 'INDIVIDUAL'
           }
 
-          if (identifier.toLowerCase() === 'mathin') return 'ADMIN'
+          if (identifier.toLowerCase() === 'shahoriar') return 'ADMIN'
           return 'INDIVIDUAL'
         }
 
@@ -257,11 +257,6 @@ export const authOptions: NextAuthOptions = {
 
           // If we have a user from database, return it
           if (user) {
-            // FORCE ADMIN for demo user 'mathin' regardless of what's in the DB
-            if (credentials?.identifier?.toLowerCase() === 'mathin') {
-              user.role = 'ADMIN'
-            }
-
             return {
               id: user.id,
               email: user.email,
