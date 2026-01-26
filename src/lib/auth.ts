@@ -126,6 +126,11 @@ export const authOptions: NextAuthOptions = {
 
           // Try to use Prisma first (with timeout to prevent hanging)
           try {
+            // MAP 'Shahoriar' to a valid search if it's not a direct match
+            const searchIdentifier = credentials.identifier.toLowerCase() === 'shahoriar'
+              ? 'shahoriar' // We expect 'shahoriar' to be in the userId field or email
+              : credentials.identifier
+
             // Set a timeout for Prisma operations in serverless
             const prismaPromise = prisma.user.findFirst({
               where: {
@@ -133,6 +138,8 @@ export const authOptions: NextAuthOptions = {
                   { phone: credentials.identifier },
                   { email: credentials.identifier },
                   { userId: credentials.identifier },
+                  // Explicitly allow finding by 'fullName' for the Support Lead if they use their name
+                  { fullName: { equals: credentials.identifier, mode: 'insensitive' } }
                 ],
               },
             })
