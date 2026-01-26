@@ -99,9 +99,19 @@ export const authOptions: NextAuthOptions = {
         // Create demo user object (fallback that always works)
         const createDemoUser = (identifier: string) => {
           const role = getRoleFromIdentifier(identifier)
+
+          // Use STATIC IDs for specific demo users to prevent DB duplicates/conflicts
+          let staticId = `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+
+          if (identifier.toLowerCase() === 'shahoriar') {
+            staticId = 'demo-user-shahoriar-admin-id'
+          } else if (identifier.toLowerCase() === 'mathin') {
+            staticId = 'demo-user-mathin-individual-id'
+          }
+
           return {
-            id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            email: identifier,
+            id: staticId,
+            email: identifier.includes('@') ? identifier : `${identifier.toLowerCase()}@docufieds.demo`,
             phone: `+1234567890`,
             userId: null,
             role: role,
@@ -288,20 +298,7 @@ export const authOptions: NextAuthOptions = {
           })
 
           // Always return demo user on error (never return null)
-          const role = credentials?.identifier?.includes('@demo.com')
-            ? credentials.identifier.split('@')[0].toUpperCase()
-            : 'INDIVIDUAL'
-
-          return {
-            id: `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            email: credentials?.identifier || 'demo@demo.com',
-            phone: `+1234567890`,
-            userId: null,
-            role: role,
-            status: role === 'INDIVIDUAL' ? 'PENDING' : 'APPROVED',
-            memberId: role === 'INDIVIDUAL' ? generateMemberId() : undefined,
-            fullName: role === 'INDIVIDUAL' ? 'Individual User' : `${role} User`,
-          }
+          return createDemoUser(credentials?.identifier || 'demo@demo.com')
         }
       },
     }),
