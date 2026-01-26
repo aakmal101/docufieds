@@ -2,78 +2,113 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 import { createSupportMember } from '@/lib/auth/support-member'
+import { z } from 'zod'
+
+const onboardSchema = z.object({
+    fullName: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().optional(),
+    password: z.string().min(6, "Password must be at least 6 characters")
+})
 
 export async function POST(req: Request) {
     const session = await requireSupportLead()
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const { fullName, email, phone, password } = await req.json()
+        const body = await req.json()
+        const validated = onboardSchema.parse(body)
 
-        // Validate email
-        const existing = await prisma.supportTeamMember.findUnique({
-            where: { email }
+        // 1. Check for duplicate email in SupportTeamMember table
+        const existingMember = await prisma.supportTeamMember.findUnique({
+            where: { email: validated.email }
         })
-        if (existing) {
-            return NextResponse.json({ error: 'Email already exists' }, { status: 409 })
+        if (existingMember) {
+            return NextResponse.json({
+                error: 'Email already exists',
+                details: 'A team member with this email already exists.'
+            }, { status: 409 })
         }
 
-        // FAIL-SAFE: Ensure the Lead User (current session user) actually exists in the DB
+        // 2. Resolve Lead ID (Robust "Ghost User" Handling)
         let leadIdToUse = session.user.id
 
-        const leadUserById = await prisma.user.findUnique({
-            where: { id: session.user.id }
+        // Strategy: prefer finding by EMAIL first, as that is the stable identifier in Demo Mode
+        // "Shahoriar" might have ID "demo-1" in DB but session says "demo-2"
+        const existingLeadByEmail = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: session.user.email },
+                    // Also check if email is just the username (common in demo data)
+                    { email: 'Shahoriar' },
+                    { email: 'shahoriar' }
+                ]
+            }
         })
 
-        if (!leadUserById) {
-            console.log('Lead user ID not found, checking by email for ghost records...')
-            // Check if email exists (Ghost User from previous dynamic ID sessions)
-            const leadUserByEmail = await prisma.user.findFirst({
-                where: {
-                    OR: [
-                        { email: session.user.email },
-                        { phone: session.user.phone },
-                        { email: 'shahoriar' }, // In case email is just username
-                    ]
-                }
+        if (existingLeadByEmail) {
+            // Found the REAL record in the DB. Use its ID to satisfy Foreign Key.
+            console.log(`[Onboard] Found existing Lead User by email. ID: ${existingLeadByEmail.id}`)
+            leadIdToUse = existingLeadByEmail.id
+        } else {
+            // No record by email. Check if ID exists.
+            const existingLeadById = await prisma.user.findUnique({
+                where: { id: session.user.id }
             })
 
-            if (leadUserByEmail) {
-                console.log('Found existing user by email, reusing ID:', leadUserByEmail.id)
-                leadIdToUse = leadUserByEmail.id
-            } else {
-                console.log('No user found, creating new Lead User record...')
+            if (!existingLeadById) {
+                // Neither Email nor ID exists. This is a fresh environment.
+                // Create the Lead User record to satisfy FK.
+                console.log(`[Onboard] Creating new Lead User record for ID: ${session.user.id}`)
                 try {
-                    const newUser = await prisma.user.create({
+                    await prisma.user.create({
                         data: {
                             id: session.user.id,
-                            email: session.user.email || `lead-${Date.now()}@docufieds.com`,
+                            email: session.user.email || 'shahoriar@admin.com',
                             fullName: session.user.fullName || 'Support Lead',
                             role: 'ADMIN',
                             status: 'APPROVED'
                         }
                     })
-                    leadIdToUse = newUser.id
-                } catch (createError) {
-                    console.error('Failed to create fallback lead user:', createError)
+                } catch (createErr) {
+                    console.error('[Onboard] Failed to create Lead User fallback:', createErr)
+                    // Continue and hope for the best (or fail at FK step)
                 }
             }
         }
 
+        // 3. Create the Team Member
+        console.log(`[Onboard] Creating member linked to Lead ID: ${leadIdToUse}`)
         const member = await createSupportMember(leadIdToUse, {
-            email,
-            fullName,
-            phone,
-            tempPassword: password
+            email: validated.email,
+            fullName: validated.fullName,
+            phone: validated.phone,
+            tempPassword: validated.password
         })
 
         return NextResponse.json({ success: true, member })
+
     } catch (error: any) {
-        console.error('Onboard Error:', error)
-        // Return explicit error for debugging
+        console.error('[Onboard] Critical Error:', error)
+
+        if (error instanceof z.ZodError) {
+            return NextResponse.json({ error: 'Validation Failed', details: error.errors[0].message }, { status: 400 })
+        }
+
+        if (error.code === 'P2002') {
+            return NextResponse.json({ error: 'Database Conflict', details: 'Record already exists.' }, { status: 409 })
+        }
+
+        if (error.code === 'P2003') {
+            return NextResponse.json({
+                error: 'Association Error',
+                details: `Could not link to Lead Account. Lead ID ${session.user.id} not found.`
+            }, { status: 500 })
+        }
+
         return NextResponse.json({
-            error: 'Failed to create member',
-            details: error.message
+            error: 'System Error',
+            details: error.message || 'An unexpected error occurred'
         }, { status: 500 })
     }
 }
