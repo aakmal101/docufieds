@@ -17,7 +17,8 @@ import {
   Users,
   FileText,
   CreditCard,
-  Phone
+  Phone,
+  ChevronRight
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -198,16 +199,7 @@ export default function SignInPage() {
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200'
     },
-    {
-      role: 'SUPPORT',
-      title: 'Support Team',
-      description: 'Customer support & document management',
-      icon: <Users className="h-6 w-6" />,
-      color: 'bg-purple-600 hover:bg-purple-700',
-      textColor: 'text-purple-600',
-      bgColor: 'bg-purple-50',
-      borderColor: 'border-purple-200'
-    },
+
     {
       role: 'LEGAL',
       title: 'Legal Team',
@@ -270,8 +262,8 @@ export default function SignInPage() {
                 type="button"
                 onClick={() => setLoginMode('password')}
                 className={`px-4 py-2 font-medium text-sm transition-colors ${loginMode === 'password'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-red-600 border-b-2 border-red-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 Password Login
@@ -280,8 +272,8 @@ export default function SignInPage() {
                 type="button"
                 onClick={() => setLoginMode('demo')}
                 className={`px-4 py-2 font-medium text-sm transition-colors ${loginMode === 'demo'
-                    ? 'text-red-600 border-b-2 border-red-600'
-                    : 'text-gray-500 hover:text-gray-700'
+                  ? 'text-red-600 border-b-2 border-red-600'
+                  : 'text-gray-500 hover:text-gray-700'
                   }`}
               >
                 Demo Mode
@@ -375,13 +367,20 @@ export default function SignInPage() {
 
         {/* Demo Notice */}
         <Card className="mt-6">
-          <CardContent className="p-4">
+          <CardContent className="p-4 space-y-4">
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <Phone className="h-4 w-4" />
               <span>
                 <strong>Demo Mode:</strong> Click any role button above to sign in instantly.
-                No credentials required for testing.
               </span>
+            </div>
+
+            <div className="pt-4 border-t flex justify-center">
+              <Link href="/auth/support-login" className="text-sm font-medium text-slate-600 hover:text-slate-900 flex items-center transition-colors">
+                <Shield className="h-4 w-4 mr-2" />
+                Access Support Team Portal
+                <ChevronRight className="h-3 w-3 ml-1" />
+              </Link>
             </div>
           </CardContent>
         </Card>
