@@ -13,11 +13,13 @@ export async function GET() {
     try {
         console.log(`[Team API] Fetching members for Lead: ${session.user.email} (${session.user.id})`)
         const members = await prisma.supportTeamMember.findMany({
-            where: { isActive: true },
+            // Show ALL members regardless of status, as requested
+            // where: { isActive: true }, 
             select: {
                 id: true,
                 fullName: true,
                 email: true,
+                isActive: true, // Include status so we can show it
                 _count: {
                     select: { assignedApplications: { where: { status: 'ACTIVE' } } }
                 }
