@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
     const session = await requireSupportLead()
     if (!session) {
@@ -9,6 +11,7 @@ export async function GET() {
     }
 
     try {
+        console.log(`[Team API] Fetching members for Lead: ${session.user.email} (${session.user.id})`)
         const members = await prisma.supportTeamMember.findMany({
             where: { isActive: true },
             select: {
