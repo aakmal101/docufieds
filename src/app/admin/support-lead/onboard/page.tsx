@@ -69,7 +69,7 @@ export default function OnboardMemberPage() {
                 })
                 fetchTeam() // Refresh table
             } else {
-                toast.error(data.error || 'Failed to create member')
+                toast.error(data.details || data.error || 'Failed to create member')
             }
         } catch (error) {
             toast.error('Something went wrong')

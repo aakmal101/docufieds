@@ -19,33 +19,48 @@ export async function POST(req: Request) {
         }
 
         // FAIL-SAFE: Ensure the Lead User (current session user) actually exists in the DB
-        // If the user is running in "Demo Mode", the session ID might be fake.
-        // We must create a real User record to satisfy the Foreign Key constraint.
-        const leadUser = await prisma.user.findUnique({
+        let leadIdToUse = session.user.id
+
+        const leadUserById = await prisma.user.findUnique({
             where: { id: session.user.id }
         })
 
-        if (!leadUser) {
-            console.log('Lead user not found in DB, creating fallback record for:', session.user.id)
-            try {
-                await prisma.user.create({
-                    data: {
-                        id: session.user.id, // Use the session ID so the relationship matches
-                        email: session.user.email || `lead-${Date.now()}@docufieds.com`,
-                        fullName: session.user.fullName || 'Support Lead',
-                        role: 'ADMIN',
-                        status: 'APPROVED'
-                    }
-                })
-            } catch (createError) {
-                console.error('Failed to create fallback lead user:', createError)
-                // If this fails (e.g. email collision but ID distinct?), try to fetch by email?
-                // For now, let's assume if ID didn't exist, we can create.
-                // If it fails, the next step (createSupportMember) will likely fail too.
+        if (!leadUserById) {
+            console.log('Lead user ID not found, checking by email for ghost records...')
+            // Check if email exists (Ghost User from previous dynamic ID sessions)
+            const leadUserByEmail = await prisma.user.findFirst({
+                where: {
+                    OR: [
+                        { email: session.user.email },
+                        { phone: session.user.phone },
+                        { email: 'shahoriar' }, // In case email is just username
+                    ]
+                }
+            })
+
+            if (leadUserByEmail) {
+                console.log('Found existing user by email, reusing ID:', leadUserByEmail.id)
+                leadIdToUse = leadUserByEmail.id
+            } else {
+                console.log('No user found, creating new Lead User record...')
+                try {
+                    const newUser = await prisma.user.create({
+                        data: {
+                            id: session.user.id,
+                            email: session.user.email || `lead-${Date.now()}@docufieds.com`,
+                            fullName: session.user.fullName || 'Support Lead',
+                            role: 'ADMIN',
+                            status: 'APPROVED'
+                        }
+                    })
+                    leadIdToUse = newUser.id
+                } catch (createError) {
+                    console.error('Failed to create fallback lead user:', createError)
+                }
             }
         }
 
-        const member = await createSupportMember(session.user.id, {
+        const member = await createSupportMember(leadIdToUse, {
             email,
             fullName,
             phone,
