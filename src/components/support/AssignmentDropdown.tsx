@@ -51,6 +51,9 @@ export function AssignmentDropdown({ applicationId, currentMemberId, onAssign, d
             const res = await fetch('/api/admin/support-lead/team')
             if (res.ok) {
                 setMembers(await res.json())
+            } else {
+                console.error('Failed to fetch members:', res.status, res.statusText)
+                toast.error(`Error loading team: ${res.statusText}`)
             }
         } catch (error) {
             toast.error('Failed to load team members')
