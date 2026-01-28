@@ -40,9 +40,16 @@ export function AssignmentDropdown({ applicationId, currentMemberId, onAssign, d
         if (members.length > 0) return
         setLoading(true)
         try {
-            const res = await fetch('/api/admin/support-lead/team')
+            // Add timestamp to prevent browser caching
+            const res = await fetch(`/api/admin/support-lead/team?t=${Date.now()}`, {
+                cache: 'no-store',
+                headers: { 'Pragma': 'no-cache' }
+            })
             if (res.ok) {
-                setMembers(await res.json())
+                const data = await res.json()
+                // Debug log
+                console.log('Team members fetched:', data.length)
+                setMembers(data)
             } else {
                 console.error('Failed to fetch members:', res.status, res.statusText)
                 toast.error(`Error loading team: ${res.statusText}`)
