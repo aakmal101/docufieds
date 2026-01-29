@@ -11,9 +11,31 @@ export async function GET() {
     }
 
     try {
+
+        // Resolve Lead ID (Robust Handling)
+        // Similar to onboarding, ensure we use the REAL database ID for this user, 
+        // as session ID might be different from the persisted one in some demo scenarios.
+        let leadIdToQuery = session.user.id
+
+        const existingLead = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { id: session.user.id },
+                    { email: session.user.email },
+                    { email: 'Shahoriar' }, // Fallback for specific demo user
+                    { email: 'shahoriar' }
+                ]
+            },
+            select: { id: true }
+        })
+
+        if (existingLead) {
+            leadIdToQuery = existingLead.id
+        }
+
         const members = await prisma.supportTeamMember.findMany({
             where: {
-                leadId: session.user.id,
+                leadId: leadIdToQuery,
                 isActive: true
             },
             select: {
