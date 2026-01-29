@@ -59,7 +59,7 @@ export async function POST(
         payments: true,
         statusUpdates: {
           where: {
-            status: ApplicationStatus.UNDER_REVIEW,
+            toStatus: ApplicationStatus.UNDER_REVIEW,
           },
           orderBy: {
             createdAt: 'desc',
