@@ -55,4 +55,6 @@ if (process.env.NODE_ENV === 'development') {
       console.error('4. Check network/firewall settings')
     })
 
-  export default prisma
+}
+
+export default prisma
