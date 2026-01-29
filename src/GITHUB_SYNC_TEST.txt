@@ -1,2 +1,0 @@
-This is a sync test file created at 2026-01-30.
-If you can see this, the push was successful.

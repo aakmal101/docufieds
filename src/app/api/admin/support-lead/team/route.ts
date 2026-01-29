@@ -50,16 +50,6 @@ export async function GET() {
             orderBy: { fullName: 'asc' }
         })
 
-        if (members.length === 0) {
-            return NextResponse.json([{
-                id: 'debug-info',
-                fullName: `DEBUG: LeadID=${leadIdToQuery.substring(0, 10)}... (Session:${session.user.email})`,
-                email: 'debug@test.com',
-                isActive: true,
-                _count: { assignedApplications: 0 }
-            }])
-        }
-
         return NextResponse.json(members)
     } catch (error) {
         console.error('Failed to fetch team members:', error)
