@@ -26,17 +26,34 @@ interface DocumentReviewProps {
 }
 
 export function DocumentReview({ documents, applicationId, onUpdate }: DocumentReviewProps) {
-    // Mocking per-document status state for this session until we persist it
-    // In a real app, 'Document' model would likely have 'verificationStatus'
+    const [processingId, setProcessingId] = useState<string | null>(null)
 
     const handleOpen = (url: string) => {
         window.open(url, '_blank')
     }
 
-    const handleRequestChange = (doc: Document) => {
-        // Open a modal to create a DocumentRequest
-        // For MVP, just a toast
-        toast('Requesting changes is implemented in the Actions panel', { icon: 'ℹ️' })
+    const handleReview = async (doc: Document, status: 'APPROVED' | 'REJECTED') => {
+        if (!confirm(`Are you sure you want to ${status} this document?`)) return
+
+        setProcessingId(doc.id)
+        try {
+            const res = await fetch('/api/admin/support-member/documents/review', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ documentId: doc.id, status })
+            })
+
+            if (res.ok) {
+                toast.success(`Document ${status}`)
+                onUpdate()
+            } else {
+                toast.error('Failed to update status')
+            }
+        } catch (error) {
+            toast.error('Error processing request')
+        } finally {
+            setProcessingId(null)
+        }
     }
 
     return (
@@ -55,7 +72,15 @@ export function DocumentReview({ documents, applicationId, onUpdate }: DocumentR
                                     <FileText className="h-6 w-6 text-blue-500" />
                                 </div>
                                 <div className="min-w-0">
-                                    <p className="font-medium text-sm truncate">{doc.documentType}</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm truncate">{doc.documentType}</p>
+                                        <Badge
+                                            variant={doc.status === 'APPROVED' ? 'default' : doc.status === 'REJECTED' ? 'destructive' : 'secondary'}
+                                            className={doc.status === 'APPROVED' ? 'bg-green-500' : ''}
+                                        >
+                                            {doc.status || 'PENDING'}
+                                        </Badge>
+                                    </div>
                                     <p className="text-xs text-gray-500 truncate">{doc.fileName}</p>
                                 </div>
                             </div>
@@ -64,12 +89,28 @@ export function DocumentReview({ documents, applicationId, onUpdate }: DocumentR
                                 <Button variant="ghost" size="sm" onClick={() => handleOpen(doc.fileUrl)}>
                                     <Eye className="h-4 w-4 mr-1" /> View
                                 </Button>
-                                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleRequestChange(doc)}>
-                                    <XCircle className="h-4 w-4 mr-1" /> Reject
-                                </Button>
-                                <Button variant="outline" size="sm" className="text-green-600 hover:text-green-700 hover:bg-green-50">
-                                    <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                                </Button>
+                                {doc.status !== 'APPROVED' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                        onClick={() => handleReview(doc, 'APPROVED')}
+                                        disabled={!!processingId}
+                                    >
+                                        <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                                    </Button>
+                                )}
+                                {doc.status !== 'REJECTED' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleReview(doc, 'REJECTED')}
+                                        disabled={!!processingId}
+                                    >
+                                        <XCircle className="h-4 w-4 mr-1" /> Reject
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     ))

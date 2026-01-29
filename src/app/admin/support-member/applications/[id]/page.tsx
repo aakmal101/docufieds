@@ -101,19 +101,60 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     }
 
     const handleEscalate = async () => {
-        // Call escalation API (reuse lead API or create specific one, likely reuse POST to escalations?)
-        // Actually spec implies a flow. Let's assume an api exists or I create one. I'll stick to what I have or create quickly.
-        // Spec mentions "Escalate to Lead (orange) - opens modal for reason".
-        // I'll create a POST /api/admin/support-member/applications/[id]/escalate
         setSubmitting(true)
         try {
-            // Mock call for now if route not defined in this task set, but wait, Task 6 created GET /escalations, but creating one?
-            // Task 6 only listed GET/POST for lead.
-            // Task 7 doesn't explicitly ask for the escalate API route creation, mostly UI.
-            // But likely need it. I'll focus on UI and stub the fetch.
-            toast.success("Escalation Sent (Stub)")
-            setEscalateOpen(false)
-        } finally { setSubmitting(false) }
+            const res = await fetch(`/api/admin/support-member/applications/${params.id}/escalate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason })
+            })
+            if (res.ok) {
+                toast.success("Application Escalated")
+                setEscalateOpen(false)
+                fetchApp()
+            } else {
+                toast.error("Failed to escalate")
+            }
+        } catch { toast.error("Error escalating") }
+        finally { setSubmitting(false) }
+    }
+
+    const handleRequestRejection = async () => {
+        setSubmitting(true)
+        try {
+            const res = await fetch(`/api/admin/support-member/applications/${params.id}/request-rejection`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason, category: 'OTHER' }) // Default category for now
+            })
+            if (res.ok) {
+                toast.success("Rejection Requested")
+                setRejectOpen(false)
+                fetchApp()
+            } else {
+                toast.error("Failed to request rejection")
+            }
+        } catch { toast.error("Error requesting rejection") }
+        finally { setSubmitting(false) }
+    }
+
+    const handleForwardToLegal = async () => {
+        if (!confirm("Are you sure you want to forward this to Legal? This cannot be undone.")) return;
+        setSubmitting(true)
+        try {
+            const res = await fetch(`/api/admin/support-member/applications/${params.id}/forward`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ destination: 'LEGAL' })
+            })
+            if (res.ok) {
+                toast.success("Forwarded to Legal")
+                fetchApp()
+            } else {
+                toast.error("Failed to forward")
+            }
+        } catch { toast.error("Error forwarding") }
+        finally { setSubmitting(false) }
     }
 
     if (loading || !app) return <div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div>
@@ -254,12 +295,12 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                             onChange={e => setReason(e.target.value)}
                         />
                         <DialogFooter>
-                            <Button variant="destructive" onClick={() => { toast.success("Stub"); setRejectOpen(false) }}>Confirm</Button>
+                            <Button variant="destructive" onClick={handleRequestRejection} disabled={submitting}>Confirm</Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
 
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button className="bg-green-600 hover:bg-green-700" onClick={handleForwardToLegal} disabled={submitting}>
                     <CheckCircle className="mr-2 h-4 w-4" /> Forward to Legal
                 </Button>
             </div>
