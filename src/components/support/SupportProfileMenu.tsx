@@ -32,7 +32,15 @@ export function SupportProfileMenu() {
     }
 
     // Fallback if session not ready (skeleton-like or empty)
-    if (!user) return null
+    if (!user) {
+        return (
+            <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 ring-2 ring-white ml-2">
+                <Avatar className="h-10 w-10 bg-gray-100 animate-pulse">
+                    <AvatarFallback></AvatarFallback>
+                </Avatar>
+            </Button>
+        )
+    }
 
     return (
         <DropdownMenu>
@@ -56,7 +64,7 @@ export function SupportProfileMenu() {
                     <div className="flex items-center gap-3 mb-2">
                         <Avatar className="h-12 w-12 bg-purple-100 border-2 border-white shadow-sm">
                             {user.image ? (
-                                <AvatarImage src={user.image} objectFit="cover" />
+                                <AvatarImage src={user.image} className="object-cover" />
                             ) : (
                                 <AvatarFallback className="text-purple-700 text-lg">
                                     {user.name ? user.name.substring(0, 2).toUpperCase() : 'ME'}
