@@ -67,7 +67,7 @@ export default function MemberDashboard() {
 
     // Stats
     const activeCount = assignments.filter(a => a.status === 'ACTIVE').length
-    const completedToday = assignments.filter(a => a.status === 'COMPLETED' && new Date(a.completedAt).toDateString() === new Date().toDateString()).length
+    const completedToday = assignments.filter(a => a.status === 'COMPLETED' && a.completedAt && new Date(a.completedAt).toDateString() === new Date().toDateString()).length
     // Assuming 'Pending Response' maps to a status or a doc request state. 
     // Let's assume supportStatus 'DOCUMENT_UNDER_REVIEW' or similar, strict mapping depends on schema use.
     // For now: supportStatus === 'PENDING_USER_RESPONSE'?
@@ -176,7 +176,7 @@ export default function MemberDashboard() {
                                                 <span className="text-gray-300">|</span>
                                                 <span>Payment: {app.payments?.[0]?.status || 'PENDING'}</span>
                                                 <span className="text-gray-300">|</span>
-                                                <span>{formatDistanceToNow(new Date(app.assignedAt), { addSuffix: true })}</span>
+                                                <span>{app.assignedAt ? formatDistanceToNow(new Date(app.assignedAt), { addSuffix: true }) : 'Recently'}</span>
                                             </div>
                                         </div>
                                     </div>
