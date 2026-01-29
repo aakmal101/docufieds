@@ -200,7 +200,7 @@ export async function POST(
       })
 
       // Create status update entry for audit trail
-      const statusUpdate = await tx.statusUpdate.create({
+      const statusUpdate = await tx.applicationStatusUpdate.create({
         data: {
           applicationId,
           status: ApplicationStatus.UNDER_REVIEW,
