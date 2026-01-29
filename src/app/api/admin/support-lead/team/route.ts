@@ -13,7 +13,8 @@ export async function GET() {
     try {
         const members = await prisma.supportTeamMember.findMany({
             where: {
-                leadId: session.user.id
+                leadId: session.user.id,
+                isActive: true
             },
             select: {
                 id: true,
