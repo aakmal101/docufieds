@@ -27,6 +27,17 @@ export async function GET() {
             orderBy: { fullName: 'asc' }
         })
 
+        if (members.length === 0) {
+            const count = await prisma.supportTeamMember.count()
+            return NextResponse.json([{
+                id: 'debug-info',
+                fullName: `DEBUG: No members found. DB Count: ${count}`,
+                email: 'debug@test.com',
+                isActive: true,
+                _count: { assignedApplications: 0 }
+            }])
+        }
+
         return NextResponse.json(members)
     } catch (error) {
         return NextResponse.json({ error: 'Failed to fetch team' }, { status: 500 })
