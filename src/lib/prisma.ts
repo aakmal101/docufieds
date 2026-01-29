@@ -54,4 +54,5 @@ if (process.env.NODE_ENV === 'development') {
       console.error('3. Verify database is not paused (Supabase free tier pauses after inactivity)')
       console.error('4. Check network/firewall settings')
     })
-}
+
+  export default prisma
