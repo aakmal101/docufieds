@@ -36,10 +36,16 @@ export function AssignmentDropdown({ applicationId, currentMemberId, onAssign, d
     const [loading, setLoading] = useState(false)
     const [assigning, setAssigning] = useState(false)
 
+    // Debug logging for state changes
+    useEffect(() => {
+        console.log("Current members state:", members);
+    }, [members]);
+
     const fetchMembers = async () => {
         if (members.length > 0) return
         setLoading(true)
         try {
+            console.log('Fetching team members...')
             // Add timestamp to prevent browser caching
             const res = await fetch(`/api/admin/support-lead/team?t=${Date.now()}`, {
                 cache: 'no-store',
@@ -48,13 +54,21 @@ export function AssignmentDropdown({ applicationId, currentMemberId, onAssign, d
             if (res.ok) {
                 const data = await res.json()
                 // Debug log
-                console.log('Team members fetched:', data.length)
-                setMembers(data)
+                console.log('API Response Data:', data)
+                console.log('Is Array?', Array.isArray(data))
+                console.log('Length:', data.length)
+
+                if (Array.isArray(data)) {
+                    setMembers(data)
+                } else {
+                    console.error('API returned non-array data:', data)
+                }
             } else {
                 console.error('Failed to fetch members:', res.status, res.statusText)
                 toast.error(`Error loading team: ${res.statusText}`)
             }
         } catch (error) {
+            console.error('Fetch error:', error)
             toast.error('Failed to load team members')
         } finally {
             setLoading(false)
