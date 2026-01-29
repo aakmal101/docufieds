@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import toast from 'react-hot-toast'
+import { SupportProfileMenu } from '@/components/support/SupportProfileMenu'
 
 export default function SupportMemberLayout({
     children,
@@ -22,15 +23,6 @@ export default function SupportMemberLayout({
     const pathname = usePathname()
     const router = useRouter()
 
-    const handleLogout = async () => {
-        try {
-            await fetch('/api/auth/support-member/logout', { method: 'POST' })
-            router.push('/auth/support-member/login')
-            router.refresh()
-        } catch (error) {
-            toast.error('Logout failed')
-        }
-    }
 
     const navigation = [
         { name: 'My Applications', href: '/admin/support-member', icon: ClipboardList, exact: true },
@@ -74,23 +66,7 @@ export default function SupportMemberLayout({
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-sm font-medium text-gray-900">Member</p>
-                                <p className="text-xs text-gray-500">Support Team</p>
-                            </div>
-                            <Avatar className="h-8 w-8 bg-purple-100 ring-2 ring-white">
-                                <AvatarFallback className="text-purple-700 text-xs">ME</AvatarFallback>
-                            </Avatar>
-                        </div>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleLogout}
-                            className="text-gray-500 hover:text-red-600"
-                        >
-                            <LogOut className="h-4 w-4" />
-                        </Button>
+                        <SupportProfileMenu />
                     </div>
                 </div>
             </header>

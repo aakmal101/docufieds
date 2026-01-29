@@ -135,6 +135,7 @@ model Document {
   fileSize      Int      @map("file_size")
   documentType  String   @map("document_type")
   isRequired    Boolean  @default(false) @map("is_required")
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
   uploadedAt    DateTime @default(now()) @map("uploaded_at")
   
   // Relations
