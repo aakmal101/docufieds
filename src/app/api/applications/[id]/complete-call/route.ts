@@ -203,9 +203,11 @@ export async function POST(
       const statusUpdate = await tx.applicationStatusUpdate.create({
         data: {
           applicationId,
-          status: ApplicationStatus.UNDER_REVIEW,
-          message: `Application submitted successfully. All required documents (${application.documents.length}) uploaded and payment verified (${totalPaid} BDT). Application is now under review and will be processed by our legal team.`,
-          updatedBy: session.user.id,
+          fromStatus: ApplicationStatus.DRAFT,
+          toStatus: ApplicationStatus.UNDER_REVIEW,
+          notes: `Application submitted successfully. All required documents (${application.documents.length}) uploaded and payment verified (${totalPaid} BDT). Application is now under review and will be processed by our legal team.`,
+          changedByType: 'USER',
+          changedById: session.user.id,
         },
       })
 
