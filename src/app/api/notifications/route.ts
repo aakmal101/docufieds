@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 // Force dynamic rendering - this route uses getServerSession which requires headers/cookies
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic' // Explicitly set to dynamic to resolve build error
 
 export async function GET(request: NextRequest) {
   try {
