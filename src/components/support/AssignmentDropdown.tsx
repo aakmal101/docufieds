@@ -106,13 +106,17 @@ export function AssignmentDropdown({ applicationId, currentMemberId, onAssign, d
     }
 
     return (
-        <Dropdown>
+        <Dropdown onOpenChange={(open) => {
+            if (open) {
+                console.log("Dropdown opened, triggering fetch...");
+                fetchMembers();
+            }
+        }}>
             <Trigger asChild>
                 <Button
                     variant="outline"
                     size="sm"
                     className="h-8"
-                    onClick={fetchMembers}
                     disabled={disabled || assigning}
                 >
                     {assigning ? (
