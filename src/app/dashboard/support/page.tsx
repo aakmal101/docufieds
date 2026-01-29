@@ -63,7 +63,7 @@ export default function SupportPortalLanding() {
                                     </Link>
                                     <div className="mt-4 p-3 bg-purple-50 rounded text-sm text-purple-800 text-left border border-purple-100">
                                         <p className="font-semibold text-xs uppercase tracking-wider mb-1">Demo Credentials:</p>
-                                        <p>Username: <span className="font-mono bg-white px-1 rounded">Mathin</span></p>
+                                        <p>Username: <span className="font-mono bg-white px-1 rounded">Shahoriar</span></p>
                                         <p>Password: <span className="font-mono bg-white px-1 rounded">lallallal</span></p>
                                     </div>
                                 </div>
