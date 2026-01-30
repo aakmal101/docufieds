@@ -1,15 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import { User, LogOut, Mail, Globe } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { User, LogOut, Mail } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuTrigger,
     DropdownMenuItem,
     DropdownMenuSeparator,
-    DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -18,8 +17,29 @@ import toast from 'react-hot-toast'
 
 export function SupportProfileMenu() {
     const router = useRouter()
-    const { data: session } = useSession()
-    const user = session?.user
+    const [user, setUser] = useState<{ fullName: string, email: string } | null>(null)
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchMe = async () => {
+            try {
+                const res = await fetch('/api/auth/support-member/me')
+                if (res.ok) {
+                    const data = await res.json()
+                    setUser(data)
+                } else {
+                    // Start polling just in case session takes a moment? 
+                    // Or just fail silently.
+                    console.error('Profile fetch failed')
+                }
+            } catch (e) {
+                console.error('Failed to fetch profile')
+            } finally {
+                setLoading(false)
+            }
+        }
+        fetchMe()
+    }, [])
 
     const handleLogout = async () => {
         try {
@@ -31,8 +51,7 @@ export function SupportProfileMenu() {
         }
     }
 
-    // Fallback if session not ready (skeleton-like or empty)
-    if (!user) {
+    if (loading) {
         return (
             <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 ring-2 ring-white ml-2">
                 <Avatar className="h-10 w-10 bg-gray-100 animate-pulse">
@@ -42,18 +61,16 @@ export function SupportProfileMenu() {
         )
     }
 
+    if (!user) return null
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-10 w-10 rounded-full p-0 ring-2 ring-white ml-2">
                     <Avatar className="h-10 w-10 bg-purple-100">
-                        {user.image ? (
-                            <AvatarImage src={user.image} alt={user.name || 'Member'} />
-                        ) : (
-                            <AvatarFallback className="text-purple-700 font-bold">
-                                {user.name ? user.name.substring(0, 2).toUpperCase() : 'ME'}
-                            </AvatarFallback>
-                        )}
+                        <AvatarFallback className="text-purple-700 font-bold">
+                            {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'ME'}
+                        </AvatarFallback>
                     </Avatar>
                 </Button>
             </DropdownMenuTrigger>
@@ -63,18 +80,14 @@ export function SupportProfileMenu() {
                 <div className="p-4 border-b bg-gray-50/50">
                     <div className="flex items-center gap-3 mb-2">
                         <Avatar className="h-12 w-12 bg-purple-100 border-2 border-white shadow-sm">
-                            {user.image ? (
-                                <AvatarImage src={user.image} className="object-cover" />
-                            ) : (
-                                <AvatarFallback className="text-purple-700 text-lg">
-                                    {user.name ? user.name.substring(0, 2).toUpperCase() : 'ME'}
-                                </AvatarFallback>
-                            )}
+                            <AvatarFallback className="text-purple-700 text-lg">
+                                {user.fullName ? user.fullName.substring(0, 2).toUpperCase() : 'ME'}
+                            </AvatarFallback>
                         </Avatar>
 
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-gray-900 truncate">
-                                {user.name || 'Support Member'}
+                                {user.fullName || 'Support Member'}
                             </p>
                             {user.email && (
                                 <p className="text-xs text-gray-500 truncate flex items-center gap-1">
