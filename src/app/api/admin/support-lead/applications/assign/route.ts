@@ -64,17 +64,30 @@ export async function POST(req: Request) {
                     changedById: session.user.id,
                     notes: `Assigned to ${member.fullName}`
                 }
+            }
             })
 
-            return assignment
+        // Create notification for member
+        await tx.notification.create({
+            data: {
+                memberId,
+                title: 'New Application Assigned',
+                message: `You have been assigned application #${applicationId} with ${priority} priority.`,
+                type: 'ASSIGNMENT',
+                priority: 'HIGH',
+                actionUrl: `/admin/support-member/applications/${applicationId}`
+            }
         })
 
-        return NextResponse.json({ success: true, assignment: result })
-    } catch (error: any) {
-        // Check for unique constraint violation (already assigned)
-        if (error.code === 'P2002') {
-            return NextResponse.json({ error: 'Application already assigned' }, { status: 409 })
-        }
-        return NextResponse.json({ error: 'Failed to assign application' }, { status: 500 })
+        return assignment
+    })
+
+    return NextResponse.json({ success: true, assignment: result })
+} catch (error: any) {
+    // Check for unique constraint violation (already assigned)
+    if (error.code === 'P2002') {
+        return NextResponse.json({ error: 'Application already assigned' }, { status: 409 })
     }
+    return NextResponse.json({ error: 'Failed to assign application' }, { status: 500 })
+}
 }

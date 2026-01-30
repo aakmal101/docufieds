@@ -174,7 +174,7 @@ model Payment {
 
 model Notification {
   id        String   @id @default(cuid())
-  userId    String   @map("user_id")
+  userId    String?  @map("user_id")
   title     String
   message   String
   type      String
@@ -184,9 +184,12 @@ model Notification {
   createdAt DateTime @default(now()) @map("created_at")
   
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  memberId  String?  @map("member_id")
+  member    SupportTeamMember? @relation(fields: [memberId], references: [id], onDelete: Cascade)
   
   @@index([userId, isRead, createdAt])
+  @@index([memberId, isRead, createdAt])
   @@map("notifications")
 }
 
@@ -363,6 +366,7 @@ model SupportTeamMember {
   statusUpdates       ApplicationStatusUpdate[]
   escalations         Escalation[]            @relation("EscalatedBy")
   rejectionRequests   RejectionRequest[]
+  notifications       Notification[]
   
   // Timestamps
   createdAt       DateTime  @default(now()) @map("created_at")

@@ -48,7 +48,18 @@ export async function POST(req: Request) {
                     })
 
                     // Optional: Create system message (omitted for bulk performance, or batched)
-                    // For now, let's just do the minimal updates
+
+                    // Create notification
+                    await tx.notification.create({
+                        data: {
+                            memberId,
+                            title: 'New Application Assigned',
+                            message: `You have been assigned application #${appId}.`,
+                            type: 'ASSIGNMENT',
+                            priority: 'NORMAL',
+                            actionUrl: `/admin/support-member/applications/${appId}`
+                        }
+                    })
 
                     successCount++;
                 }

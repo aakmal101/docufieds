@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import toast from 'react-hot-toast'
 import { SupportProfileMenu } from '@/components/support/SupportProfileMenu'
+import { SupportNotificationBell } from '@/components/support/SupportNotificationBell'
 
 export default function SupportMemberLayout({
     children,
@@ -66,6 +67,7 @@ export default function SupportMemberLayout({
                     </div>
 
                     <div className="flex items-center gap-4">
+                        <SupportNotificationBell />
                         <SupportProfileMenu />
                     </div>
                 </div>
