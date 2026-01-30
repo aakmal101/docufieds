@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { User, LogOut, Mail } from 'lucide-react'
+import { User, LogOut, Mail, Activity } from 'lucide-react'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -110,6 +110,13 @@ export function SupportProfileMenu() {
                     >
                         <User className="mr-2 h-4 w-4" />
                         <span>My Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => router.push('/admin/support-member/performance')}
+                        className="cursor-pointer"
+                    >
+                        <Activity className="mr-2 h-4 w-4" />
+                        <span>My Performance</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                         onClick={() => router.push('/admin/support-member/profile')}
