@@ -17,6 +17,7 @@ import { DocumentRequestModal } from '@/components/support/DocumentRequestModal'
 import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, XCircle, DollarSign, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { AnimatedConfirmDialog } from '@/components/ui/animated-confirm-dialog'
 
 export default function ApplicationDetailPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -27,6 +28,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     const [escalateOpen, setEscalateOpen] = useState(false)
     const [rejectOpen, setRejectOpen] = useState(false)
     const [docReqOpen, setDocReqOpen] = useState(false)
+    const [legalConfirmOpen, setLegalConfirmOpen] = useState(false)
     const [reason, setReason] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
@@ -158,7 +160,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     }
 
     const handleForwardToLegal = async () => {
-        if (!confirm("Are you sure you want to forward this to Legal? This cannot be undone.")) return;
+        // Confirmation is now handled by UI
         setSubmitting(true)
         try {
             const res = await fetch(`/api/admin/support-member/applications/${params.id}/forward`, {
@@ -169,6 +171,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
             if (res.ok) {
                 toast.success("Forwarded to Legal")
                 fetchApp()
+                setLegalConfirmOpen(false)
             } else {
                 toast.error("Failed to forward")
             }
@@ -319,10 +322,21 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                     </DialogContent>
                 </Dialog>
 
-                <Button className="bg-green-600 hover:bg-green-700" onClick={handleForwardToLegal} disabled={submitting}>
+                <Button className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-transform" onClick={() => setLegalConfirmOpen(true)} disabled={submitting}>
                     <CheckCircle className="mr-2 h-4 w-4" /> Forward to Legal
                 </Button>
             </div>
+
+            <AnimatedConfirmDialog
+                isOpen={legalConfirmOpen}
+                onClose={() => setLegalConfirmOpen(false)}
+                onConfirm={handleForwardToLegal}
+                title="Forward to Legal"
+                description="Are you sure you want to forward this to Legal? This cannot be undone and will move the application to the next stage."
+                confirmText="Forward Application"
+                variant="default" // Blue/Default is fine, or arguably 'success' but legal isn't final final.
+                isLoading={submitting}
+            />
         </div>
     )
 }
