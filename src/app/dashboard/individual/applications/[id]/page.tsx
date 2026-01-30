@@ -255,10 +255,7 @@ export default function UserApplicationView({ params }: { params: { id: string }
                                 <p className="text-sm text-gray-600 mb-4">
                                     Have questions? Use the Support tab to chat directly with your assigned agent.
                                 </p>
-                                <Button className="w-full" variant="outline" onClick={() => {
-                                    const trigger = document.querySelector('[value="messages"]') as HTMLButtonElement
-                                    trigger?.click()
-                                }}>
+                                <Button className="w-full" variant="outline" onClick={() => router.push(`/dashboard/individual/applications/${app.id}/chat`)}>
                                     Open Chat
                                 </Button>
                             </div>
