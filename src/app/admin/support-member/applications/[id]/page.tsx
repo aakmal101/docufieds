@@ -280,7 +280,17 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
 
             {/* Fixed Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-40 flex justify-end gap-3 items-center">
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={async () => {
+                    const confirm = window.confirm("Are you sure you want to verify payment for this application?")
+                    if (!confirm) return
+                    try {
+                        const res = await fetch(`/api/admin/applications/${params.id}/payment/verify`, { method: 'POST' })
+                        if (res.ok) {
+                            toast.success("Payment Verified")
+                            fetchApp()
+                        } else toast.error("Failed to verify")
+                    } catch { toast.error("Error verifying payment") }
+                }}>
                     <DollarSign className="mr-2 h-4 w-4" /> Verify Payment
                 </Button>
 

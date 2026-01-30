@@ -193,13 +193,31 @@ export default function IncomingApplicationsPage() {
                                             {new Date(app.createdAt).toLocaleDateString()}
                                         </TableCell>
                                         <TableCell>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => setReviewAppId(app.id)}
-                                            >
-                                                Review
-                                            </Button>
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => setReviewAppId(app.id)}
+                                                >
+                                                    Review
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation()
+                                                        if (!confirm("Forward to Legal?")) return
+                                                        await fetch(`/api/admin/support-lead/applications/${app.id}/forward`, {
+                                                            method: 'POST',
+                                                            body: JSON.stringify({ destination: 'LEGAL' })
+                                                        })
+                                                        fetchApps()
+                                                        toast.success("Forwarded")
+                                                    }}
+                                                >
+                                                    To Legal
+                                                </Button>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))}
