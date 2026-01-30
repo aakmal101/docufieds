@@ -105,11 +105,18 @@ export function SupportProfileMenu() {
                 {/* Menu Items */}
                 <div className="p-1">
                     <DropdownMenuItem
-                        onClick={() => router.push('/admin/support-member/performance')}
+                        onClick={() => router.push('/admin/support-member/profile')}
                         className="cursor-pointer"
                     >
                         <User className="mr-2 h-4 w-4" />
                         <span>My Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                        onClick={() => router.push('/admin/support-member/profile')}
+                        className="cursor-pointer"
+                    >
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Update Profile</span>
                     </DropdownMenuItem>
                 </div>
 
