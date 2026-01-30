@@ -153,3 +153,32 @@ export const useDocumentRequests = (applicationId: string | undefined, callback:
         }
     }, [applicationId, callback])
 }
+
+export const useSupportNotifications = (memberId: string | undefined, callback: (payload: any) => void) => {
+    useEffect(() => {
+        if (!memberId) return
+
+        const supabase = createClient()
+
+        const channel = supabase
+            .channel(`notifications:${memberId}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'notifications', // Ensure this matches prisma mapping
+                    filter: `member_id=eq.${memberId}`
+                },
+                (payload) => {
+                    console.log('New notification received!', payload)
+                    callback(payload)
+                }
+            )
+            .subscribe()
+
+        return () => {
+            supabase.removeChannel(channel)
+        }
+    }, [memberId, callback])
+}

@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatDistanceToNow } from 'date-fns'
-import { User, Lock } from 'lucide-react'
+import { User, Lock, Paperclip } from 'lucide-react'
 import { MessageComposer } from './MessageComposer'
 
 export interface Message {
@@ -17,12 +17,14 @@ export interface Message {
     senderMember?: { fullName: string }
     createdAt: string
     isInternal: boolean
+    attachmentUrl?: string | null
+    attachmentName?: string | null
 }
 
 interface MessageThreadProps {
     messages: Message[]
     currentUserType: 'USER' | 'SUPPORT_MEMBER'
-    onSendMessage?: (content: string, isInternal: boolean) => void
+    onSendMessage?: (content: string, isInternal: boolean, attachment?: File) => void
     isLoading?: boolean
 }
 
@@ -97,6 +99,14 @@ export function MessageThread({ messages, currentUserType, onSendMessage, isLoad
                                                 </div>
                                             )}
                                             {msg.content}
+                                            {msg.attachmentUrl && (
+                                                <div className="mt-2 pt-2 border-t border-opacity-20 border-current">
+                                                    <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-xs underline opacity-90 hover:opacity-100">
+                                                        <Paperclip className="h-3 w-3" />
+                                                        {msg.attachmentName || 'Attachment'}
+                                                    </a>
+                                                </div>
+                                            )}
                                         </div>
                                         <span className="text-[10px] text-gray-400 px-1">
                                             {msg.senderType === 'SUPPORT_MEMBER' && !isMe ? `${msg.senderMember?.fullName} • ` : ''}

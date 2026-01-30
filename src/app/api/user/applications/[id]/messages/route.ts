@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const { content } = await req.json()
+        const { content, attachmentUrl, attachmentName } = await req.json()
 
         // Verify ownership
         const application = await prisma.application.findUnique({
@@ -68,7 +68,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 content,
                 messageType: 'TEXT',
                 senderType: 'USER',
-                senderUserId: session.user.id
+                senderUserId: session.user.id,
+                attachmentUrl,
+                attachmentName
             },
             include: {
                 senderUser: { select: { fullName: true, photoUrl: true } }

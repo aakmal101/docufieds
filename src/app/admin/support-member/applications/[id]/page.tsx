@@ -59,12 +59,31 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
 
     useEffect(() => { fetchApp() }, [params.id])
 
-    const handleSendMessage = async (content: string, isInternal: boolean) => {
+    const handleSendMessage = async (content: string, isInternal: boolean, attachment?: File) => {
         try {
+            let attachmentUrl = undefined
+            let attachmentName = undefined
+
+            if (attachment) {
+                const formData = new FormData()
+                formData.append('file', attachment)
+                formData.append('applicationId', params.id)
+
+                const uploadRes = await fetch('/api/chat/upload', { method: 'POST', body: formData })
+                if (uploadRes.ok) {
+                    const data = await uploadRes.json()
+                    attachmentUrl = data.url
+                    attachmentName = data.name
+                } else {
+                    toast.error('Failed to upload attachment')
+                    return
+                }
+            }
+
             await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content, isInternal })
+                body: JSON.stringify({ content, isInternal, attachmentUrl, attachmentName })
             })
             fetchMessages()
         } catch { toast.error('Failed to send') }
@@ -245,7 +264,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                 <MessageThread
                     messages={messages}
                     currentUserType="SUPPORT_MEMBER"
-                    onSendMessage={handleSendMessage}
+                    onSendMessage={(c, i, a) => handleSendMessage(c, i, a)}
                     isLoading={loading}
                 />
             </div>

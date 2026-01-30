@@ -35,12 +35,35 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
         fetchMessages()
     })
 
-    const handleSend = async (content: string) => {
+    const handleSend = async (content: string, isInternal: boolean, attachment?: File) => {
         try {
+            let attachmentUrl = undefined
+            let attachmentName = undefined
+
+            if (attachment) {
+                const formData = new FormData()
+                formData.append('file', attachment)
+                formData.append('applicationId', applicationId)
+
+                const uploadRes = await fetch('/api/chat/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+
+                if (!uploadRes.ok) throw new Error('Upload failed')
+                const uploadData = await uploadRes.json()
+                attachmentUrl = uploadData.url
+                attachmentName = uploadData.name
+            }
+
             await fetch(`/api/user/applications/${applicationId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ content })
+                body: JSON.stringify({
+                    content,
+                    attachmentUrl,
+                    attachmentName
+                })
             })
             fetchMessages()
         } catch {
@@ -61,7 +84,7 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
             <MessageThread
                 messages={messages}
                 currentUserType="USER"
-                onSendMessage={(c) => handleSend(c)}
+                onSendMessage={(c, i, a) => handleSend(c, i, a)}
                 isLoading={loading}
             />
         </div>

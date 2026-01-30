@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const { content, isInternal } = await req.json()
+        const { content, isInternal, attachmentUrl, attachmentName } = await req.json()
 
         const message = await prisma.supportMessage.create({
             data: {
@@ -45,7 +45,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 senderType: 'SUPPORT_MEMBER',
                 senderMemberId: member.id,
                 isInternal: isInternal || false,
-                isReadBySupport: true
+                isReadBySupport: true,
+                attachmentUrl,
+                attachmentName
             },
             include: {
                 senderMember: { select: { fullName: true } }

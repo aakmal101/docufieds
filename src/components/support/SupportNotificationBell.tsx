@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { useSupportNotifications } from '@/lib/supabase/realtime-support'
 import { Button } from '@/components/ui/button'
 import {
     Popover,
@@ -42,14 +44,32 @@ export function SupportNotificationBell() {
         }
     }
 
+    const { data: session } = useSession() // We need session to get memberId
+    // Note: session user id might be different from member id if auth structure is different. 
+    // In this project, support member has their own auth. 
+    // Wait, SupportAuth uses a different token mechanism. The session in client side usually is NextAuth.
+    // Let's check how we get member ID.
+    // In `SupportProfileMenu`, we fetch `/api/auth/support-member/me`.
+    // We should probably do the same or use a context.
+    // For now, let's fetch 'me' to get the ID for the hook.
+
+    const [memberId, setMemberId] = useState<string | undefined>()
+
+    useEffect(() => {
+        fetch('/api/auth/support-member/me').then(res => res.json()).then(data => {
+            if (data.id) setMemberId(data.id)
+        })
+    }, [])
+
     useEffect(() => {
         // Initial fetch
         fetchNotifications()
-
-        // Poll every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000)
-        return () => clearInterval(interval)
     }, [])
+
+    useSupportNotifications(memberId, () => {
+        fetchNotifications()
+        toast.success('New notification')
+    })
 
     const markAsRead = async (id: string, actionUrl?: string) => {
         try {
