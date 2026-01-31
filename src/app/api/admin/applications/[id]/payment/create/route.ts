@@ -4,18 +4,35 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+    // 1. Try standard NextAuth Session (for Admins, Leads, and standard Support)
     const session = await getServerSession(authOptions)
-    console.log('Payment Create Session:', {
-        user: session?.user?.email,
-        role: session?.user?.role,
-        id: session?.user?.id
+
+    // 2. If no valid session, try Support Member Token (Custom Auth)
+    let memberAuth = null;
+    if (!session || !session.user?.role) {
+        const { verifySupportMemberToken } = await import('@/middleware/support-member');
+        const member = await verifySupportMemberToken(req);
+        if (member) {
+            memberAuth = {
+                user: {
+                    id: member.id, // This is member.id or user.id? Usually member.id
+                    role: 'SUPPORT_MEMBER',
+                    email: 'support-member-action'
+                }
+            };
+        }
+    }
+
+    const effectiveUser = session?.user || memberAuth?.user;
+
+    console.log('Payment Create Auth:', {
+        method: session ? 'NextAuth' : (memberAuth ? 'SupportToken' : 'None'),
+        role: effectiveUser?.role
     })
 
-    // Check for SUPPORT, SUPPORT_LEAD, or SUPPORT_MEMBER 
-    // ALSO allowing 'ADMIN' just in case you are testing as admin
-    if (!session || !['SUPPORT', 'SUPPORT_LEAD', 'SUPPORT_MEMBER', 'ADMIN'].includes(session.user?.role || '')) {
-        console.log('Unauthorized Access Attempt - Role Mismatch:', session?.user?.role)
-        return NextResponse.json({ error: `Unauthorized. Role: ${session?.user?.role}` }, { status: 401 })
+    if (!effectiveUser || !['SUPPORT', 'SUPPORT_LEAD', 'SUPPORT_MEMBER', 'ADMIN'].includes(effectiveUser.role || '')) {
+        console.log('Unauthorized Access Attempt - Role Mismatch:', effectiveUser?.role)
+        return NextResponse.json({ error: `Unauthorized. Role: ${effectiveUser?.role}` }, { status: 401 })
     }
 
     try {
@@ -65,8 +82,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 applicationId,
                 fromStatus: 'PENDING_PAYMENT',
                 toStatus: 'PAYMENT_VERIFIED',
-                changedByType: session.user.role || 'SUPPORT',
-                changedById: session.user.id,
+                changedByType: effectiveUser.role || 'SUPPORT',
+                changedById: effectiveUser.id,
                 notes: `Manual payment of ${amount} ${currency || 'BDT'} recorded and verified. ${notes ? `Notes: ${notes}` : ''}`
             }
         })
