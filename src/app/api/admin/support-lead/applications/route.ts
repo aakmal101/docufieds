@@ -64,7 +64,13 @@ export async function GET(req: Request) {
                 });
                 break;
             case 'COMPLETED':
-                whereConditions.push({ status: 'COMPLETED' });
+                whereConditions.push({
+                    OR: [
+                        { status: 'COMPLETED' },
+                        { status: 'READY_FOR_LEGAL' },
+                        { status: 'APPROVED_BY_SUPPORT' } // Future-proofing
+                    ]
+                });
                 break;
             default:
                 whereConditions.push({
