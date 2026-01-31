@@ -41,15 +41,35 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             }
         })
 
+        // Update Application Status to reflect payment success
+        await prisma.application.update({
+            where: { id: applicationId },
+            data: {
+                supportStatus: 'VERIFIED',
+                lastActivityAt: new Date()
+            }
+        })
+
         // Log the action
         await prisma.applicationStatusUpdate.create({
             data: {
                 applicationId,
-                fromStatus: 'CURRENT',
-                toStatus: 'PAYMENT_RECORDED',
+                fromStatus: 'PENDING_PAYMENT',
+                toStatus: 'PAYMENT_VERIFIED',
                 changedByType: session.user.role || 'SUPPORT',
                 changedById: session.user.id,
-                notes: `Manual payment of ${amount} recorded and verified. ${notes ? `Notes: ${notes}` : ''}`
+                notes: `Manual payment of ${amount} ${currency || 'BDT'} recorded and verified. ${notes ? `Notes: ${notes}` : ''}`
+            }
+        })
+
+        // Create Notification for User
+        await prisma.notification.create({
+            data: {
+                userId: app.userId,
+                title: 'Payment Verified',
+                message: `Your payment of ${amount} ${currency || 'BDT'} has been manually verified by support.`,
+                type: 'PAYMENT_VERIFIED',
+                actionUrl: `/dashboard/individual/applications/${applicationId}`
             }
         })
 
