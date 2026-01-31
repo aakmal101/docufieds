@@ -35,7 +35,39 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // Update App Status
         await prisma.application.update({
             where: { id: params.id },
-            data: { supportStatus: 'Waiting for User' } // Or whatever status enum you use
+            data: {
+                supportStatus: 'Waiting for User',
+                lastActivityAt: new Date()
+            }
+        })
+
+        // Fetch User ID
+        const app = await prisma.application.findUnique({
+            where: { id: params.id },
+            select: { userId: true }
+        })
+
+        if (app) {
+            await prisma.notification.create({
+                data: {
+                    userId: app.userId,
+                    title: 'Document Requested',
+                    message: `Support has requested a document: ${documentType}. Please upload it to continue.`,
+                    type: 'DOCUMENT_REQUEST',
+                    actionUrl: `/dashboard/individual/applications/${params.id}`
+                }
+            })
+        }
+
+        await prisma.applicationStatusUpdate.create({
+            data: {
+                applicationId: params.id,
+                fromStatus: 'CURRENT',
+                toStatus: 'WAITING_FOR_USER',
+                changedByType: 'SUPPORT_MEMBER',
+                changedByMemberId: member.id,
+                notes: `Document requested: ${documentType}`
+            }
         })
 
         return NextResponse.json(docReq)

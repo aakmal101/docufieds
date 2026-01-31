@@ -41,6 +41,22 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
             }
         })
 
+        // Notify User if status implies movement (e.g. IN_PROGRESS)
+        if (['IN_REVIEW', 'VERIFIED'].includes(status)) {
+            const userApp = await prisma.application.findUnique({ where: { id: params.id }, select: { userId: true } })
+            if (userApp) {
+                await prisma.notification.create({
+                    data: {
+                        userId: userApp.userId,
+                        title: 'Application Update',
+                        message: `Your application status has been updated to: ${status.replace('_', ' ')}`,
+                        type: 'STATUS_CHANGE',
+                        actionUrl: `/dashboard/individual/applications/${params.id}`
+                    }
+                })
+            }
+        }
+
         return NextResponse.json(updated)
     } catch (error) {
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
