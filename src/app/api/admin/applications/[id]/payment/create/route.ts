@@ -75,8 +75,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         return NextResponse.json({ success: true, payment })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Create Payment Error:', error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+        return NextResponse.json({
+            error: error.message || 'Internal Server Error',
+            details: error.meta || error
+        }, { status: 500 })
     }
 }

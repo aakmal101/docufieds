@@ -119,7 +119,9 @@ export function PaymentVerificationTab({ applicationId, payment, onUpdate }: Pay
                                         toast.success("Payment Recorded & Verified")
                                         onUpdate()
                                     } else {
-                                        toast.error("Failed to record payment")
+                                        const errorData = await res.json()
+                                        toast.error(errorData.error || "Failed to record payment")
+                                        console.error("Payment Record Error:", errorData)
                                     }
                                 } catch { toast.error("Error performing action") }
                                 finally { setLoading(false) }
