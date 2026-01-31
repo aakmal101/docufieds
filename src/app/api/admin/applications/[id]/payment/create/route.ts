@@ -5,7 +5,9 @@ import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions)
-    if (!session || !['SUPPORT', 'SUPPORT_LEAD'].includes(session.user?.role || '')) {
+    // Check for SUPPORT, SUPPORT_LEAD, or SUPPORT_MEMBER (depending on exactly what is stored)
+    if (!session || !['SUPPORT', 'SUPPORT_LEAD', 'SUPPORT_MEMBER'].includes(session.user?.role || '')) {
+        console.log('Unauthorized Access Attempt:', session?.user)
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
