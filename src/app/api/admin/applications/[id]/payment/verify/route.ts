@@ -10,6 +10,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     try {
+        const { paymentMethod, notes } = await req.json().catch(() => ({}))
         const applicationId = params.id
 
         // Find pending payment
@@ -24,7 +25,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // Update payment status
         const updatedPayment = await prisma.payment.update({
             where: { id: payment.id },
-            data: { status: 'VERIFIED', paidAt: new Date() }
+            data: {
+                status: 'VERIFIED',
+                paidAt: new Date(),
+                method: paymentMethod || payment.method // Update if provided
+            }
         })
 
         // Also update application support status if needed, but 'VERIFIED' status 
@@ -40,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 toStatus: 'PAYMENT_VERIFIED',
                 changedByType: session.user.role || 'SUPPORT',
                 changedById: session.user.id,
-                notes: 'Payment verified manually by support staff.'
+                notes: `Payment verified manually by support staff. ${notes ? `Note: ${notes}` : ''}`
             }
         })
 

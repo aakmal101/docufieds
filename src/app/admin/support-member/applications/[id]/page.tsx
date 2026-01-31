@@ -18,6 +18,8 @@ import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, XCircle, DollarSign, Se
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { AnimatedConfirmDialog } from '@/components/ui/animated-confirm-dialog'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { PaymentVerificationTab } from '@/components/support/PaymentVerificationTab'
 
 export default function ApplicationDetailPage({ params }: { params: { id: string } }) {
     const router = useRouter()
@@ -197,80 +199,102 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column */}
-                <div className="space-y-6">
-                    <Card>
-                        <CardHeader><CardTitle>Applicant Info</CardTitle></CardHeader>
-                        <CardContent className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Email</span>
-                                <span className="font-medium">{app.user.email}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Phone</span>
-                                <span className="font-medium">{app.user.phone || 'N/A'}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-gray-500">Destination</span>
-                                <span className="font-medium">{app.country}</span>
-                            </div>
-                        </CardContent>
-                    </Card>
+            {/* Main Content Tabs */}
+            <Tabs defaultValue="overview" className="w-full" id="app-tabs">
+                <TabsList className="grid w-full grid-cols-4 lg:w-[600px] mb-8">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="documents">Documents</TabsTrigger>
+                    <TabsTrigger value="payment">Payment</TabsTrigger>
+                    <TabsTrigger value="messages">Messages</TabsTrigger>
+                </TabsList>
 
-                    <Card>
-                        <CardHeader><CardTitle>Status</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="space-y-1">
-                                <p className="text-xs text-gray-500 font-medium uppercase">Current Status</p>
-                                <Select value={app.supportStatus} onValueChange={handleStatusChange}>
-                                    <SelectTrigger>
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="ASSIGNED">Assigned</SelectItem>
-                                        <SelectItem value="IN_REVIEW">In Review</SelectItem>
-                                        <SelectItem value="Waiting for User">Waiting for User</SelectItem>
-                                        <SelectItem value="VERIFIED">Verified</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-1">
-                                <p className="text-xs text-gray-500 font-medium uppercase">Payment</p>
-                                <Badge variant={app.payments?.[0]?.status === 'PAID' ? 'default' : 'secondary'}>
-                                    {app.payments?.[0]?.status || 'PENDING'}
-                                </Badge>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <TabsContent value="overview" className="space-y-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <Card>
+                            <CardHeader><CardTitle>Applicant Info</CardTitle></CardHeader>
+                            <CardContent className="space-y-4 text-sm">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <p className="text-gray-500">Email</p>
+                                        <p className="font-medium">{app.user.email}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Phone</p>
+                                        <p className="font-medium">{app.user.phone || 'N/A'}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Destination</p>
+                                        <p className="font-medium">{app.country}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500">Submitted</p>
+                                        <p className="font-medium">{new Date(app.createdAt).toLocaleDateString()}</p>
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
 
-                {/* Right Column - Documents */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="flex justify-between items-center bg-white p-4 rounded-lg border shadow-sm">
-                        <h3 className="font-semibold">Documents</h3>
+                        <Card>
+                            <CardHeader><CardTitle>Application Status</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-gray-500 font-medium uppercase">Current Status</p>
+                                    <Select value={app.supportStatus} onValueChange={handleStatusChange}>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="ASSIGNED">Assigned</SelectItem>
+                                            <SelectItem value="IN_REVIEW">In Review</SelectItem>
+                                            <SelectItem value="Waiting for User">Waiting for User</SelectItem>
+                                            <SelectItem value="VERIFIED">Verified</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-xs text-gray-500 font-medium uppercase">Payment Status</p>
+                                    <Badge variant={app.payments?.[0]?.status === 'PAID' || app.payments?.[0]?.status === 'VERIFIED' ? 'default' : 'secondary'}>
+                                        {app.payments?.[0]?.status || 'PENDING'}
+                                    </Badge>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="documents" className="space-y-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold">Application Documents</h3>
                         <Button variant="outline" size="sm" onClick={() => setDocReqOpen(true)}>
                             Request Additional
                         </Button>
                     </div>
-
                     <DocumentReview
                         documents={app.documents}
                         applicationId={app.id}
                         onUpdate={fetchApp}
                     />
-                </div>
-            </div>
+                </TabsContent>
 
-            {/* Full Width Messages */}
-            <div className="grid grid-cols-1">
-                <MessageThread
-                    messages={messages}
-                    currentUserType="SUPPORT_MEMBER"
-                    onSendMessage={(c, i, a) => handleSendMessage(c, i, a)}
-                    isLoading={loading}
-                />
-            </div>
+                <TabsContent value="payment">
+                    <PaymentVerificationTab
+                        applicationId={app.id}
+                        payment={app.payments?.[0]}
+                        onUpdate={fetchApp}
+                    />
+                </TabsContent>
+
+                <TabsContent value="messages">
+                    <MessageThread
+                        messages={messages}
+                        currentUserType="SUPPORT_MEMBER"
+                        onSendMessage={(c, i, a) => handleSendMessage(c, i, a)}
+                        isLoading={loading}
+                    />
+                </TabsContent>
+            </Tabs>
+
+
 
             <DocumentRequestModal
                 isOpen={docReqOpen}
@@ -280,16 +304,12 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
 
             {/* Fixed Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-40 flex justify-end gap-3 items-center">
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={async () => {
-                    const confirm = window.confirm("Are you sure you want to verify payment for this application?")
-                    if (!confirm) return
-                    try {
-                        const res = await fetch(`/api/admin/applications/${params.id}/payment/verify`, { method: 'POST' })
-                        if (res.ok) {
-                            toast.success("Payment Verified")
-                            fetchApp()
-                        } else toast.error("Failed to verify")
-                    } catch { toast.error("Error verifying payment") }
+                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
+                    // Switch to payment tab
+                    const tabs = document.getElementById('app-tabs')
+                    const paymentTrigger = tabs?.querySelector('[value="payment"]') as HTMLElement
+                    paymentTrigger?.click()
+                    toast("Please verify details in the Payment tab", { icon: '👉' })
                 }}>
                     <DollarSign className="mr-2 h-4 w-4" /> Verify Payment
                 </Button>
