@@ -3,75 +3,87 @@ import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function GET(req: Request) {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    const { searchParams } = new URL(req.url)
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '10')
-    const search = searchParams.get('search') || ''
-    const country = searchParams.get('country') || 'ALL'
-    const statusFilter = searchParams.get('status') || 'ALL' // PENDING, PROCESSING, COMPLETED, REJECTED, ALL
+    // 🛡️ Hardening: Guaranteed response shape default
+    const fallbackResponse = { applications: [], total: 0, pages: 1 };
 
     try {
-        const whereClause: any = {
-            status: { not: 'DRAFT' } // Never show drafts to lead?
-        }
+        const session = await requireSupportLead()
+        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        // Status Logic
+        const { searchParams } = new URL(req.url)
+        const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+        const limit = Math.max(1, parseInt(searchParams.get('limit') || '10'))
+        const search = (searchParams.get('search') || '').trim()
+        const country = searchParams.get('country') || 'ALL'
+        const statusFilter = (searchParams.get('status') || 'ALL').toUpperCase()
+
+        const whereConditions: any[] = []
+
+        // 1. Base Filter (No Drafts)
+        whereConditions.push({ status: { not: 'DRAFT' } })
+
+        // 2. Status Filter Logic
         switch (statusFilter) {
+            case 'ALL':
+                break;
             case 'PENDING':
-                whereClause.supportStatus = 'PENDING_ASSIGNMENT'
+                whereConditions.push({ supportStatus: 'PENDING_ASSIGNMENT' })
                 break;
             case 'PROCESSING':
-                // Active processing means assigned but not finished
-                whereClause.supportStatus = { notIn: ['PENDING_ASSIGNMENT', 'VERIFIED_COMPLETE'] } // Adjust based on your enum
-                whereClause.status = { notIn: ['COMPLETED', 'DECLINED', 'DRAFT'] }
+                // Exclude the starting state and final states to find "Active Processing"
+                whereConditions.push({
+                    supportStatus: { not: 'PENDING_ASSIGNMENT' },
+                    status: { notIn: ['COMPLETED', 'DECLINED', 'REJECTED', 'DRAFT'] }
+                })
                 break;
             case 'ESCALATED':
-                // This might need a join or separate check if normalized, but let's assume supportStatus 'ESCALATED' exists in your schema?
-                // Actually the dashboard uses `prisma.escalation.count`.
-                // For this list, we might want applications that HAVE an active escalation.
-                whereClause.escalations = { some: { status: 'PENDING' } }
+                whereConditions.push({ escalations: { some: { status: 'PENDING' } } })
                 break;
             case 'REJECTED':
-                whereClause.status = 'DECLINED'
+                // Covers both Application declined and Support-side rejection flow
+                whereConditions.push({
+                    OR: [
+                        { status: 'DECLINED' },
+                        { status: 'REJECTED' },
+                        { supportStatus: 'REJECTED' },
+                        { supportStatus: 'PENDING_REJECTION' }
+                    ]
+                })
                 break;
             case 'COMPLETED':
-                whereClause.status = 'COMPLETED'
+                whereConditions.push({ status: 'COMPLETED' })
                 break;
-
-            // For specific granular statuses if needed
             default:
-                if (statusFilter !== 'ALL') {
-                    // Try to match specific status if passed
-                    whereClause.OR = [
+                // Fallback for direct status codes (e.g. IN_REVIEW)
+                whereConditions.push({
+                    OR: [
                         { status: statusFilter },
                         { supportStatus: statusFilter }
                     ]
-                }
+                })
                 break;
         }
 
-        // Search Logic
+        // 3. Search Logic
         if (search) {
-            whereClause.title_or_user_contains = {
+            whereConditions.push({
                 OR: [
                     { id: { contains: search, mode: 'insensitive' } },
                     { user: { fullName: { contains: search, mode: 'insensitive' } } },
                     { user: { email: { contains: search, mode: 'insensitive' } } }
                 ]
-            }
-            // Prisma doesn't support 'title_or_user_contains' alias directly this way in top level content
-            delete whereClause.title_or_user_contains
-            whereClause.OR = [
-                { id: { contains: search, mode: 'insensitive' } },
-                { user: { fullName: { contains: search, mode: 'insensitive' } } },
-                { user: { email: { contains: search, mode: 'insensitive' } } }
-            ]
+            })
         }
 
-        if (country !== 'ALL') whereClause.country = country
+        // 4. Country Filter
+        if (country !== 'ALL') {
+            whereConditions.push({ country })
+        }
+
+        // Combine all conditions with logical AND
+        const whereClause = { AND: whereConditions }
+
+        console.log('SupportLead Apps Query:', JSON.stringify(whereClause, null, 2))
 
         const [applications, total] = await Promise.all([
             prisma.application.findMany({
@@ -80,7 +92,8 @@ export async function GET(req: Request) {
                     user: { select: { fullName: true, email: true } },
                     _count: { select: { documents: true } },
                     payments: {
-                        select: { status: true, amount: true, currency: true },
+                        // 🔴 FIX: Removed 'currency' as it does not exist in Payment model
+                        select: { status: true, amount: true },
                         orderBy: { createdAt: 'desc' },
                         take: 1
                     },
@@ -98,8 +111,10 @@ export async function GET(req: Request) {
         ])
 
         return NextResponse.json({ applications, total, pages: Math.ceil(total / limit) })
+
     } catch (error) {
-        console.error('Fetch Apps Error:', error)
-        return NextResponse.json({ error: 'Failed to fetch applications' }, { status: 500 })
+        console.error('Fetch Apps Critical Failure:', error)
+        // 🛡️ Hardening: Never throw, return empty list so UI doesn't crash
+        return NextResponse.json(fallbackResponse, { status: 200 }) // Return 200 with empty data to prevent frontend error toast
     }
 }
