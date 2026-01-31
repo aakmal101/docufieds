@@ -22,6 +22,8 @@ import { Label } from '@/components/ui/label'
 import { AssignmentDropdown } from '@/components/support/AssignmentDropdown'
 import toast from 'react-hot-toast'
 
+import ReactCountryFlag from 'react-country-flag'
+
 interface ReviewSheetProps {
     open: boolean
     onOpenChange: (open: boolean) => void
@@ -96,7 +98,6 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
 
     if (!open) return null
 
-    return (
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent className="w-[400px] sm:w-[540px] flex flex-col h-full bg-white p-0 border-l shadow-2xl">
