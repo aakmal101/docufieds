@@ -24,15 +24,113 @@ export function PaymentVerificationTab({ applicationId, payment, onUpdate }: Pay
     const [confirmOpen, setConfirmOpen] = useState(false)
 
     // Handle payment missing case gracefully
+    // Handle payment missing case - Show Create Form
     if (!payment) {
         return (
-            <Card>
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center text-gray-500">
-                    <CreditCard className="h-12 w-12 mb-4 text-gray-300" />
-                    <h3 className="text-lg font-medium">No Payment Record Found</h3>
-                    <p>There is no payment record associated with this application yet.</p>
-                </CardContent>
-            </Card>
+            <div className="space-y-6">
+                <Card className="border-l-4 border-l-orange-500">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <CreditCard className="h-5 w-5 text-orange-600" />
+                            Record Manual Payment
+                        </CardTitle>
+                        <CardDescription>
+                            No payment record found. You can manually record a payment received outside the system.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Amount Received</Label>
+                                <Input
+                                    type="number"
+                                    placeholder="0.00"
+                                    id="manual-amount"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Currency</Label>
+                                <Select defaultValue="BDT" onValueChange={(v) => document.getElementById('manual-currency')?.setAttribute('value', v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="BDT" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="BDT">BDT</SelectItem>
+                                        <SelectItem value="USD">USD</SelectItem>
+                                        <SelectItem value="EUR">EUR</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <input type="hidden" id="manual-currency" value="BDT" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Payment Method</Label>
+                                <Select defaultValue="CASH" onValueChange={(v) => document.getElementById('manual-method')?.setAttribute('value', v)}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select Method" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="CASH">Cash</SelectItem>
+                                        <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
+                                        <SelectItem value="BKASH">bKash</SelectItem>
+                                        <SelectItem value="NAGAD">Nagad</SelectItem>
+                                        <SelectItem value="CHEQUE">Cheque</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <input type="hidden" id="manual-method" value="CASH" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Transaction ID / Ref (Optional)</Label>
+                                <Input
+                                    placeholder="e.g. TRX123456"
+                                    id="manual-trx"
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Notes</Label>
+                            <Input
+                                placeholder="Reason for manual entry..."
+                                id="manual-notes"
+                            />
+                        </div>
+
+                        <Button
+                            className="w-full bg-orange-600 hover:bg-orange-700 mt-4"
+                            onClick={async () => {
+                                const amount = (document.getElementById('manual-amount') as HTMLInputElement).value
+                                const currency = (document.getElementById('manual-currency') as HTMLInputElement).value
+                                const method = (document.getElementById('manual-method') as HTMLInputElement).value
+                                const trx = (document.getElementById('manual-trx') as HTMLInputElement).value
+                                const notes = (document.getElementById('manual-notes') as HTMLInputElement).value
+
+                                if (!amount) {
+                                    toast.error("Amount is required")
+                                    return
+                                }
+
+                                setLoading(true)
+                                try {
+                                    const res = await fetch(`/api/admin/applications/${applicationId}/payment/create`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ amount, currency, method, transactionId: trx, notes })
+                                    })
+                                    if (res.ok) {
+                                        toast.success("Payment Recorded & Verified")
+                                        onUpdate()
+                                    } else {
+                                        toast.error("Failed to record payment")
+                                    }
+                                } catch { toast.error("Error performing action") }
+                                finally { setLoading(false) }
+                            }}
+                            disabled={loading}
+                        >
+                            {loading ? 'Processing...' : 'Record & Verify Payment'}
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
         )
     }
 
