@@ -5,10 +5,17 @@ import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
     const session = await getServerSession(authOptions)
-    // Check for SUPPORT, SUPPORT_LEAD, or SUPPORT_MEMBER (depending on exactly what is stored)
-    if (!session || !['SUPPORT', 'SUPPORT_LEAD', 'SUPPORT_MEMBER'].includes(session.user?.role || '')) {
-        console.log('Unauthorized Access Attempt:', session?.user)
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    console.log('Payment Create Session:', {
+        user: session?.user?.email,
+        role: session?.user?.role,
+        id: session?.user?.id
+    })
+
+    // Check for SUPPORT, SUPPORT_LEAD, or SUPPORT_MEMBER 
+    // ALSO allowing 'ADMIN' just in case you are testing as admin
+    if (!session || !['SUPPORT', 'SUPPORT_LEAD', 'SUPPORT_MEMBER', 'ADMIN'].includes(session.user?.role || '')) {
+        console.log('Unauthorized Access Attempt - Role Mismatch:', session?.user?.role)
+        return NextResponse.json({ error: `Unauthorized. Role: ${session?.user?.role}` }, { status: 401 })
     }
 
     try {
