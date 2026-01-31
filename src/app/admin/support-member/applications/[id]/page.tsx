@@ -230,6 +230,12 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                                         <p className="text-gray-500">Submitted</p>
                                         <p className="font-medium">{new Date(app.createdAt).toLocaleDateString()}</p>
                                     </div>
+                                    <div>
+                                        <p className="text-gray-500">Consultancy Fee</p>
+                                        <p className="font-medium text-blue-600">
+                                            {app.consultancyFee ? `${app.consultancyFee.toLocaleString()} BDT` : 'N/A'}
+                                        </p>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
