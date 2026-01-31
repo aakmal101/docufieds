@@ -142,7 +142,10 @@ export default function SupportLeadDashboard() {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-                <Card className="border-l-4 border-l-yellow-400 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-yellow-400 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/applications?status=PENDING'} // Using window.location to force full reload if needed, or better router.push
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Pending</span>
@@ -154,7 +157,10 @@ export default function SupportLeadDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/applications?status=PROCESSING'}
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Processing</span>
@@ -166,7 +172,10 @@ export default function SupportLeadDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/escalations'}
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Escalated</span>
@@ -178,7 +187,10 @@ export default function SupportLeadDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/rejections'}
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Rejections</span>
@@ -190,7 +202,10 @@ export default function SupportLeadDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/applications?status=COMPLETED'}
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Completed</span>
@@ -202,7 +217,10 @@ export default function SupportLeadDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-all">
+                <Card
+                    className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-all cursor-pointer hover:scale-[1.02]"
+                    onClick={() => window.location.href = '/admin/support-lead/reports'}
+                >
                     <CardContent className="p-4">
                         <div className="flex flex-col">
                             <span className="text-xs font-medium text-gray-500 uppercase">Avg Time</span>
