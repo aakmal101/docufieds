@@ -9,6 +9,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     try {
         const { reason, category } = await req.json()
 
+        const currentApp = await prisma.application.findUnique({
+            where: { id: params.id },
+            select: { supportStatus: true, status: true }
+        })
+
+        if (!currentApp) return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+
+        // 🛡️ Hardening: Prevent duplicate requests
+        if (currentApp.supportStatus === 'PENDING_REJECTION') {
+            return NextResponse.json({ error: 'Rejection already requested' }, { status: 400 })
+        }
+
+        if (['COMPLETED', 'DECLINED'].includes(currentApp.status)) {
+            return NextResponse.json({ error: 'Application already finalized' }, { status: 400 })
+        }
+
         await prisma.rejectionRequest.create({
             data: {
                 applicationId: params.id,

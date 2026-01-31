@@ -43,6 +43,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
+        if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+            return NextResponse.json({ error: 'Invalid amount' }, { status: 400 })
+        }
+
         // Get application to link user
         const app = await prisma.application.findUnique({
             where: { id: applicationId },

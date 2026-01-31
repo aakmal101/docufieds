@@ -9,6 +9,27 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     try {
         const { reason } = await req.json()
 
+        if (!reason || reason.trim().length < 5) {
+            return NextResponse.json({ error: 'Reason is required (min 5 chars)' }, { status: 400 })
+        }
+
+        const app = await prisma.application.findUnique({
+            where: { id: params.id },
+            select: { status: true, supportStatus: true }
+        })
+
+        if (!app) return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+
+        // 🛡️ Hardening: Prevent escalating finalized/invalid applications
+        const invalidStatuses = ['COMPLETED', 'DECLINED', 'REJECTED']
+        if (invalidStatuses.includes(app.status) || app.supportStatus === 'REJECTED') {
+            return NextResponse.json({ error: `Cannot escalate application in ${app.status} state` }, { status: 400 })
+        }
+
+        if (app.supportStatus === 'ESCALATED') {
+            return NextResponse.json({ success: true, message: 'Already escalated' }) // Idempotent success
+        }
+
         await prisma.escalation.create({
             data: {
                 applicationId: params.id,

@@ -310,19 +310,28 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
 
             {/* Fixed Bottom Action Bar */}
             <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-40 flex justify-end gap-3 items-center">
-                <Button className="bg-blue-600 hover:bg-blue-700" onClick={() => {
-                    // Switch to payment tab
-                    const tabs = document.getElementById('app-tabs')
-                    const paymentTrigger = tabs?.querySelector('[value="payment"]') as HTMLElement
-                    paymentTrigger?.click()
-                    toast("Please verify details in the Payment tab", { icon: '👉' })
-                }}>
-                    <DollarSign className="mr-2 h-4 w-4" /> Verify Payment
-                </Button>
+
+                {app.payments?.[0]?.status !== 'VERIFIED' && app.payments?.[0]?.status !== 'PAID' && (
+                    <Button
+                        className="bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                            // Switch to payment tab
+                            const tabs = document.getElementById('app-tabs')
+                            const paymentTrigger = tabs?.querySelector('[value="payment"]') as HTMLElement
+                            paymentTrigger?.click()
+                            toast("Please verify details in the Payment tab", { icon: '👉' })
+                        }}
+                    >
+                        <DollarSign className="mr-2 h-4 w-4" /> Verify Payment
+                    </Button>
+                )}
 
                 <Dialog open={escalateOpen} onOpenChange={setEscalateOpen}>
                     <DialogTrigger asChild>
-                        <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                        <Button
+                            className="bg-orange-500 hover:bg-orange-600 text-white"
+                            disabled={['COMPLETED', 'DECLINED', 'REJECTED'].includes(app.status) || app.supportStatus === 'ESCALATED' || app.supportStatus === 'REJECTED'}
+                        >
                             <AlertTriangle className="mr-2 h-4 w-4" /> Escalate to Lead
                         </Button>
                     </DialogTrigger>
@@ -341,7 +350,10 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
 
                 <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
                     <DialogTrigger asChild>
-                        <Button variant="destructive">
+                        <Button
+                            variant="destructive"
+                            disabled={['COMPLETED', 'DECLINED', 'REJECTED', 'APPROVED'].includes(app.status) || app.supportStatus === 'PENDING_REJECTION' || app.supportStatus === 'REJECTED'}
+                        >
                             <XCircle className="mr-2 h-4 w-4" /> Request Rejection
                         </Button>
                     </DialogTrigger>
@@ -358,7 +370,11 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                     </DialogContent>
                 </Dialog>
 
-                <Button className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-transform" onClick={() => setLegalConfirmOpen(true)} disabled={submitting}>
+                <Button
+                    className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-transform"
+                    onClick={() => setLegalConfirmOpen(true)}
+                    disabled={submitting || ['COMPLETED', 'DECLINED', 'REJECTED'].includes(app.status) || app.supportStatus === 'FORWARDED_TO_LEGAL' || app.status === 'DOCUMENT_UNDER_REVIEW'}
+                >
                     <CheckCircle className="mr-2 h-4 w-4" /> Forward to Legal
                 </Button>
             </div>

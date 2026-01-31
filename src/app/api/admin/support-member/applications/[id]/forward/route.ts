@@ -8,6 +8,22 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     try {
         // Validate (omitted strict verification checks for brevity/mock)
+        const currentApp = await prisma.application.findUnique({
+            where: { id: params.id },
+            select: { status: true, supportStatus: true, userId: true }
+        })
+
+        if (!currentApp) return NextResponse.json({ error: 'Application not found' }, { status: 404 })
+
+        // 🛡️ Hardening: Idempotency check
+        if (currentApp.supportStatus === 'FORWARDED_TO_LEGAL' || currentApp.status === 'DOCUMENT_UNDER_REVIEW') {
+            return NextResponse.json({ success: true, message: 'Already forwarded' })
+        }
+
+        // 🛡️ Hardening: Prevent forwarding finalized apps
+        if (['COMPLETED', 'DECLINED', 'REJECTED'].includes(currentApp.status)) {
+            return NextResponse.json({ error: 'Cannot forward finalized application' }, { status: 400 })
+        }
 
         await prisma.application.update({
             where: { id: params.id },

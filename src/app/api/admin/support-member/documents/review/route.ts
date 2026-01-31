@@ -20,6 +20,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
         }
 
+        // 🛡️ Hardening: Constraint #3 - Isolate Document Logic
+        // We explicitly do NOT check for payment status here. 
+        // Document review must remain independent of payment verification.
+
         // Check if document exists
         const existingDoc = await prisma.document.findUnique({
             where: { id: documentId }
