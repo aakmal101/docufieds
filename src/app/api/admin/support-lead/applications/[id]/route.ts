@@ -26,7 +26,18 @@ export async function GET(
                     orderBy: { createdAt: 'desc' },
                     take: 1
                 },
-                // Include assignment history if needed, for now just current status is fine
+                // Include assignment with member workload
+                assignment: {
+                    include: {
+                        member: {
+                            include: {
+                                _count: {
+                                    select: { assignedApplications: { where: { status: 'ACTIVE' } } }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         })
 

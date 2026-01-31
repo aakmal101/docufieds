@@ -129,9 +129,10 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                         </div>
 
                         <Tabs defaultValue="documents" className="flex-1 flex flex-col overflow-hidden">
-                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="documents">Documents</TabsTrigger>
                                 <TabsTrigger value="details">Details</TabsTrigger>
+                                <TabsTrigger value="chat">Chat & Activity</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="documents" className="flex-1 relative mt-4">
@@ -181,7 +182,37 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                                             </span>
                                         </div>
                                     </div>
+                                    <Separator />
+                                    <div>
+                                        <Label className="text-xs text-gray-500 uppercase">Current Assignment</Label>
+                                        <div className="mt-2 text-sm">
+                                            {app.assignment?.member ? (
+                                                <div className="flex items-center justify-between bg-blue-50 p-3 rounded-md border border-blue-100">
+                                                    <div className="flex items-center gap-2">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarFallback className="bg-blue-200 text-blue-800">
+                                                                {app.assignment.member.fullName[0]}
+                                                            </AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="font-medium text-blue-900">{app.assignment.member.fullName}</p>
+                                                            <p className="text-xs text-blue-600">Assigned Team Member</p>
+                                                        </div>
+                                                    </div>
+                                                    <Badge variant="outline" className="bg-white">
+                                                        {app.assignment.member._count?.assignedApplications || 0} active Apps
+                                                    </Badge>
+                                                </div>
+                                            ) : (
+                                                <p className="text-gray-500 italic">No Support Member assigned yet.</p>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
+                            </TabsContent>
+
+                            <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden mt-2 h-[500px]">
+                                <LeadChatTab applicationId={app.id} />
                             </TabsContent>
                         </Tabs>
 
@@ -198,11 +229,6 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                                         Mark Incomplete
                                     </Button>
 
-                                    {/* Using AssignmentDropdown but custom styled or wrapped? 
-                                        Actually, AssignmentDropdown handles the logic. 
-                                        We just need to make sure 'onAssign' closes the sheet. 
-                                        I'll modify the dropdown call to pass a callback.
-                                    */}
                                     <div className="w-full">
                                         <AssignmentDropdown
                                             applicationId={app.id}
@@ -210,7 +236,6 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                                                 onStatusChange()
                                                 onOpenChange(false)
                                             }}
-                                        // Pass custom trigger button style if I could, but standard is fine.
                                         />
                                     </div>
                                 </div>
@@ -240,5 +265,65 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                 )}
             </SheetContent>
         </Sheet>
+    )
+}
+
+import { MessageThread, Message } from '@/components/support/MessageThread'
+
+function LeadChatTab({ applicationId }: { applicationId: string }) {
+    const [messages, setMessages] = useState<Message[]>([])
+    const [loading, setLoading] = useState(true)
+    const [sending, setSending] = useState(false)
+
+    useEffect(() => {
+        fetchMessages()
+        // Poll for new messages every 10s or use realtime if available (polling for MVP)
+        const interval = setInterval(fetchMessages, 10000)
+        return () => clearInterval(interval)
+    }, [applicationId])
+
+    const fetchMessages = async () => {
+        try {
+            const res = await fetch(`/api/admin/support-lead/applications/${applicationId}/messages`)
+            if (res.ok) {
+                setMessages(await res.json())
+            }
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const handleSendMessage = async (content: string, isInternal: boolean, attachment?: File) => {
+        setSending(true)
+        try {
+            const res = await fetch(`/api/admin/support-lead/applications/${applicationId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, isInternal })
+            })
+            if (res.ok) {
+                const newMsg = await res.json()
+                setMessages(prev => [...prev, newMsg])
+            } else {
+                toast.error('Failed to send message')
+            }
+        } catch (err) {
+            toast.error('Error sending message')
+        } finally {
+            setSending(false)
+        }
+    }
+
+    if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-gray-400" /></div>
+
+    return (
+        <MessageThread
+            messages={messages}
+            currentUserType="SUPPORT_MEMBER" // Lead acts as a super-member here
+            onSendMessage={handleSendMessage}
+            isLoading={sending}
+        />
     )
 }
