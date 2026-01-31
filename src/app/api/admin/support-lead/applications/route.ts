@@ -99,22 +99,23 @@ export async function GET(req: Request) {
                     },
                     assignment: {
                         include: {
-                            member: { select: { user: { select: { fullName: true } } } }
+                            member: { select: { fullName: true } }
                         }
                     }
                 },
+            },
                 orderBy: { updatedAt: 'desc' },
                 skip: (page - 1) * limit,
                 take: limit,
             }),
-            prisma.application.count({ where: whereClause })
+    prisma.application.count({ where: whereClause })
         ])
 
-        return NextResponse.json({ applications, total, pages: Math.ceil(total / limit) })
+    return NextResponse.json({ applications, total, pages: Math.ceil(total / limit) })
 
-    } catch (error) {
-        console.error('Fetch Apps Critical Failure:', error)
-        // 🛡️ Hardening: Never throw, return empty list so UI doesn't crash
-        return NextResponse.json(fallbackResponse, { status: 200 }) // Return 200 with empty data to prevent frontend error toast
-    }
+} catch (error) {
+    console.error('Fetch Apps Critical Failure:', error)
+    // 🛡️ Hardening: Never throw, return empty list so UI doesn't crash
+    return NextResponse.json(fallbackResponse, { status: 200 }) // Return 200 with empty data to prevent frontend error toast
+}
 }
