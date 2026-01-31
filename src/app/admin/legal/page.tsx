@@ -9,9 +9,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  FileText, 
-  Clock, 
+import {
+  FileText,
+  Clock,
   CheckCircle,
   AlertCircle,
   Loader2,
@@ -53,7 +53,7 @@ export default function LegalDashboard() {
     try {
       const response = await fetch('/api/admin/applications')
       const data = await response.json()
-      
+
       if (data.success) {
         setApplications(data.data)
       }
@@ -90,11 +90,11 @@ export default function LegalDashboard() {
   const handleViewDocuments = async (application: any) => {
     setSelectedApplication(application)
     setLoadingDocuments(true)
-    
+
     try {
       const response = await fetch(`/api/documents?applicationId=${application.id}`)
       const data = await response.json()
-      
+
       if (data.success) {
         setDocuments(data.data || [])
       } else {
@@ -204,7 +204,7 @@ export default function LegalDashboard() {
                 <Clock className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
                   <p className="text-2xl font-bold text-gray-900">
-                    {applications.filter(app => 
+                    {applications.filter(app =>
                       ['DOCUMENT_UNDER_PROCESSING', 'DOCUMENT_UNDER_REVIEW'].includes(app.status)
                     ).length}
                   </p>
@@ -247,53 +247,53 @@ export default function LegalDashboard() {
                 {applications
                   .filter(app => ['DOCUMENT_UNDER_PROCESSING', 'DOCUMENT_UNDER_REVIEW'].includes(app.status))
                   .map((application) => (
-                  <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-medium text-gray-900">
-                            {application.country} - {application.processType}
-                          </h3>
-                          <Badge className={getStatusColor(application.status)}>
-                            {application.status.replace(/_/g, ' ')}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center space-x-6 text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <User className="h-4 w-4 mr-1" />
-                            {application.user?.fullName || 'Unknown User'}
+                    <div key={application.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-lg font-medium text-gray-900">
+                              {application.country} - {application.processType}
+                            </h3>
+                            <Badge className={getStatusColor(application.status)}>
+                              {application.status.replace(/_/g, ' ')}
+                            </Badge>
                           </div>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {new Date(application.createdAt).toLocaleDateString()}
+                          <div className="flex items-center space-x-6 text-sm text-gray-600">
+                            <div className="flex items-center">
+                              <User className="h-4 w-4 mr-1" />
+                              {application.user?.fullName || 'Unknown User'}
+                            </div>
+                            <div className="flex items-center">
+                              <Calendar className="h-4 w-4 mr-1" />
+                              {new Date(application.createdAt).toLocaleDateString()}
+                            </div>
+                            <div className="flex items-center">
+                              <CreditCard className="h-4 w-4 mr-1" />
+                              {application.consultancyFee} BDT
+                            </div>
                           </div>
-                          <div className="flex items-center">
-                            <CreditCard className="h-4 w-4 mr-1" />
-                            {application.consultancyFee} BDT
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">
+                              Documents: {application.documents?.length || 0} uploaded
+                            </p>
                           </div>
                         </div>
-                        <div className="mt-2">
-                          <p className="text-sm text-gray-600">
-                            Documents: {application.documents?.length || 0} uploaded
-                          </p>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewDocuments(application)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View Documents
+                          </Button>
+                          <Button size="sm" onClick={() => router.push(`/admin/legal/applications/${application.id}`)}>
+                            Process
+                          </Button>
                         </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleViewDocuments(application)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View Documents
-                        </Button>
-                        <Button size="sm">
-                          Process
-                        </Button>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </CardContent>
@@ -392,12 +392,12 @@ export default function LegalDashboard() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               {/* Modal Content */}
               <div className="flex-1 overflow-auto p-4">
-                {viewingDocument.url.toLowerCase().endsWith('.pdf') || 
-                 viewingDocument.url.includes('.pdf') ||
-                 viewingDocument.url.toLowerCase().includes('application/pdf') ? (
+                {viewingDocument.url.toLowerCase().endsWith('.pdf') ||
+                  viewingDocument.url.includes('.pdf') ||
+                  viewingDocument.url.toLowerCase().includes('application/pdf') ? (
                   <iframe
                     src={viewingDocument.url}
                     className="w-full h-full min-h-[600px] border-0"
@@ -434,7 +434,7 @@ export default function LegalDashboard() {
                   </div>
                 )}
               </div>
-              
+
               {/* Modal Footer */}
               <div className="flex items-center justify-end gap-2 p-4 border-t">
                 <Button
