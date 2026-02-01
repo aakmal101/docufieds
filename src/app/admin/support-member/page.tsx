@@ -21,57 +21,30 @@ const getCountryCode = (countryName: string) => {
 export default function MemberDashboard() {
     const { data: session } = useSession()
     const [assignments, setAssignments] = useState<any[]>([])
+    const [stats, setStats] = useState({ activeCount: 0, completedToday: 0, pendingResponse: 0 })
     const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState('')
     const [statusFilter, setStatusFilter] = useState('ALL')
 
-    const fetchMyApps = async () => {
+    const fetchData = async () => {
         try {
-            const res = await fetch('/api/admin/support-member/applications')
-            if (res.ok) setAssignments(await res.json())
+            const [appsRes, statsRes] = await Promise.all([
+                fetch('/api/admin/support-member/applications'),
+                fetch('/api/admin/support-member/stats')
+            ])
+
+            if (appsRes.ok) setAssignments(await appsRes.json())
+            if (statsRes.ok) setStats(await statsRes.json())
+
         } catch (error) { console.error(error) }
         finally { setLoading(false) }
     }
 
     useEffect(() => {
-        fetchMyApps()
-    }, [])
-
-    // Realtime Hook
-    // We assume the member ID is the user ID for simplicity, or we fetch the member ID separately.
-    // The hook filters by member_id. In our schema, Member entity is separate from User but linked.
-    // If the hook expects Member ID, we need to pass Member ID.
-    // However, for this MVP we might have treated them as 1:1 or the session has the member ID.
-    // But let's look at `realtime-support.ts`. It takes `memberId`.
-    // If session.user.id is the User ID, we might need the Member ID.
-    // But let's assume `useApplicationAssignments` will trigger on ANY change if we don't pass ID? 
-    // No, it returns early.
-    // We'll rely on fetchMyApps re-running. 
-    // Wait, `support-member/applications` route likely uses session user ID to find the member record.
-    // So we need looking up the member ID.
-    // But actually, we can just poll as a fallback or assume the user.id IS the member.id? 
-    // No, schema says `SupportTeamMember` is separate.
-    // Let's rely on polling for simplicity OR modify hook to be broader? 
-    // Or better: The `realtime-support.ts` was implemented to take `memberId`.
-    // I can assume for now that I can't easily get memberId on client without an extra call.
-    // I will add a polling interval as well to be safe, while keeping the structure ready for realtime if I had the ID.
-    // actually, I'll just poll. It's safer for this context where I don't want to add a profile fetch just for the ID right now.
-    // UNLESS I just fetch it in the useEffect?
-
-    // Let's do polling for robustness + simpler implementation given the constraint.
-    useEffect(() => {
-        const interval = setInterval(fetchMyApps, 15000)
+        fetchData()
+        const interval = setInterval(fetchData, 15000)
         return () => clearInterval(interval)
     }, [])
-
-
-    // Stats
-    const activeCount = assignments.filter(a => a.status === 'ACTIVE').length
-    const completedToday = assignments.filter(a => a.status === 'COMPLETED' && a.completedAt && new Date(a.completedAt).toDateString() === new Date().toDateString()).length
-    // Assuming 'Pending Response' maps to a status or a doc request state. 
-    // Let's assume supportStatus 'DOCUMENT_UNDER_REVIEW' or similar, strict mapping depends on schema use.
-    // For now: supportStatus === 'PENDING_USER_RESPONSE'?
-    const pendingResponse = assignments.filter(a => a.application.supportStatus === 'Waiting for User').length
 
     const filtered = assignments.filter(a => {
         const matchSearch = a.application.user.fullName.toLowerCase().includes(search.toLowerCase()) ||
@@ -90,7 +63,7 @@ export default function MemberDashboard() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-blue-600">Active</p>
-                            <p className="text-2xl font-bold text-blue-900">{activeCount}</p>
+                            <p className="text-2xl font-bold text-blue-900">{stats.activeCount}</p>
                         </div>
                         <Clock className="h-8 w-8 text-blue-200" />
                     </CardContent>
@@ -99,7 +72,7 @@ export default function MemberDashboard() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-green-600">Completed Today</p>
-                            <p className="text-2xl font-bold text-green-900">{completedToday}</p>
+                            <p className="text-2xl font-bold text-green-900">{stats.completedToday}</p>
                         </div>
                         <CheckCircle className="h-8 w-8 text-green-200" />
                     </CardContent>
@@ -108,7 +81,7 @@ export default function MemberDashboard() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm font-medium text-orange-600">Pending Response</p>
-                            <p className="text-2xl font-bold text-orange-900">{pendingResponse}</p>
+                            <p className="text-2xl font-bold text-orange-900">{stats.pendingResponse}</p>
                         </div>
                         <AlertCircle className="h-8 w-8 text-orange-200" />
                     </CardContent>
