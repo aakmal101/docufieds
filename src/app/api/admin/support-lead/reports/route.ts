@@ -36,7 +36,8 @@ export async function GET(req: Request) {
                 assignedAt: true,
                 // We'll use this for processing time if we have a 'completedAt' field or equivalent status change logic
                 // For now, let's use updatedAt if status is final
-                updatedAt: true
+                updatedAt: true,
+                forwardedToLegalAt: true
             }
         })
 
@@ -78,13 +79,20 @@ export async function GET(req: Request) {
         let timeCount = 0
 
         apps.forEach(app => {
-            if ((app.status === 'APPROVED' || app.supportStatus === 'FORWARDED_TO_LEGAL') && app.assignedAt) {
-                const end = new Date(app.updatedAt).getTime()
-                const start = new Date(app.assignedAt).getTime()
-                const diff = end - start
-                if (diff > 0) {
-                    totalTimeMs += diff
-                    timeCount++
+            // Determine end time: Verification/Forwarding time is more accurate than generic update
+            const completionTime = app.supportStatus === 'FORWARDED_TO_LEGAL'
+                ? (app as any).forwardedToLegalAt
+                : app.updatedAt
+
+            if (['APPROVED', 'COMPLETED'].includes(app.status) || app.supportStatus === 'FORWARDED_TO_LEGAL') {
+                if (app.assignedAt && completionTime) {
+                    const end = new Date(completionTime).getTime()
+                    const start = new Date(app.assignedAt).getTime()
+                    const diff = end - start
+                    if (diff > 0) {
+                        totalTimeMs += diff
+                        timeCount++
+                    }
                 }
             }
         })

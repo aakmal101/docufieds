@@ -27,22 +27,26 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             }
         })
 
-        // Log status update
-        await prisma.applicationStatusUpdate.create({
-            data: {
-                applicationId,
-                fromStatus: 'PROCESSING', // Best guess
-                toStatus: 'READY_FOR_LEGAL',
-                changedByType: session.user.role || 'SYSTEM',
-                changedById: session.user.id,
-                notes: 'Forwarded to Legal Team for final review.'
-            }
+        notes: 'Forwarded to Legal Team for final review.'
+    }
         })
 
-        return NextResponse.json({ success: true, app })
+// Close the active assignment if it exists
+await prisma.applicationAssignment.updateMany({
+    where: {
+        applicationId: applicationId,
+        status: 'ACTIVE'
+    },
+    data: {
+        status: 'COMPLETED',
+        completedAt: new Date()
+    }
+})
+
+return NextResponse.json({ success: true, app })
 
     } catch (error) {
-        console.error('Forward to Legal Error:', error)
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
-    }
+    console.error('Forward to Legal Error:', error)
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+}
 }
