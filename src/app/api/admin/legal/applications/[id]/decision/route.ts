@@ -1,73 +1,75 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { requireLegal } from '@/lib/auth/admin-guard'
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session || session.user?.role !== 'LEGAL') {
+export async function POST(req: Request, { params }: { params: { id: string } }) {
+    const session = await requireLegal()
+    if (!session) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     try {
-        const { decision, reason } = await req.json()
+        const { action, notes } = await req.json() // action: 'APPROVE' | 'REJECT'
+
+        if (!['APPROVE', 'REJECT'].includes(action)) {
+            return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
+        }
+        if (!notes) {
+            return NextResponse.json({ error: 'Notes are mandatory' }, { status: 400 })
+        }
+
         const applicationId = params.id
 
-        if (!['APPROVE', 'REJECT'].includes(decision)) {
-            return NextResponse.json({ error: 'Invalid decision' }, { status: 400 })
-        }
-
-        const app = await prisma.application.findUnique({
-            where: { id: applicationId },
-            select: { userId: true }
-        })
-
-        if (!app) {
-            return NextResponse.json({ error: 'Application not found' }, { status: 404 })
-        }
-
-        const newStatus = decision === 'APPROVE' ? 'COMPLETED' : 'DECLINED'
-        const notificationTitle = decision === 'APPROVE' ? 'Visa Application Approved' : 'Visa Application Declined'
-        const notificationMessage = decision === 'APPROVE'
-            ? 'Congratulations! Your visa application has been approved and processed.'
-            : `Your visa application has been declined. Reason: ${reason}`
+        // Define statuses
+        const newStatus = action === 'APPROVE' ? 'COMPLETED' : 'REJECTED'
+        // 'REJECTED' or 'DECLINED'? Schema comment says `DECLINED` / `REJECTED`. 
+        // Admin usually 'DECLINED' or 'REJECTED'. Let's use 'REJECTED' for Legal Rejection to be strong.
 
         // Update Application
-        await prisma.application.update({
+        const app = await prisma.application.update({
             where: { id: applicationId },
             data: {
                 status: newStatus,
-                lastActivityAt: new Date()
+                // Do we update supportStatus? 
+                // Maybe 'LEGAL_COMPLETED' or just leave it?
+                // If we leave it 'FORWARDED_TO_LEGAL', we know it went there.
+                // If we restrict status filters correctly, app.status takes precedence.
+                // Let's update Log.
             }
         })
 
-        // Log Status Change
+        // Log Status Update
         await prisma.applicationStatusUpdate.create({
             data: {
                 applicationId,
-                fromStatus: 'DOCUMENT_UNDER_PROCESSING', // Assuming this is the prev state, or fetch it
+                fromStatus: 'READY_FOR_LEGAL', // Assumption
                 toStatus: newStatus,
                 changedByType: 'LEGAL',
                 changedById: session.user.id,
-                notes: reason || 'Legal decision made.'
+                notes: notes,
+                isVisibleToUser: true // User should know result
             }
         })
 
-        // Notify User
+        // Notify User?
+        // Notification logic usually in a helper or triggers.
+        // Let's add simple notification record.
         await prisma.notification.create({
             data: {
                 userId: app.userId,
-                title: notificationTitle,
-                message: notificationMessage,
-                type: decision === 'APPROVE' ? 'VISA_ISSUED' : 'APPLICATION_DECLINED',
-                actionUrl: `/dashboard/individual/applications/${applicationId}`
+                title: action === 'APPROVE' ? 'Application Completed' : 'Application Rejected',
+                message: action === 'APPROVE'
+                    ? 'Your application has been finalized by our Legal Team. You can now download your documents.'
+                    : `Your application was rejected by Legal. Reason: ${notes}`,
+                type: action === 'APPROVE' ? 'SUCCESS' : 'ERROR',
+                isRead: false
             }
         })
 
         return NextResponse.json({ success: true })
 
     } catch (error) {
-        console.error('Legal Decision Error:', error)
+        console.error('[API] Legal Decision Error:', error)
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
     }
 }

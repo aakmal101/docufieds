@@ -21,3 +21,16 @@ export async function requireSupportLead() {
 
     return session
 }
+
+export async function requireLegal() {
+    const session = await getServerSession(authOptions)
+
+    if (!session) return null
+
+    const role = session.user.role as string
+    const allowed = ['ADMIN', 'LEGAL']
+
+    if (!allowed.includes(role)) return null
+
+    return session
+}
