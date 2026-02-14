@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { VerifiedBadge } from '@/components/user/VerifiedBadge'
 
 interface ProfileDropdownProps {
   user: {
@@ -23,6 +24,7 @@ interface ProfileDropdownProps {
     photoUrl?: string | null
     memberId?: string | null
     status?: string | null
+    profileStatus?: string | null
   } | null
 }
 
@@ -110,8 +112,9 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
+              <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
                 {user.fullName || 'User'}
+                <VerifiedBadge status={user.profileStatus || 'PENDING'} className="h-4 w-4" />
               </p>
               {user.email && (
                 <p className="text-xs text-gray-500 truncate flex items-center gap-1">

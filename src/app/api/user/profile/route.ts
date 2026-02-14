@@ -43,6 +43,8 @@ export async function GET(request: NextRequest) {
           isVerified: true,
           createdAt: true,
           updatedAt: true,
+          profileStatus: true,
+          profileReviewNotes: true,
         },
       })
 
@@ -243,6 +245,7 @@ export async function PUT(request: NextRequest) {
             passwordHash: true,
             createdAt: true,
             updatedAt: true,
+            profileStatus: true,
           },
         })
 
@@ -581,6 +584,7 @@ export async function PATCH(request: NextRequest) {
         isVerified: true,
         createdAt: true,
         updatedAt: true,
+        profileStatus: true,
       }
     })
 

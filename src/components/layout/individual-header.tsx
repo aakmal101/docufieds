@@ -21,6 +21,8 @@ export default function IndividualHeader() {
   useEffect(() => {
     if (session?.user?.id) {
       fetchUserProfile()
+      const interval = setInterval(fetchUserProfile, 10000)
+      return () => clearInterval(interval)
     }
   }, [session])
 

@@ -22,7 +22,8 @@ import {
   Calendar,
   TrendingUp,
   DollarSign,
-  AlertTriangle
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react'
 import { UserStatus, ApplicationStatus } from '@/types'
 
@@ -146,13 +147,60 @@ export default function AgencyDashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Welcome Section */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          Welcome back, {user.agencyName}!
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <h1 className="text-3xl font-bold text-gray-900">
+            Welcome back, {user.agencyName}!
+          </h1>
+          {user.profileStatus === 'APPROVED' && (
+            <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200 gap-1">
+              <ShieldCheck className="h-3 w-3" />
+              Verified Agency
+            </Badge>
+          )}
+        </div>
         <p className="text-gray-600">
           Manage your agency's visa applications and track your business performance
         </p>
       </div>
+
+      {/* Profile Status */}
+      {user.profileStatus === 'PENDING_REVIEW' && (
+        <Card className="mb-8 border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="flex items-center text-yellow-800">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              Agency Profile Under Review
+            </CardTitle>
+            <CardDescription className="text-yellow-700">
+              Your agency profile is currently being reviewed by our team. Some features may be limited until verified.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" onClick={() => router.push('/dashboard/agency/profile')}>
+              View Profile
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {user.profileStatus === 'DECLINED' && (
+        <Card className="mb-8 border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center text-red-800">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              Profile Review Declined
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              {user.profileReviewNotes || 'Your profile was declined. Please update your information and resubmit.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push('/dashboard/agency/profile')}>
+              Update Profile
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Credit and Document Limits */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">

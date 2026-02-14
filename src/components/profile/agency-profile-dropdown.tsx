@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { VerifiedBadge } from '@/components/user/VerifiedBadge'
 
 interface AgencyProfileDropdownProps {
     user: {
@@ -20,6 +21,7 @@ interface AgencyProfileDropdownProps {
         agencyName?: string | null
         agencyLicense?: string | null
         status?: string | null
+        profileStatus?: string | null
         photoUrl?: string | null
     } | null
 }
@@ -85,8 +87,9 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                             )}
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-900 truncate">
+                            <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
                                 {user.agencyName || 'Agency'}
+                                <VerifiedBadge status={user.profileStatus || undefined} className="h-4 w-4" />
                             </p>
                             <p className="text-xs text-gray-500 truncate flex items-center mt-0.5">
                                 License: <span className="font-mono ml-1">{user.agencyLicense || 'N/A'}</span>
