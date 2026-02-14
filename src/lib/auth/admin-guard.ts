@@ -34,8 +34,7 @@ export async function requireLegal() {
 
     return session
 }
-return session
-}
+
 
 export async function requireProfileReviewer() {
     const session = await getServerSession(authOptions)
