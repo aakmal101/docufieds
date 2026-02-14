@@ -34,3 +34,19 @@ export async function requireLegal() {
 
     return session
 }
+return session
+}
+
+export async function requireProfileReviewer() {
+    const session = await getServerSession(authOptions)
+
+    if (!session) return null
+
+    const role = session.user.role as string
+    // Allow ADMIN and SUPPORT (and LEAD as they are super-support)
+    const allowed = ['ADMIN', 'SUPPORT', 'SUPPORT_LEAD']
+
+    if (!allowed.includes(role)) return null
+
+    return session
+}

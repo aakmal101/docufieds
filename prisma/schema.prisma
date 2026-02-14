@@ -55,6 +55,12 @@ model User {
   gender            String?
   maritalStatus     String?     @map("marital_status")
   
+  // Profile Review
+  profileStatus     String    @default("PENDING_REVIEW") @map("profile_status") // PENDING_REVIEW, APPROVED, DECLINED
+  profileReviewedAt DateTime? @map("profile_reviewed_at")
+  profileReviewedById String? @map("profile_reviewed_by_id")
+  profileReviewNotes String?  @map("profile_review_notes")
+
   // Relations
   applications      Application[]
   payments          Payment[]
@@ -63,7 +69,9 @@ model User {
   sessions          Session[]
   messages          Message[]
   bulkUploads       BulkUpload[]
-  
+  auditLogs         AuditLog[]    @relation("AuditActor")
+  targetAuditLogs   AuditLog[]    @relation("AuditTarget")
+
   // Support Team Relations
   teamMembers         SupportTeamMember[]     @relation("TeamLeadMembers")
   assignedByMe        ApplicationAssignment[] @relation("AssignedByLead")
@@ -73,6 +81,22 @@ model User {
   supportMessages     SupportMessage[]        @relation("UserMessages")
   
   @@map("users")
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  actorUserId   String   @map("actor_user_id")
+  action        String
+  targetUserId  String?  @map("target_user_id")
+  metadata      Json?
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  actor         User     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetUser    User?    @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([targetUserId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
 }
 
 model Session {
