@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Loader2, CheckCircle, XCircle, ArrowLeft, User, MapPin, FileText } from 'lucide-react'
+import { Loader2, CheckCircle, XCircle, ArrowLeft, User, MapPin, FileText, RotateCcw, ScrollText } from 'lucide-react'
 import { VerifiedBadge } from '@/components/user/VerifiedBadge'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
@@ -37,17 +37,20 @@ export default function UserReviewDetailPage({ params }: { params: { id: string 
         fetchUser()
     }, [params.id])
 
-    const handleAction = async (action: 'APPROVE' | 'DECLINE') => {
+    const handleAction = async (action: 'APPROVE' | 'DECLINE' | 'RESET') => {
         if (action === 'DECLINE' && (!actionNote || actionNote.length < 3)) {
             toast.error('Please provide a reason for declining.')
             return
         }
-        if (!confirm(`Are you sure you want to ${action === 'APPROVE' ? 'Approve' : 'Decline'} this user?`)) return
+        if (!confirm(`Are you sure you want to ${action === 'RESET' ? 'Reset' : action === 'APPROVE' ? 'Approve' : 'Decline'} this user?`)) return
 
         setIsSubmitting(true)
         try {
-            const endpoint = `/api/admin/users/${params.id}/${action === 'APPROVE' ? 'approve' : 'decline'}`
-            const body = action === 'APPROVE' ? { notes: actionNote } : { reason: actionNote }
+            let endpoint = `/api/admin/users/${params.id}/approve`
+            if (action === 'DECLINE') endpoint = `/api/admin/users/${params.id}/decline`
+            if (action === 'RESET') endpoint = `/api/admin/users/${params.id}/reset-to-pending`
+
+            const body = action === 'APPROVE' || action === 'RESET' ? { notes: actionNote } : { reason: actionNote }
 
             const res = await fetch(endpoint, {
                 method: 'POST',
@@ -56,7 +59,7 @@ export default function UserReviewDetailPage({ params }: { params: { id: string 
             })
 
             if (res.ok) {
-                toast.success(`User ${action === 'APPROVE' ? 'Approved' : 'Declined'} successfully`)
+                toast.success(`Action successful`)
                 router.push('/admin/users/reviews')
                 router.refresh()
             } else {
@@ -194,8 +197,53 @@ export default function UserReviewDetailPage({ params }: { params: { id: string 
                             <XCircle className="mr-2 h-4 w-4" /> Decline Profile
                         </Button>
                     </div>
+
+                    {user.profileStatus !== 'PENDING_REVIEW' && (
+                        <div className="pt-4 border-t mt-4">
+                            <Button
+                                variant="outline"
+                                className="w-full border-dashed"
+                                onClick={() => handleAction('RESET')}
+                                disabled={isSubmitting}
+                            >
+                                <RotateCcw className="mr-2 h-4 w-4" /> Reset to Pending
+                            </Button>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
+
+            {/* Audit Trail */}
+            {user.targetAuditLogs && user.targetAuditLogs.length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><ScrollText className="h-4 w-4" /> Audit Trail</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            {user.targetAuditLogs.map((log: any) => (
+                                <div key={log.id} className="flex gap-4 p-3 bg-gray-50 rounded border text-sm">
+                                    <div className="flex-1">
+                                        <p className="font-medium text-gray-900">{log.action.replace(/_/g, ' ')}</p>
+                                        <p className="text-gray-500 text-xs">
+                                            By {log.actor?.fullName} ({log.actor?.email})
+                                        </p>
+                                        {log.metadata && (
+                                            <pre className="mt-1 text-xs text-gray-500 whitespace-pre-wrap">
+                                                {JSON.stringify(log.metadata, null, 2)}
+                                            </pre>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-gray-400 whitespace-nowrap">
+                                        {new Date(log.createdAt).toLocaleString()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
         </div>
     )
 }
+

@@ -36,6 +36,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                         applications: true,
                         documents: true
                     }
+                },
+                // Audit Trail
+                targetAuditLogs: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
+                    include: {
+                        actor: {
+                            select: { fullName: true, email: true }
+                        }
+                    }
                 }
             }
         })
