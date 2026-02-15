@@ -45,9 +45,6 @@ export async function GET(req: Request) {
                     createdAt: true,
                     profileStatus: true,
                     role: true,
-                    country: true, // Need to fetch from relation or is it on User?
-                    // User model has 'nationality' but not 'country'. 
-                    // Let's check schema again. `nationality` is there.
                     nationality: true,
                     photoUrl: true
                 },
