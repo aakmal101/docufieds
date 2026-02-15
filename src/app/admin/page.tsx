@@ -210,6 +210,14 @@ export default function AdminDashboard() {
                 </Button>
                 <Button
                   variant="outline"
+                  className="h-20 flex flex-col items-center justify-center bg-yellow-50 hover:bg-yellow-100 border-yellow-200"
+                  onClick={() => router.push('/admin/users/reviews')}
+                >
+                  <UserCheck className="h-6 w-6 mb-2 text-yellow-700" />
+                  <span className="text-yellow-800 font-semibold">Profile Reviews</span>
+                </Button>
+                <Button
+                  variant="outline"
                   className="h-20 flex flex-col items-center justify-center"
                   onClick={() => router.push('/admin/templates')}
                 >

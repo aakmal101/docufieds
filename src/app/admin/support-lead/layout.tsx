@@ -15,7 +15,8 @@ import {
     LogOut,
     Globe,
     UserPlus,
-    Settings
+    Settings,
+    UserCheck
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { signOut } from 'next-auth/react'
@@ -31,6 +32,7 @@ export default function SupportLeadLayout({
         { name: 'Dashboard', href: '/admin/support-lead', icon: LayoutDashboard },
         { name: 'Incoming Apps', href: '/admin/support-lead/incoming', icon: Inbox },
         { name: 'Team Workload', href: '/admin/support-lead/team', icon: Users },
+        { name: 'Profile Reviews', href: '/admin/users/reviews', icon: UserCheck },
         { name: 'Onboard Members', href: '/admin/support-lead/onboard', icon: UserPlus },
         { name: 'Escalations', href: '/admin/support-lead/escalations', icon: AlertTriangle },
         { name: 'Pending Rejections', href: '/admin/support-lead/rejections', icon: XCircle },
