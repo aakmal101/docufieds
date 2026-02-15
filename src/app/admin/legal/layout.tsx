@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import {
     LayoutDashboard,
     FileText,
@@ -17,7 +17,6 @@ import { signOut } from 'next-auth/react'
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
-    const router = useRouter()
     const [sidebarOpen, setSidebarOpen] = useState(false)
 
     const navItems = [
@@ -26,8 +25,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     ]
 
     const handleSignOut = async () => {
-        await signOut({ redirect: false })
-        router.push('/login')
+        await signOut({ callbackUrl: '/auth/signin' })
     }
 
     return (
