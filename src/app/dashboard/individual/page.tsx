@@ -309,7 +309,7 @@ export default function IndividualDashboard() {
                 <CardTitle>Recent Applications</CardTitle>
                 <CardDescription>Track the status of your visa applications</CardDescription>
               </div>
-              <Button onClick={() => router.push('/dashboard/individual/new-application')}>
+              <Button onClick={() => router.push('/apply/module')}>
                 New Application
               </Button>
             </div>
@@ -320,7 +320,7 @@ export default function IndividualDashboard() {
                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No applications yet</h3>
                 <p className="text-gray-600 mb-4">Start your first visa application to get started</p>
-                <Button onClick={() => router.push('/dashboard/individual/new-application')}>
+                <Button onClick={() => router.push('/apply/module')}>
                   Create Application
                 </Button>
               </div>

@@ -51,8 +51,8 @@ export async function GET(
     // Fetch document requirements for this application
     let requirements = await prisma.documentRequirement.findMany({
       where: {
-        country: application.country,
-        processType: application.processType as any,
+        country: { in: [application.country, 'default', 'ALL'] },
+        processType: { in: [application.processType, 'standard', 'ALL'] } as any,
         OR: [
           { profession: null },
           { profession: application.profession as any || null },

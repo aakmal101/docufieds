@@ -803,9 +803,9 @@ function NewApplicationContent() {
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700">Modules</label>
+                <label className="text-sm font-medium text-gray-700">Application Type</label>
                 <p className="text-gray-900 hover:truncate">
-                  {selectedModules.length > 0 ? selectedModules.length + ' selected' : 'Not selected'}
+                  {selectedModule ? MODULES.find(m => m.id === selectedModule)?.label : 'Not selected'}
                 </p>
               </div>
               <div className="border-t pt-4">
