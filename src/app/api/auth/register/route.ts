@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
           memberId,
           agencyName: role === UserRole.AGENCY ? agencyName : null,
           agencyLicense: role === UserRole.AGENCY ? agencyLicense : null,
+          // Agent specific: created with basic user info, profile can be added later or via signal
           status: role === UserRole.INDIVIDUAL ? 'PENDING' : 'APPROVED',
           isVerified: true,
         },
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         message: 'User registered successfully',
-        data: { 
+        data: {
           userId: user.id,
           memberId: user.memberId,
           role: user.role,
@@ -75,11 +76,11 @@ export async function POST(request: NextRequest) {
       })
     } catch (prismaError: any) {
       console.warn('Prisma registration failed, trying Supabase fallback:', prismaError.message)
-      
+
       // Fallback to Supabase
       try {
         const supabase = createServiceRoleClient()
-        
+
         // Check if user exists
         const { data: existingUser } = await supabase
           .from('users')
@@ -120,7 +121,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           message: 'User registered successfully',
-          data: { 
+          data: {
             userId: user.id,
             memberId: user.member_id,
             role: user.role,
@@ -129,8 +130,8 @@ export async function POST(request: NextRequest) {
       } catch (supabaseError: any) {
         console.error('Supabase registration also failed:', supabaseError)
         return NextResponse.json(
-          { 
-            success: false, 
+          {
+            success: false,
             message: 'Failed to register user. Please try again.',
             error: process.env.NODE_ENV === 'development' ? supabaseError.message : undefined
           },
@@ -141,8 +142,8 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Registration error:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       },

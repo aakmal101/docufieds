@@ -82,6 +82,7 @@ export const authOptions: NextAuthOptions = {
             const roleMap: Record<string, string> = {
               'INDIVIDUAL': 'INDIVIDUAL',
               'AGENCY': 'AGENCY',
+              'AGENT': 'AGENT',
               'ADMIN': 'ADMIN',
               'SUPPORT': 'SUPPORT',
               'LEGAL': 'LEGAL',
@@ -251,6 +252,9 @@ export const authOptions: NextAuthOptions = {
                   }),
                   ...(role === 'ACCOUNTS' && {
                     fullName: 'Accounts Manager',
+                  }),
+                  ...(role === 'AGENT' && {
+                    fullName: 'Independent Agent',
                   }),
                 },
               })

@@ -1,4 +1,3 @@
-
 'use client'
 
 import AgentHeader from '@/components/layout/agent-header'
@@ -10,13 +9,11 @@ export default function AgentLayout({
     children: React.ReactNode
 }) {
     return (
-        <div className="min-h-screen bg-gray-50/50">
-            <ComponentErrorBoundary name="AgentHeader">
+        <div className="min-h-screen bg-gray-50">
+            <ComponentErrorBoundary name="Header">
                 <AgentHeader />
             </ComponentErrorBoundary>
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {children}
-            </main>
+            {children}
         </div>
     )
 }

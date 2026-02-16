@@ -71,6 +71,8 @@ export default function SignInPage() {
               return '/dashboard/individual'
             case 'AGENCY':
               return '/dashboard/agency'
+            case 'AGENT':
+              return '/dashboard/agent'
             case 'ADMIN':
               return '/admin'
             case 'SUPPORT':
@@ -140,6 +142,8 @@ export default function SignInPage() {
               return '/dashboard/individual'
             case 'AGENCY':
               return '/dashboard/agency'
+            case 'AGENT':
+              return '/dashboard/agent'
             case 'ADMIN':
               return '/admin'
             case 'SUPPORT':
@@ -198,6 +202,16 @@ export default function SignInPage() {
       textColor: 'text-red-600',
       bgColor: 'bg-red-50',
       borderColor: 'border-red-200'
+    },
+    {
+      role: 'AGENT',
+      title: 'Independent Agent',
+      description: 'Agent portal access',
+      icon: <Users className="h-6 w-6" />,
+      color: 'bg-teal-600 hover:bg-teal-700',
+      textColor: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+      borderColor: 'border-teal-200'
     },
 
     {

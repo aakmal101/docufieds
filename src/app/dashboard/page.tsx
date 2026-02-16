@@ -25,6 +25,9 @@ export default function DashboardPage() {
       case 'AGENCY':
         router.push('/dashboard/agency')
         break
+      case 'AGENT':
+        router.push('/dashboard/agent')
+        break
       case 'ADMIN':
         router.push('/admin')
         break
