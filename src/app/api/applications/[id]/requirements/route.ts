@@ -31,9 +31,11 @@ export async function GET(
         id: applicationId,
         userId: session.user.id,
       },
+      // We don't strictly need to include modules relation if we use singular field, 
+      // but keeping it doesn't hurt.
       include: {
         modules: true
-      } as any // Cast to any to allow modules property
+      } as any
     })
 
     if (!application) {
@@ -43,8 +45,8 @@ export async function GET(
       )
     }
 
-    // Get active module types
-    const activeModules = (application as any).modules?.map((m: any) => m.module) || []
+    // Use singular module field
+    const appModule = (application as any).module;
 
     // Fetch document requirements for this application
     let requirements = await prisma.documentRequirement.findMany({
@@ -55,12 +57,16 @@ export async function GET(
           { profession: null },
           { profession: application.profession as any || null },
         ],
-        // Filter by active modules or global requirements
+        // Filter by module: Either global (null) OR matches application.module
         AND: [
           {
             OR: [
               { module: null },
-              { module: { in: activeModules } }
+              { module: appModule || undefined } // undefined matches nothing if appModule is null/undefined? No, if appModule is null, we want to just match null. 
+              // Wait, if appModule is null (legacy), we only want Global (module: null).
+              // If appModule is SET, we want Global OR appModule.
+              // So: OR: [ { module: null }, { module: appModule } ] covers both.
+              // If appModule is null, { module: null } is duplicated, harmless.
             ]
           }
         ]

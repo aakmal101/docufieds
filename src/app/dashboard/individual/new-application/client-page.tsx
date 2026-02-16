@@ -117,7 +117,8 @@ function NewApplicationContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [step, setStep] = useState<'destination' | 'process' | 'modules' | 'profession' | 'review' | 'documents' | 'call'>('destination')
+  // Step 1: Module Selection (New Flow)
+  const [step, setStep] = useState<'modules' | 'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('modules')
   const [loading, setLoading] = useState(false)
   const [loadingApplication, setLoadingApplication] = useState(false)
   const [error, setError] = useState('')
@@ -128,19 +129,20 @@ function NewApplicationContent() {
     profession: '',
   })
 
-  const [selectedModules, setSelectedModules] = useState<string[]>([])
+  // Single module selection as per request ("Save module value")
+  const [selectedModule, setSelectedModule] = useState<string | null>(null)
 
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
   const [applicationId, setApplicationId] = useState<string | null>(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
 
-  // Module definitions
+  // Module definitions (Exact Match to User Request)
   const MODULES = [
-    { id: 'PERSONAL', label: 'Personal Information', description: 'Basic personal details', icon: User, required: true },
-    { id: 'EDUCATION', label: 'Education History', description: 'Academic qualifications', icon: FileText, required: false },
-    { id: 'BUSINESS', label: 'Business / Employment', description: 'Work and business details', icon: Briefcase, required: false },
-    { id: 'HEALTH', label: 'Health Declaration', description: 'Medical history and records', icon: Heart, required: false },
-    { id: 'TRAVEL', label: 'Travel History', description: 'Previous travel records', icon: Plane, required: false },
+    { id: 'PERSONAL', label: 'Personal / Tourism', description: 'Tourism, family visits, or personal reasons', icon: User, required: false },
+    { id: 'EDUCATION', label: 'Education / Student', description: 'University, language schools, or academic programs', icon: User, required: false }, // Use GraduationCap if available, else User
+    { id: 'BUSINESS', label: 'Business / Work', description: 'Corporate trips, meetings, or employment', icon: Briefcase, required: false },
+    { id: 'HEALTH', label: 'Health / Medical', description: 'Medical treatment or consultations', icon: Heart, required: false },
+    { id: 'TRAVEL', label: 'Travel / Group', description: 'Group travel or general trips', icon: Plane, required: false },
   ]
 
   useEffect(() => {
@@ -192,9 +194,12 @@ function NewApplicationContent() {
           profession: app.profession || '',
         })
 
-        // Restore modules if available (assuming API returns them)
-        if (app.modules) {
-          setSelectedModules(app.modules.map((m: any) => m.module))
+        // Restore modules (single module)
+        if ((app as any).module) {
+          setSelectedModule((app as any).module)
+        } else if (app.modules && app.modules.length > 0) {
+          // Fallback for legacy multi-module structure if any
+          setSelectedModule(app.modules[0].module)
         }
 
         // Find and set selected country (you may need to match by name)
@@ -230,14 +235,16 @@ function NewApplicationContent() {
             }
           } else if (app.country && app.processType && app.profession) {
             setStep('documents')
-          } else if (app.country && app.processType && app.modules?.length > 0) { // Check modules
+          } else if (app.country && app.processType && (app as any).module) {
             setStep('profession')
-          } else if (app.country && app.processType) {
-            setStep('modules') // Changed logic to show modules step
-          } else if (app.country) {
+          } else if (app.country && (app as any).module) {
             setStep('process')
-          } else {
+          } else if ((app as any).module) {
+            // Has module, needs destination
             setStep('destination')
+          } else {
+            // Has nothing, start at modules
+            setStep('modules')
           }
         } else if (app.status === 'UNDER_REVIEW' || app.status === 'DOCUMENT_UNDER_REVIEW' || app.status === 'DOCUMENT_UNDER_PROCESSING') {
           // For submitted applications, show Call Phase (read-only)
@@ -265,16 +272,16 @@ function NewApplicationContent() {
   }
 
   const handleNext = () => {
+    if (step === 'modules' && !selectedModule) {
+      setError('Please select an application type')
+      return
+    }
     if (step === 'destination' && !selectedCountry) {
       setError('Please select a destination country')
       return
     }
     if (step === 'process' && !formData.processType) {
       setError('Please select a process type')
-      return
-    }
-    if (step === 'modules' && selectedModules.length === 0) {
-      setError('Please select at least one module')
       return
     }
     if (step === 'profession' && !formData.profession) {
@@ -285,13 +292,13 @@ function NewApplicationContent() {
     setError('')
 
     switch (step) {
+      case 'modules':
+        setStep('destination')
+        break
       case 'destination':
         setStep('process')
         break
       case 'process':
-        setStep('modules')
-        break
-      case 'modules':
         setStep('profession')
         break
       case 'profession':
@@ -308,14 +315,14 @@ function NewApplicationContent() {
 
   const handleBack = () => {
     switch (step) {
+      case 'destination':
+        setStep('modules')
+        break
       case 'process':
         setStep('destination')
         break
-      case 'modules':
-        setStep('process')
-        break
       case 'profession':
-        setStep('modules')
+        setStep('process')
         break
       case 'review':
         setStep('profession')
@@ -337,7 +344,7 @@ function NewApplicationContent() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedCountry || !formData.processType || !formData.profession || selectedModules.length === 0) {
+    if (!selectedCountry || !formData.processType || !formData.profession || !selectedModule) {
       setError('Please complete all required fields')
       return
     }
@@ -364,7 +371,7 @@ function NewApplicationContent() {
             processType: formData.processType,
             profession: formData.profession,
             consultancyFee: getCurrentFee(),
-            modules: selectedModules
+            module: selectedModule // Singular
           }),
         })
 
@@ -413,15 +420,15 @@ function NewApplicationContent() {
       {/* Progress Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          {['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].map((stepName, index) => (
+          {['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].map((stepName, index) => (
             <div key={stepName} className="flex items-center">
               <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === stepName
                 ? 'border-blue-600 bg-blue-600 text-white'
-                : ['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].indexOf(step) > index
+                : ['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index
                   ? 'border-green-600 bg-green-600 text-white'
                   : 'border-gray-300 bg-white text-gray-500'
                 }`}>
-                {['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].indexOf(step) > index ? (
+                {['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (
                   <span className="text-sm font-medium">{index + 1}</span>
@@ -432,7 +439,7 @@ function NewApplicationContent() {
                 {stepName.charAt(0).toUpperCase() + stepName.slice(1)}
               </span>
               {index < 6 && (
-                <div className={`w-4 sm:w-16 h-0.5 mx-2 sm:mx-4 ${['destination', 'process', 'modules', 'profession', 'review'].indexOf(step) > index
+                <div className={`w-4 sm:w-16 h-0.5 mx-2 sm:mx-4 ${['modules', 'destination', 'process', 'profession', 'review'].indexOf(step) > index
                   ? 'bg-green-600'
                   : 'bg-gray-300'
                   }`} />
@@ -448,18 +455,18 @@ function NewApplicationContent() {
           <Card>
             <CardHeader>
               <CardTitle>
+                {step === 'modules' && 'Select Application Type'}
                 {step === 'destination' && 'Select Destination Country'}
                 {step === 'process' && 'Choose Process Type'}
-                {step === 'modules' && 'Select Application Modules'}
                 {step === 'profession' && 'Select Your Profession'}
                 {step === 'review' && 'Review Application'}
                 {step === 'documents' && 'Required Documents'}
                 {step === 'call' && 'Application Submitted'}
               </CardTitle>
               <CardDescription>
+                {step === 'modules' && 'Choose the category that best describes your purpose of travel'}
                 {step === 'destination' && 'Choose the country you want to visit'}
                 {step === 'process' && 'Select the purpose of your visit'}
-                {step === 'modules' && 'Choose the sections relevant to your application'}
                 {step === 'profession' && 'Tell us about your profession'}
                 {step === 'review' && 'Review your application details before submitting'}
                 {step === 'documents' && 'Prepare the required documents for your application'}
@@ -471,6 +478,41 @@ function NewApplicationContent() {
                 <Alert className="mb-4" variant="destructive">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
+              )}
+
+              {step === 'modules' && (
+                <div className="grid grid-cols-1 gap-4">
+                  {MODULES.map((module) => (
+                    <div
+                      key={module.id}
+                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${selectedModule === module.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      onClick={() => setSelectedModule(module.id)}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-full ${selectedModule === module.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                          <module.icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{module.label}</h3>
+                          </div>
+                          <p className="text-sm text-gray-500">{module.description}</p>
+                        </div>
+                        <div className="flex items-center justify-center">
+                          <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${selectedModule === module.id
+                            ? 'border-blue-600 bg-blue-600'
+                            : 'border-gray-300 bg-white'
+                            }`}>
+                            {selectedModule === module.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
 
               {step === 'destination' && (
@@ -537,52 +579,6 @@ function NewApplicationContent() {
                 </div>
               )}
 
-              {step === 'modules' && (
-                <div className="space-y-4">
-                  {MODULES.map((module) => (
-                    <div
-                      key={module.id}
-                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${selectedModules.includes(module.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      onClick={() => {
-                        if (module.required) return // Cannot toggle required
-                        if (selectedModules.includes(module.id)) {
-                          setSelectedModules(prev => prev.filter(m => m !== module.id))
-                        } else {
-                          setSelectedModules(prev => [...prev, module.id])
-                        }
-                      }}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${selectedModules.includes(module.id) ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                          <module.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{module.label}</h3>
-                            {module.required && <Badge variant="secondary" className="text-[10px]">Required</Badge>}
-                          </div>
-                          <p className="text-sm text-gray-500">{module.description}</p>
-                        </div>
-                        <div className="h-5 w-5 border rounded flex items-center justify-center bg-white border-gray-300">
-                          {(selectedModules.includes(module.id) || module.required) && (
-                            <div className="w-3 h-3 bg-blue-600 rounded-sm" />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {/* Pre-select required modules on mount */}
-                  {React.useEffect(() => {
-                    const required = MODULES.filter(m => m.required).map(m => m.id)
-                    setSelectedModules(prev => Array.from(new Set([...prev, ...required])))
-                  }, [])}
-                </div>
-              )}
-
               {step === 'profession' && (
                 <div className="space-y-4">
                   {isReadOnly && (
@@ -642,13 +638,10 @@ function NewApplicationContent() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900 mb-2">Selected Modules</h3>
-                      <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg min-h-[50px]">
-                        {selectedModules.map(m => (
-                          <Badge key={m} variant="outline" className="bg-white">
-                            {MODULES.find(mod => mod.id === m)?.label}
-                          </Badge>
-                        ))}
+                      <h3 className="font-medium text-gray-900 mb-2">Application Type</h3>
+                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                        <Briefcase className="h-5 w-5 text-blue-600 mr-2" />
+                        <span>{MODULES.find(m => m.id === selectedModule)?.label}</span>
                       </div>
                     </div>
                     <div className="col-span-1 md:col-span-2">
@@ -760,7 +753,7 @@ function NewApplicationContent() {
                   <Button
                     variant="outline"
                     onClick={handleBack}
-                    disabled={step === 'destination'}
+                    disabled={step === 'modules'}
                   >
                     Back
                   </Button>

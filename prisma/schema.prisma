@@ -207,6 +207,9 @@ model Application {
   rejectionRequests   RejectionRequest[]
   
   // Module Relations
+  module              ModuleType?       // Nullable for legacy apps
+  moduleSelectedAt    DateTime?         @map("module_selected_at")
+  
   modules             ApplicationModule[]
   answers             ApplicationAnswer[]
   uploadSessions      UploadSession[]
@@ -322,7 +325,7 @@ model DocumentRequirement {
   isRequired  Boolean @default(true) @map("is_required")
   description String?
   
-  module      ModuleType? // Nullable for global requirement
+  module      ModuleType? // Nullable for global requirement (if null, applies to all)
   
   createdAt   DateTime @default(now()) @map("created_at")
   

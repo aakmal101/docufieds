@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { country, processType, profession, consultancyFee, memberId, modules } = await request.json()
+    const { country, processType, profession, consultancyFee, memberId, module } = await request.json()
 
     // Validate required fields
     if (!country || !processType || !consultancyFee) {
@@ -139,12 +139,16 @@ export async function POST(request: NextRequest) {
           consultancyFee: parseFloat(consultancyFee),
           memberId: memberId || null,
           status: 'DRAFT',
-          modules: {
-            create: modules?.map((m: any) => ({
-              module: m,
+          module: module || null, // Save singular module
+          moduleSelectedAt: module ? new Date() : null,
+          // Maintain legacy modules relation for backward compatibility if needed, 
+          // or just rely on singular module.
+          modules: module ? {
+            create: [{
+              module: module,
               status: 'NOT_STARTED'
-            })) || []
-          }
+            }]
+          } : undefined
         } as any, // Cast to any to allow modules create input
       })
 
