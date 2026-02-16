@@ -135,6 +135,7 @@ function NewApplicationContent() {
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
   const [applicationId, setApplicationId] = useState<string | null>(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
+  const [supportFee, setSupportFee] = useState<number | null>(null)
 
   // Module definitions (Exact Match to User Request)
   const MODULES = [
@@ -194,6 +195,11 @@ function NewApplicationContent() {
           profession: app.profession || '',
         })
 
+        // Set support fee if available
+        if (app.supportFeeAmount !== undefined && app.supportFeeAmount !== null) {
+          setSupportFee(app.supportFeeAmount)
+        }
+
         // Restore modules (single module)
         if ((app as any).module) {
           setSelectedModule((app as any).module)
@@ -226,19 +232,41 @@ function NewApplicationContent() {
               (p: any) => p.status === 'PAID' || p.status === 'PARTIAL'
             ) || []
             const totalPaid = validPayments.reduce((sum: number, p: any) => sum + p.amount, 0)
-            const paymentComplete = app.consultancyFee === 0 || totalPaid >= app.consultancyFee
+            const feeToPay = app.supportFeeAmount ?? app.consultancyFee
+            const paymentComplete = feeToPay === 0 || totalPaid >= feeToPay
 
-            if (paymentComplete) {
+            if (paymentComplete && feeToPay > 0) {
               setStep('call')
+            } else if (feeToPay === 0 && app.supportFeeAssignedAt) {
+              // Fee is 0 but assigned (meaning free?), proceed. 
+              // If not assigned, wait? No, allow docs.
+              setStep('call') // Or documents?
+              // Actually, if docs are uploaded, we stay at docs until user clicks continue?
+              // The original logic checked payment complete.
+              // Let's stick to original flow: Documents -> Call (Payment is parallel/later?)
+              // Wait, original logic:
+              // if (paymentComplete) setStep('call') else setStep('documents')
+              // This implies Payment is BEFORE Call but AFTER Documents?
+              // Current UI: Documents Step -> "Continue" -> Checks Payment -> Call Step.
+              // So if we are loading DRAFT, and docs exist, we might be at Documents.
+              setStep('documents')
             } else {
               setStep('documents')
             }
-          } else if (app.country && app.processType && app.profession) {
+          } else if (app.country && (app.processType || (app as any).module) && app.profession) {
             setStep('documents')
-          } else if (app.country && app.processType && (app as any).module) {
-            setStep('profession')
           } else if (app.country && (app as any).module) {
-            setStep('process')
+            // Skip process, go to profession
+            setStep('profession')
+          } else if (app.country && app.processType) {
+            setStep('profession')
+          } else if (app.country) {
+            // If module selected, next is profession (skip process)
+            if ((app as any).module) {
+              setStep('profession')
+            } else {
+              setStep('process')
+            }
           } else if ((app as any).module) {
             // Has module, needs destination
             setStep('destination')
@@ -283,6 +311,11 @@ function NewApplicationContent() {
     setFormData(prev => ({ ...prev, country: country.name }))
   }
 
+  // Determine available steps based on context
+  const steps = selectedModule
+    ? ['modules', 'destination', 'profession', 'review', 'documents', 'call']
+    : ['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call']
+
   const handleNext = () => {
     if (step === 'modules' && !selectedModule) {
       setError('Please select an application type')
@@ -292,6 +325,7 @@ function NewApplicationContent() {
       setError('Please select a destination country')
       return
     }
+    // Only check processType if we are on the process step
     if (step === 'process' && !formData.processType) {
       setError('Please select a process type')
       return
@@ -308,7 +342,8 @@ function NewApplicationContent() {
         setStep('destination')
         break
       case 'destination':
-        setStep('process')
+        // Skip process step if module selected
+        setStep(selectedModule ? 'profession' : 'process')
         break
       case 'process':
         setStep('profession')
@@ -334,7 +369,8 @@ function NewApplicationContent() {
         setStep('destination')
         break
       case 'profession':
-        setStep('process')
+        // Skip process step if module selected
+        setStep(selectedModule ? 'destination' : 'process')
         break
       case 'review':
         setStep('profession')
@@ -351,14 +387,26 @@ function NewApplicationContent() {
 
 
   const getCurrentFee = () => {
+    // If application has a set fee (from support or calculation), usage it
+    // For new edits, we might not have app loaded yet.
+    // If module based, fee is 0 (assigned by support)
+    if (selectedModule) return 0
     if (!formData.processType) return 0
     return consultancyFees[formData.processType as ProcessType]
   }
 
   const handleSubmit = async () => {
-    if (!selectedCountry || !formData.processType || !formData.profession || !selectedModule) {
-      setError('Please complete all required fields')
-      return
+    // Validate required fields (skip processType choice if module selected)
+    if (!selectedCountry || !formData.profession || !selectedModule) {
+      // If NOT module based, processType is required
+      if (!selectedModule && !formData.processType) {
+        setError('Please complete all required fields')
+        return
+      }
+      if (selectedModule && !formData.profession) {
+        setError('Please complete all required fields')
+        return
+      }
     }
 
     setLoading(true)
@@ -379,10 +427,11 @@ function NewApplicationContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            country: selectedCountry.name,
-            processType: formData.processType,
+            country: selectedCountry?.name,
+            // Use 'standard' or similar default for module-based apps if processType is skipped
+            processType: selectedModule ? 'standard' : formData.processType,
             profession: formData.profession,
-            consultancyFee: getCurrentFee(),
+            consultancyFee: 0, // Fees are now assigned by support for module apps
             module: selectedModule // Singular
           }),
         })
@@ -432,15 +481,15 @@ function NewApplicationContent() {
       {/* Progress Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          {['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].map((stepName, index) => (
+          {steps.map((stepName, index) => (
             <div key={stepName} className="flex items-center">
               <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === stepName
                 ? 'border-blue-600 bg-blue-600 text-white'
-                : ['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index
+                : steps.indexOf(step as any) > index
                   ? 'border-green-600 bg-green-600 text-white'
                   : 'border-gray-300 bg-white text-gray-500'
                 }`}>
-                {['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index ? (
+                {steps.indexOf(step as any) > index ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (
                   <span className="text-sm font-medium">{index + 1}</span>
@@ -823,7 +872,12 @@ function NewApplicationContent() {
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-gray-900">Consultancy Fee</span>
-                  <span className="font-bold text-lg text-blue-600">{getCurrentFee()} BDT</span>
+                  <span className="font-bold text-lg text-blue-600">
+                    {supportFee !== null
+                      ? `${supportFee.toLocaleString()} BDT`
+                      : (selectedModule ? 'To be assigned' : `${getCurrentFee()} BDT`)
+                    }
+                  </span>
                 </div>
               </div>
             </CardContent>

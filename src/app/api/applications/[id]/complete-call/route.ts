@@ -113,38 +113,50 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Get active module types
-    const activeModules = (application as any).modules?.map((m: any) => m.module) || []
+    // Use singular module field
+    const appModule = (application as any).module;
 
     // Step 1: Verify all required documents are uploaded (including module-specific ones)
+    // Use permissive matching logic identical to GET /requirements endpoint
     const documentRequirements = await prisma.documentRequirement.findMany({
       where: {
-        country: application.country,
-        processType: application.processType,
+        country: { in: [application.country, 'default', 'ALL'] },
+        processType: { in: [application.processType, 'standard', 'ALL'] } as any,
         OR: [
           { profession: null },
           { profession: application.profession || null },
         ],
         isRequired: true,
-        // Filter by active modules or global requirements
+        // Filter by module: Either global (null) OR matches application.module
         AND: [
           {
             OR: [
               { module: null },
-              { module: { in: activeModules } }
+              { module: appModule || undefined }
             ]
           }
         ]
       } as any,
     })
 
-    // Get uploaded document types
-    const uploadedDocumentTypes = (application as any).documents.map((doc: any) => doc.documentType)
+    // Canonical documentType normalization function
+    const normalizeDocType = (value: string): string => {
+      return value.trim().toLowerCase().replace(/\s+/g, ' ')
+    }
+
+    // Get uploaded document types from DB (Source of Truth)
+    // Only count documents with valid file URLs
+    const uploadedDocumentTypes = new Set(
+      (application as any).documents
+        .filter((doc: any) => doc.fileUrl && doc.fileUrl.trim().length > 0)
+        .map((doc: any) => normalizeDocType(doc.documentType))
+    )
 
     // Check if all required documents are uploaded
-    const missingDocuments = documentRequirements.filter(
-      req => !uploadedDocumentTypes.includes(req.documentType)
-    )
+    const missingDocuments = documentRequirements.filter(req => {
+      const normalizedReqType = normalizeDocType(req.documentType)
+      return !uploadedDocumentTypes.has(normalizedReqType)
+    })
 
     if (missingDocuments.length > 0) {
       return NextResponse.json({

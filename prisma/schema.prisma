@@ -210,6 +210,12 @@ model Application {
   module              ModuleType?       // Nullable for legacy apps
   moduleSelectedAt    DateTime?         @map("module_selected_at")
   
+  // Support Fee
+  supportFeeAmount    Float?            @map("support_fee_amount")
+  supportFeeCurrency  String?           @default("BDT") @map("support_fee_currency")
+  supportFeeAssignedById String?        @map("support_fee_assigned_by_id")
+  supportFeeAssignedAt DateTime?        @map("support_fee_assigned_at")
+  
   modules             ApplicationModule[]
   answers             ApplicationAnswer[]
   uploadSessions      UploadSession[]

@@ -370,6 +370,61 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                     </DialogContent>
                 </Dialog>
 
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" className="ml-2">
+                            <DollarSign className="mr-2 h-4 w-4" /> Assign Fee
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader><DialogTitle>Assign Consultancy Fee</DialogTitle></DialogHeader>
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Fee Amount (BDT)</label>
+                                <input
+                                    type="number"
+                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                    placeholder="e.g. 5000"
+                                    id="fee-amount-input"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Notes (Optional)</label>
+                                <Textarea id="fee-notes-input" placeholder="Reason for fee assignment..." />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button onClick={async () => {
+                                const amount = parseFloat((document.getElementById('fee-amount-input') as HTMLInputElement).value)
+                                const notes = (document.getElementById('fee-notes-input') as HTMLTextAreaElement).value
+
+                                if (!amount || amount <= 0) {
+                                    toast.error("Please enter a valid amount")
+                                    return
+                                }
+
+                                try {
+                                    const res = await fetch(`/api/admin/support-member/applications/${params.id}/fee`, {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ amount, notes })
+                                    })
+                                    if (res.ok) {
+                                        toast.success("Fee assigned successfully")
+                                        fetchApp()
+                                        // Close dialog - utilizing a ref would be better but simple reload works
+                                        window.location.reload()
+                                    } else {
+                                        toast.error("Failed to assign fee")
+                                    }
+                                } catch {
+                                    toast.error("Error assigning fee")
+                                }
+                            }}>Save Fee</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
                 <Button
                     className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-transform"
                     onClick={() => setLegalConfirmOpen(true)}
