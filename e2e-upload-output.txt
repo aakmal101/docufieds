@@ -1,0 +1,62 @@
+﻿=== Public Upload E2E Test ===
+
+--- Step 1: Create Upload Session ---
+  Status: 200
+  Ô£à Session created ÔÇö ID: cmlpld88v0002klprz26f4asx
+
+--- Step 2: Load Public Upload Page ---
+  Ô£à Public session loaded ÔÇö slotCount: 2, requester: System Administrator
+  Ô£à Target user shown ÔÇö Demo Individual
+  Ô£à Slots returned ÔÇö 2 slots
+  Ô£à   Slot 0 ÔÇö "Passport Copy" ÔÇö EMPTY
+  Ô£à   Slot 1 ÔÇö "NID Copy" ÔÇö EMPTY
+
+--- Step 3: Upload File to Slot 0 ---
+  Status: 200
+  Response: {
+    "success": true,
+    "data": {
+      "document": {
+        "id": "cmlpldag2000bklprozo77s6o",
+        "fileName": "test_passport.pdf",
+        "fileSize": 43,
+        "fileType": "application/pdf",
+        "uploadedAt": "2026-02-16T19:53:05.569Z"
+      },
+      "slot": {
+        "id": "cmlpld8c30004klprrgkhfo1f",
+        "slotIndex": 0,
+        "status": "UPLOADED"
+      },
+      "sessionCompleted": false
+    }
+  }
+  Ô£à Slot 0 upload succeeded
+  Ô£à Document created ÔÇö ID: cmlpldag2000bklprozo77s6o
+  Ô£à Slot status ÔÇö UPLOADED
+  Ô£à Session completed? ÔÇö Not yet (1/2)
+
+--- Step 4: Upload File to Slot 1 ---
+  Status: 200
+  Ô£à Slot 1 upload succeeded
+  Ô£à Session completed? ÔÇö YES ÔÇö all slots filled
+
+--- Step 5: DB Verification ---
+  Ô£à Session exists in DB
+  Ô£à Session status ÔÇö COMPLETED
+  Ô£à Slot 0 UPLOADED
+  Ô£à   Document linked ÔÇö test_passport.pdf (43 bytes)
+  Ô£à Slot 1 UPLOADED
+  Ô£à   Document linked ÔÇö test_nid.jpg (19 bytes)
+
+--- Step 6: Negative Tests ---
+  Ô£à Invalid token ÔåÆ 404
+  Ô£à Duplicate slot upload ÔåÆ 409 ÔÇö Upload session is completed
+
+--- Cleanup ---
+  Ô£à Test data cleaned up
+
+=======================================================
+RESULTS: 21 passed, 0 failed, 21 total
+STATUS: Ô£à ALL PASSED
+=======================================================

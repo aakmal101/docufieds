@@ -1,6 +1,11 @@
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { assertAgentAccess } from '@/lib/require-agent-access'
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(
     req: NextRequest,
@@ -9,73 +14,88 @@ export async function GET(
     try {
         const resolvedParams = params instanceof Promise ? await params : params
         const applicationId = resolvedParams.id
-        const userId = req.headers.get('x-user-id') // Test header or Session ID
 
-        if (!userId) {
+        // 1. Auth — use NextAuth session
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        // 1. Verify Assignment
-        const assignment = await prisma.agentAssignment.findFirst({
-            where: {
-                agentUserId: userId,
-                // Match either direct application assignment OR user assignment
-                OR: [
-                    { applicationId: applicationId },
-                    {
-                        targetUser: {
-                            applications: {
-                                some: { id: applicationId }
-                            }
-                        }
-                    }
-                ],
-                status: 'ACTIVE'
-            }
-        })
-
-        if (!assignment) {
-            return NextResponse.json({ success: false, message: 'Forbidden: Application not assigned' }, { status: 403 })
+        if (session.user.role !== 'AGENT') {
+            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
-        // 2. Fetch Application with details
+        // 2. Verify assignment using shared helper
+        await assertAgentAccess(applicationId, session.user.id)
+
+        // 3. Fetch application with full details
         const application = await prisma.application.findUnique({
             where: { id: applicationId },
             include: {
                 user: {
-                    select: { id: true, fullName: true, email: true }
+                    select: { id: true, fullName: true, email: true, phone: true }
                 },
-                documents: true,
-                modules: true,
-                messageThreads: { // Assuming generic messages or support messages relation
-                    // check schema for correct relation name, likely 'supportMessages' or 'messages'
-                    // referencing `src/app/api` usage might clarify
-                    take: 5,
-                    orderBy: { createdAt: 'desc' }
-                }
-            } as any // cast if messageThreads relation name uncertain
-        })
-
-        // Re-fetch with correct relation if needed, checking schema:
-        // Application has `supportMessages` and `messages`. 
-        // We'll fetch `supportMessages` as that's likely the chat context.
-
-        const appWithMessages = await prisma.application.findUnique({
-            where: { id: applicationId },
-            include: {
-                user: { select: { id: true, fullName: true } },
-                documents: true,
-                modules: true,
+                documents: {
+                    select: {
+                        id: true,
+                        fileName: true,
+                        fileUrl: true,
+                        fileType: true,
+                        fileSize: true,
+                        documentType: true,
+                        status: true,
+                        isRequired: true,
+                        uploadedAt: true
+                    }
+                },
+                modules: {
+                    select: { module: true, status: true }
+                },
                 supportMessages: {
                     orderBy: { createdAt: 'desc' },
                     take: 50
+                },
+                uploadSessions: {
+                    include: {
+                        slots: {
+                            orderBy: { slotIndex: 'asc' },
+                            include: {
+                                uploadedDocument: {
+                                    select: {
+                                        id: true,
+                                        fileName: true,
+                                        fileSize: true,
+                                        uploadedAt: true
+                                    }
+                                }
+                            }
+                        },
+                        createdByUser: {
+                            select: { fullName: true }
+                        }
+                    }
                 }
-            }
+            } as any
         })
 
-        return NextResponse.json({ success: true, data: appWithMessages })
+        if (!application) {
+            return NextResponse.json({ success: false, message: 'Application not found' }, { status: 404 })
+        }
+
+        // 4. Add support fee info (read-only) 
+        const appData = {
+            ...application,
+            supportFeeAmount: (application as any).supportFeeAmount || null,
+            supportFeeCurrency: (application as any).supportFeeCurrency || 'BDT',
+        }
+
+        return NextResponse.json({ success: true, data: appData })
 
     } catch (error: any) {
+        if (error.status === 403) {
+            return NextResponse.json({ success: false, message: error.message }, { status: 403 })
+        }
+        console.error('Agent application detail error:', error)
         return NextResponse.json({ success: false, message: error.message }, { status: 500 })
     }
 }

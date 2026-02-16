@@ -139,18 +139,34 @@ export async function POST(request: NextRequest) {
           consultancyFee: parseFloat(consultancyFee),
           memberId: memberId || null,
           status: 'DRAFT',
-          module: module || null, // Save singular module
+          module: module || null,
           moduleSelectedAt: module ? new Date() : null,
-          // Maintain legacy modules relation for backward compatibility if needed, 
-          // or just rely on singular module.
           modules: module ? {
             create: [{
               module: module,
               status: 'NOT_STARTED'
             }]
           } : undefined
-        } as any, // Cast to any to allow modules create input
+        } as any,
       })
+
+      // Auto-assign to agent if creator is an AGENT
+      if (session.user.role === 'AGENT') {
+        try {
+          await (prisma as any).agentAssignment.create({
+            data: {
+              agentUserId: session.user.id,
+              targetUserId: session.user.id,
+              applicationId: application.id,
+              assignedByUserId: session.user.id,
+              status: 'ACTIVE'
+            }
+          })
+        } catch (assignError: any) {
+          // Don't fail the whole request if assignment fails (e.g. unique constraint)
+          console.warn('Auto-assignment warning:', assignError.message)
+        }
+      }
 
       return NextResponse.json({
         success: true,

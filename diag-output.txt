@@ -1,0 +1,25 @@
+﻿=== Upload Session Diagnostic ===
+
+Ô£à upload_sessions table exists, rows: 0
+Ô£à upload_slots table exists, rows: 0
+Ô£à audit_logs table exists, rows: 0
+
+Ô£à Support team members: 1
+   - fardin (fardin@gmail.com) | id: cmlp0l08u0003j2l1d09r90od | leadId: cmlp0j7x80001j2l1hyyl6r41
+   Ô£à Lead user for fardin@gmail.com: System Administrator (cmlp0j7x80001j2l1hyyl6r41)
+
+=== Test Insert (will rollback) ===
+Using test user: support+uploadtest@example.com (cmlokhtgi0000tvaga54w3pr2)
+Ô£à UploadSession created: cmlpkl8xj0002smu5pij40mag
+Ô£à UploadSlot created: cmlpkl9140004smu5043vyg3r
+Ô£à AuditLog created: cmlpkl94c0006smu5gn21bqd3
+Ô£à Test data cleaned up
+
+Ô£àÔ£àÔ£à Full transaction SUCCEEDED - tables and FK constraints are valid
+
+=== FK Compatibility Check ===
+SupportTeamMember.id: cmlp0l08u0003j2l1d09r90od
+Is this also a valid User.id? ÔØî NO - THIS IS THE BUG
+   ÔÜá´©Å  When support member auth is used, actorUserId = member.id = "cmlp0l08u0003j2l1d09r90od"
+   ÔÜá´©Å  But createdByUserId FK requires a valid users.id
+   ÔÜá´©Å  This causes: Foreign key constraint violation

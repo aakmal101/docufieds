@@ -1,0 +1,231 @@
+﻿   Ôû▓ Next.js 14.0.4
+   - Environments: .env
+
+   Creating an optimized production build ...
+node.exe : [baseline-browser-mapping] The data in this module is over two 
+months old.  To ensure accurate Baseline data, please update: `npm i 
+baseline-browser-mapping@latest -D`
+At line:1 char:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([baseline-brows...ping@latest -D` 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ Ô£ô Compiled successfully
+   Skipping validation of types
+   Linting ...
+   Collecting page data ...
+   Generating static pages (0/75) ...
+[API] Support Lead All Applications - Request Received
+[API] Auth Check Failed Exception: n [Error]: Dynamic server usage: Page 
+couldn't be rendered statically because it used `headers`. See more info here: 
+https://nextjs.org/docs/messages/dynamic-server-error
+    at a (C:\Docufieds\docufieds\.next\server\app\_not-found.js:1:3939)
+    at d (C:\Docufieds\docufieds\.next\server\chunks\2455.js:1:1107)
+    at s (C:\Docufieds\docufieds\.next\server\chunks\6255.js:30:19240)
+    at o (C:\Docufieds\docufieds\.next\server\app\api\admin\support-lead\reject
+ions\[id]\approve\route.js:1:4005)
+    at p (C:\Docufieds\docufieds\.next\server\app\api\admin\support-lead\applic
+ations\route.js:1:1365)
+    at C:\Docufieds\docufieds\node_modules\next\dist\compiled\next-server\app-r
+oute.runtime.prod.js:6:41966
+    at 
+C:\Docufieds\docufieds\node_modules\next\dist\server\lib\trace\tracer.js:133:36
+    at NoopContextManager.with (C:\Docufieds\docufieds\node_modules\next\dist\c
+ompiled\@opentelemetry\api\index.js:1:7062)
+    at ContextAPI.with (C:\Docufieds\docufieds\node_modules\next\dist\compiled\
+@opentelemetry\api\index.js:1:518)
+    at NoopTracer.startActiveSpan (C:\Docufieds\docufieds\node_modules\next\dis
+t\compiled\@opentelemetry\api\index.js:1:18093) {
+  digest: 'DYNAMIC_SERVER_USAGE'
+}
+
+   Generating static pages (18/75) 
+ ÔÜá Entire page /admin/support-lead/applications deopted into client-side 
+rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering 
+/admin/support-lead/applications
+
+   Generating static pages (37/75) 
+
+   Generating static pages (56/75) 
+
+ Ô£ô Generating static pages (75/75) 
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                                            Size     First Load JS
+Ôöî ╬╗ /                                                                  12.7 kB         148 kB
+Ôö£ Ôùï /_not-found                                                        875 B            83 kB
+Ôö£ Ôùï /admin                                                             5.27 kB         104 kB
+Ôö£ Ôùï /admin/accounts                                                    5.22 kB         104 kB
+Ôö£ Ôùï /admin/legal                                                       7.09 kB        96.3 kB
+Ôö£ Ôùï /admin/legal/applications                                          8.2 kB          122 kB
+Ôö£ ╬╗ /admin/legal/applications/[id]                                     5.86 kB         156 kB
+Ôö£ Ôùï /admin/settings                                                    836 B            90 kB
+Ôö£ Ôùï /admin/settings/requirements                                       9.59 kB         126 kB
+Ôö£ Ôùï /admin/support                                                     6.63 kB         207 kB
+Ôö£ Ôùï /admin/support-lead                                                8.85 kB         199 kB
+Ôö£ Ôùï /admin/support-lead/applications                                   2.52 kB         151 kB
+Ôö£ Ôùï /admin/support-lead/escalations                                    5.11 kB         116 kB
+Ôö£ Ôùï /admin/support-lead/incoming                                       2.9 kB          159 kB
+Ôö£ Ôùï /admin/support-lead/onboard                                        13.4 kB         136 kB
+Ôö£ Ôùï /admin/support-lead/rejections                                     15.6 kB         111 kB
+Ôö£ Ôùï /admin/support-lead/reports                                        9.46 kB         126 kB
+Ôö£ Ôùï /admin/support-lead/team                                           10.8 kB         107 kB
+Ôö£ Ôùï /admin/support-member                                              6.04 kB         215 kB
+Ôö£ ╬╗ /admin/support-member/applications/[id]                            12.9 kB         192 kB
+Ôö£ Ôùï /admin/support-member/performance                                  7.28 kB         211 kB
+Ôö£ Ôùï /admin/support-member/profile                                      11.6 kB         101 kB
+Ôö£ Ôùï /admin/templates                                                   10.1 kB         137 kB
+Ôö£ Ôùï /admin/users/reviews                                               3.88 kB         126 kB
+Ôö£ ╬╗ /admin/users/reviews/[id]                                          12.5 kB         123 kB
+Ôö£ ╬╗ /api/admin/agent-assignments                                       0 B                0 B
+Ôö£ ╬╗ /api/admin/agents                                                  0 B                0 B
+Ôö£ ╬╗ /api/admin/applications                                            0 B                0 B
+Ôö£ ╬╗ /api/admin/applications/[id]/callback-complete                     0 B                0 B
+Ôö£ ╬╗ /api/admin/applications/[id]/configure-documents                   0 B                0 B
+Ôö£ ╬╗ /api/admin/applications/[id]/payment/create                        0 B                0 B
+Ôö£ ╬╗ /api/admin/applications/[id]/payment/verify                        0 B                0 B
+Ôö£ ╬╗ /api/admin/legal/applications                                      0 B                0 B
+Ôö£ ╬╗ /api/admin/legal/applications/[id]                                 0 B                0 B
+Ôö£ ╬╗ /api/admin/legal/applications/[id]/decision                        0 B                0 B
+Ôö£ ╬╗ /api/admin/legal/applications/[id]/documents                       0 B                0 B
+Ôö£ ╬╗ /api/admin/legal/dashboard                                         0 B                0 B
+Ôö£ ╬╗ /api/admin/messages                                                0 B                0 B
+Ôö£ ╬╗ /api/admin/requirements                                            0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications                               0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/[id]                          0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/[id]/forward                  0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/[id]/messages                 0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/[id]/reject                   0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/assign                        0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/bulk-assign                   0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/incoming                      0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/applications/reassign                      0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/config/auto-assign                         0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/dashboard                                  0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/escalations                                0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/escalations/[id]/resolve                   0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/rejections                                 0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/rejections/[id]/approve                    0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/rejections/[id]/deny                       0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/reports                                    0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/team                                       0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/team/[id]                                  0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/team/onboard                               0 B                0 B
+Ôö£ ╬╗ /api/admin/support-lead/team/workload                              0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications                             0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]                        0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/escalate               0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/fee                    0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/forward                0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/messages               0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/request-document       0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/request-rejection      0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/applications/[id]/status                 0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/documents/review                         0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/notifications                            0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/performance                              0 B                0 B
+Ôö£ ╬╗ /api/admin/support-member/stats                                    0 B                0 B
+Ôö£ ╬╗ /api/admin/users/[id]/approve                                      0 B                0 B
+Ôö£ ╬╗ /api/admin/users/[id]/decline                                      0 B                0 B
+Ôö£ ╬╗ /api/admin/users/[id]/reset-to-pending                             0 B                0 B
+Ôö£ ╬╗ /api/admin/users/[id]/review                                       0 B                0 B
+Ôö£ ╬╗ /api/admin/users/review-queue                                      0 B                0 B
+Ôö£ ╬╗ /api/agency/analytics/applications-by-country                      0 B                0 B
+Ôö£ ╬╗ /api/agency/analytics/monthly-trend                                0 B                0 B
+Ôö£ ╬╗ /api/agency/analytics/overview                                     0 B                0 B
+Ôö£ ╬╗ /api/agency/analytics/status-distribution                          0 B                0 B
+Ôö£ ╬╗ /api/agency/applications                                           0 B                0 B
+Ôö£ ╬╗ /api/agency/applications/stats                                     0 B                0 B
+Ôö£ ╬╗ /api/agency/billing                                                0 B                0 B
+Ôö£ ╬╗ /api/agency/billing/[id]/download                                  0 B                0 B
+Ôö£ ╬╗ /api/agency/billing/summary                                        0 B                0 B
+Ôö£ ╬╗ /api/agency/credit/status                                          0 B                0 B
+Ôö£ ╬╗ /api/agency/notifications                                          0 B                0 B
+Ôö£ ╬╗ /api/agency/notifications/[id]/read                                0 B                0 B
+Ôö£ ╬╗ /api/agency/notifications/mark-all-read                            0 B                0 B
+Ôö£ ╬╗ /api/agency/notifications/unread-count                             0 B                0 B
+Ôö£ ╬╗ /api/agent/applications/[id]                                       0 B                0 B
+Ôö£ ╬╗ /api/agent/assignments                                             0 B                0 B
+Ôö£ ╬╗ /api/agent/messages                                                0 B                0 B
+Ôö£ ╬╗ /api/applications                                                  0 B                0 B
+Ôö£ ╬╗ /api/applications/[id]                                             0 B                0 B
+Ôö£ ╬╗ /api/applications/[id]/complete-call                               0 B                0 B
+Ôö£ ╬╗ /api/applications/[id]/requirements                                0 B                0 B
+Ôö£ ╬╗ /api/auth/[...nextauth]                                            0 B                0 B
+Ôö£ ╬╗ /api/auth/register                                                 0 B                0 B
+Ôö£ ╬╗ /api/auth/send-otp                                                 0 B                0 B
+Ôö£ ╬╗ /api/auth/support-member/login                                     0 B                0 B
+Ôö£ ╬╗ /api/auth/support-member/logout                                    0 B                0 B
+Ôö£ ╬╗ /api/auth/support-member/me                                        0 B                0 B
+Ôö£ ╬╗ /api/auth/verify-registration                                      0 B                0 B
+Ôö£ ╬╗ /api/bulk-upload/history                                           0 B                0 B
+Ôö£ ╬╗ /api/bulk-upload/process                                           0 B                0 B
+Ôö£ ╬╗ /api/bulk-upload/progress/[id]                                     0 B                0 B
+Ôö£ ╬╗ /api/bulk-upload/template                                          0 B                0 B
+Ôö£ ╬╗ /api/bulk-upload/upload-zip                                        0 B                0 B
+Ôö£ ╬╗ /api/chat/upload                                                   0 B                0 B
+Ôö£ ╬╗ /api/documents                                                     0 B                0 B
+Ôö£ ╬╗ /api/documents/[id]                                                0 B                0 B
+Ôö£ ╬╗ /api/documents/upload                                              0 B                0 B
+Ôö£ ╬╗ /api/messages                                                      0 B                0 B
+Ôö£ ╬╗ /api/notifications                                                 0 B                0 B
+Ôö£ ╬╗ /api/notifications/[id]                                            0 B                0 B
+Ôö£ ╬╗ /api/notifications/[id]/read                                       0 B                0 B
+Ôö£ ╬╗ /api/notifications/mark-all-read                                   0 B                0 B
+Ôö£ ╬╗ /api/payments/create                                               0 B                0 B
+Ôö£ ╬╗ /api/public/upload-sessions/[token]                                0 B                0 B
+Ôö£ ╬╗ /api/public/upload-sessions/[token]/slots/[slotIndex]/upload       0 B                0 B
+Ôö£ ╬╗ /api/support/document-requests                                     0 B                0 B
+Ôö£ ╬╗ /api/support/messages                                              0 B                0 B
+Ôö£ ╬╗ /api/support/upload-sessions                                       0 B                0 B
+Ôö£ ╬╗ /api/support/upload-sessions/[id]                                  0 B                0 B
+Ôö£ ╬╗ /api/support/upload-sessions/[id]/cancel                           0 B                0 B
+Ôö£ ╬╗ /api/templates                                                     0 B                0 B
+Ôö£ ╬╗ /api/templates/[id]                                                0 B                0 B
+Ôö£ ╬╗ /api/templates/[id]/download                                       0 B                0 B
+Ôö£ ╬╗ /api/user/applications/[id]/document-requests                      0 B                0 B
+Ôö£ ╬╗ /api/user/applications/[id]/document-requests/[requestId]/respond  0 B                0 B
+Ôö£ ╬╗ /api/user/applications/[id]/messages                               0 B                0 B
+Ôö£ ╬╗ /api/user/password                                                 0 B                0 B
+Ôö£ ╬╗ /api/user/profile                                                  0 B                0 B
+Ôö£ ╬╗ /api/user/profile/photo                                            0 B                0 B
+Ôö£ Ôùï /apply                                                             143 B          82.2 kB
+Ôö£ Ôùï /apply/module                                                      4.15 kB         126 kB
+Ôö£ Ôùï /auth/signin                                                       10.6 kB         117 kB
+Ôö£ Ôùï /auth/signup                                                       8.7 kB          133 kB
+Ôö£ Ôùï /auth/support-lead/login                                           8.85 kB         115 kB
+Ôö£ Ôùï /auth/support-login                                                3.92 kB         121 kB
+Ôö£ Ôùï /auth/support-member/login                                         8.92 kB         105 kB
+Ôö£ Ôùï /dashboard                                                         1.61 kB        93.5 kB
+Ôö£ Ôùï /dashboard/agency                                                  7.79 kB         107 kB
+Ôö£ Ôùï /dashboard/agency/analytics                                        11.8 kB         251 kB
+Ôö£ Ôùï /dashboard/agency/applications                                     4.17 kB         142 kB
+Ôö£ Ôùï /dashboard/agency/billing                                          5.02 kB         108 kB
+Ôö£ Ôùï /dashboard/agency/bulk-upload                                      28.5 kB         118 kB
+Ôö£ ╬╗ /dashboard/agency/new-application                                  4.55 kB         147 kB
+Ôö£ Ôùï /dashboard/agency/notifications                                    5.38 kB         167 kB
+Ôö£ Ôùï /dashboard/agent                                                   4.61 kB         104 kB
+Ôö£ ╬╗ /dashboard/agent/applications/[id]                                 3.35 kB         129 kB
+Ôö£ Ôùï /dashboard/individual                                              7.33 kB         106 kB
+Ôö£ Ôùï /dashboard/individual/applications                                 4.08 kB         100 kB
+Ôö£ ╬╗ /dashboard/individual/applications/[id]                            8.25 kB         178 kB
+Ôö£ ╬╗ /dashboard/individual/applications/[id]/chat                       11.4 kB         169 kB
+Ôö£ ╬╗ /dashboard/individual/messaging                                    9.23 kB         108 kB
+Ôö£ ╬╗ /dashboard/individual/new-application                              6.31 kB         149 kB
+Ôö£ Ôùï /dashboard/individual/profile                                      10.6 kB         137 kB
+Ôö£ Ôùï /dashboard/individual/settings                                     11.2 kB         110 kB
+Ôö£ Ôùï /dashboard/support                                                 3.78 kB         133 kB
+Ôöö ╬╗ /upload/[token]                                                    9.71 kB        98.9 kB
++ First Load JS shared by all                                          82.1 kB
+  Ôö£ chunks/4938-a096c3cc9997f838.js                                    26.8 kB
+  Ôö£ chunks/fd9d1056-43e5dd053c937ab8.js                                53.3 kB
+  Ôö£ chunks/main-app-19498a7c5359851e.js                                226 B
+  Ôöö chunks/webpack-49c9d11a4662edab.js                                 1.78 kB
+
+
+Ôùï  (Static)   prerendered as static content
+╬╗  (Dynamic)  server-rendered on demand using Node.js
+

@@ -1,0 +1,27 @@
+﻿=== Simplified Live API Test ===
+
+Member: fardin@gmail.com | id: cmlp0l08u0003j2l1d09r90od | leadId: cmlp0j7x80001j2l1hyyl6r41
+Target: individual@demo.com | id: cmlp0imzw0000qi6txywkrm5b
+Token generated: eyJhbGciOiJIUzI1NiJ9.eyJpZCI6I...
+
+Calling POST http://localhost:3001/api/support/upload-sessions ...
+Status: 200
+Response: {
+  "success": true,
+  "data": {
+    "sessionId": "cmlpkuo1y0002sj5yvuo13qhn",
+    "shareUrl": "https://localhost:3001/upload/40a2c3242cb648cf530c9ad307e1f4450bb8f025ca50894c6013e522f96728f9",
+    "expiresAt": "2026-02-17T19:38:36.628Z",
+    "rawToken": "40a2c3242cb648cf530c9ad307e1f4450bb8f025ca50894c6013e522f96728f9"
+  }
+}
+
+Ô£à SUCCESS! Link: https://localhost:3001/upload/40a2c3242cb648cf530c9ad307e1f4450bb8f025ca50894c6013e522f96728f9
+
+DB verification:
+  Session: Ô£à exists
+  Slots: Ô£à 2 created
+  Status: ACTIVE
+  createdByUserId: cmlp0j7x80001j2l1hyyl6r41
+
+Ô£à Test data cleaned up

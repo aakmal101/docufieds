@@ -1,0 +1,37 @@
+﻿=== Upload Session E2E Verification ===
+
+--- Server Health ---
+  Ô£à PASS: Server responding ÔÇö Status: 401
+
+--- Table Existence ---
+  Ô£à PASS: upload_sessions table exists
+  Ô£à PASS: upload_slots table exists
+  Ô£à PASS: audit_logs table exists
+
+--- Test Fixtures ---
+  Ô£à PASS: Support member exists ÔÇö fardin (fardin@gmail.com)
+  Ô£à PASS: Lead user (for FK) exists ÔÇö System Administrator (cmlp0j7x80001j2l1hyyl6r41)
+  Ô£à PASS: Target user exists ÔÇö Demo Individual (individual@demo.com)
+
+--- DB Transaction Test (simulating fixed API) ---
+  Ô£à PASS: UploadSession created ÔÇö ID: cmlpknimc0002vd1jwojvdxrn
+  Ô£à PASS: createdByUserId FK valid ÔÇö Using leadId: cmlp0j7x80001j2l1hyyl6r41
+
+--- DB Verification ---
+  Ô£à PASS: Session found in DB
+  Ô£à PASS: Session status ÔÇö ACTIVE
+  Ô£à PASS: Session tokenHash stored ÔÇö 7fa12a00...
+  Ô£à PASS: createdByUser ÔÇö System Administrator
+  Ô£à PASS: targetUser ÔÇö Demo Individual
+  Ô£à PASS: 2 slots created
+  Ô£à PASS: Slot 0 ÔÇö label: "Test Document 1", status: EMPTY
+  Ô£à PASS: Slot 1 ÔÇö label: "Test Document 2", status: EMPTY
+  Ô£à PASS: shareUrl format ÔÇö http://localhost:3000/upload/94da1c5ce10...
+
+--- Cleanup ---
+  Ô£à PASS: Test data cleaned up
+
+==================================================
+RESULTS: 19 passed, 0 failed, 19 total
+STATUS: Ô£à ALL PASSED
+==================================================

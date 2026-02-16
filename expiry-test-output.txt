@@ -1,0 +1,44 @@
+﻿=== Expiry Feature Verification ===
+
+--- Test 1: 1-Hour Expiry Stored Correctly ---
+  Ô£à Session created with expiresInHours=1
+  Ô£à expiresAt within ~1 hour from now ÔÇö 60 minutes
+  Ô£à expiresAt stored in DB ÔÇö 2026-02-16T21:14:26.509Z
+  Ô£à expiresInHours=2 accepted
+  Ô£à expiresInHours=4 accepted
+  Ô£à expiresInHours=24 accepted
+  Ô£à expiresInHours=48 accepted
+  Ô£à expiresInHours=72 accepted
+  Ô£à expiresInHours=3 rejected ÔÇö 400
+  Ô£à expiresInHours=5 rejected ÔÇö 400
+  Ô£à expiresInHours=12 rejected ÔÇö 400
+  Ô£à expiresInHours=100 rejected ÔÇö 400
+  Ô£à expiresInHours=168 rejected ÔÇö 400
+
+--- Test 2: Expired Session Blocked ---
+  Ô£à Expired GET ÔåÆ 410
+  Ô£à Status auto-set to EXPIRED in DB
+  Ô£à Expired POST blocked ÔÇö Status: 410
+
+--- Test 3: Completion Closes Link ---
+  Ô£à Slot 0 uploaded ÔÇö completed: false
+  Ô£à Session COMPLETED after all slots uploaded
+  Ô£à DB status = COMPLETED
+  Ô£à completedAt set ÔÇö 2026-02-16T20:14:50.559Z
+  Ô£à Completed session ÔåÆ 410 on refresh (link closed)
+
+--- Test 4: Support History Preserved ---
+  Ô£à Support can fetch sessions ÔÇö 9 sessions returned
+  Ô£à Visible statuses ÔÇö COMPLETED, EXPIRED, ACTIVE
+  Ô£à COMPLETED session visible in support history
+  Ô£à   2 uploaded slots visible
+  Ô£à   0 documents linked
+  Ô£à EXPIRED session visible in support history
+
+--- Cleanup ---
+  Ô£à Test data cleaned up
+
+=======================================================
+RESULTS: 28 passed, 0 failed, 28 total
+STATUS: Ô£à ALL PASSED
+=======================================================

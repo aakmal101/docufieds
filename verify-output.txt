@@ -1,0 +1,117 @@
+﻿ÔòöÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòù
+Ôòæ   PRODUCTION RUNTIME VERIFICATION                      Ôòæ
+Ôòæ   Testing against http://localhost:3000                 Ôòæ
+ÔòÜÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòÉÔòØ
+
+============================================================
+  SECTION 4: PRODUCTION SERVER HEALTH
+============================================================
+  Ô£à PASS: Production server responds: Status: 200
+  Ô£à PASS: API endpoint active: GET /api/applications returned 401
+
+============================================================
+  SECTION 1: PROCESS STEP REMOVAL
+============================================================
+  Ôä╣´©Å  Verifying code-level step definitions...
+  Ô£à PASS: App creation with auto processType: processType=standard, module=PERSONAL
+  Ô£à PASS: Requirements found with auto processType: Found 7 requirements for processType='standard', module='PERSONAL'
+  Ô£à PASS: Module steps array excludes "process": Steps when module selected: ['modules', 'destination', 'profession', 'review', 'documents', 'call']
+  Ô£à PASS: handleNext skips process when module selected: Found: setStep(selectedModule ? "profession" : "process")
+  Ô£à PASS: handleBack skips process when module selected: Found: setStep(selectedModule ? "destination" : "process")
+
+============================================================
+  SECTION 2: DOCUMENT READINESS CONSISTENCY
+============================================================
+  Ôä╣´©Å  Test application created: cmlp5pm2r0003qpvdq9rhv7rq
+  Ôä╣´©Å  UI Resolver returned 7 total requirements:
+  Ôä╣´©Å    - PASSPORT_BIO_PAGE (required: true, module: Global)
+  Ôä╣´©Å    - VISA_PHOTO (required: true, module: Global)
+  Ôä╣´©Å    - BANK_STATEMENT_6M (required: true, module: PERSONAL)
+  Ôä╣´©Å    - EMPLOYMENT_LETTER (required: true, module: PERSONAL)
+  Ôä╣´©Å    - TRAVEL_ITINERARY (required: true, module: PERSONAL)
+  Ôä╣´©Å    - ACCOMMODATION_PROOF (required: true, module: PERSONAL)
+  Ôä╣´©Å    - TRAVEL_INSURANCE (required: true, module: PERSONAL)
+  Ôä╣´©Å  
+Readiness Resolver returned 7 required requirements:
+  Ôä╣´©Å    - PASSPORT_BIO_PAGE (module: Global)
+  Ôä╣´©Å    - VISA_PHOTO (module: Global)
+  Ôä╣´©Å    - BANK_STATEMENT_6M (module: PERSONAL)
+  Ôä╣´©Å    - EMPLOYMENT_LETTER (module: PERSONAL)
+  Ôä╣´©Å    - TRAVEL_ITINERARY (module: PERSONAL)
+  Ôä╣´©Å    - ACCOMMODATION_PROOF (module: PERSONAL)
+  Ôä╣´©Å    - TRAVEL_INSURANCE (module: PERSONAL)
+  Ôä╣´©Å  
+--- COMPARISON ---
+  Ôä╣´©Å  UI required types:       [ACCOMMODATION_PROOF, BANK_STATEMENT_6M, EMPLOYMENT_LETTER, PASSPORT_BIO_PAGE, TRAVEL_INSURANCE, TRAVEL_ITINERARY, VISA_PHOTO]
+  Ôä╣´©Å  Readiness required types: [ACCOMMODATION_PROOF, BANK_STATEMENT_6M, EMPLOYMENT_LETTER, PASSPORT_BIO_PAGE, TRAVEL_INSURANCE, TRAVEL_ITINERARY, VISA_PHOTO]
+  Ô£à PASS: UI required types === Readiness required types: Both return 7 identical required document types
+  Ôä╣´©Å  
+Testing incomplete submission (no docs uploaded)...
+  Ô£à PASS: Missing docs error lists specific names: Missing: PASSPORT_BIO_PAGE, VISA_PHOTO, BANK_STATEMENT_6M, EMPLOYMENT_LETTER, TRAVEL_ITINERARY, ACCOMMODATION_PROOF, TRAVEL_INSURANCE
+  Ôä╣´©Å  
+Testing complete submission (all docs uploaded)...
+  Ô£à PASS: All required docs uploaded -> 0 missing: All 7 required docs matched
+  Ôä╣´©Å  
+Testing partial submission (remove one doc)...
+  Ô£à PASS: Partial upload shows specific missing doc name: Missing after removal: [PASSPORT_BIO_PAGE]
+
+============================================================
+  SECTION 3: SUPPORT FEE ASSIGNMENT E2E
+============================================================
+  Ôä╣´©Å  Individual: individual@demo.com (cmlp0imzw0000qi6txywkrm5b)
+  Ôä╣´©Å  Support: admin@demo.com (cmlp0f2dv0000j2l1s3hix0uq)
+  Ôä╣´©Å  Application created: cmlp5pq2i000jqpvddo2n4qj3
+  Ô£à PASS: Initial app has zero fee: consultancyFee=0, supportFeeAmount=null
+  Ô£à PASS: supportFeeAmount set correctly: supportFeeAmount=250
+  Ô£à PASS: supportFeeCurrency set correctly: supportFeeCurrency=BDT
+  Ô£à PASS: supportFeeAssignedById set correctly: assignedBy=cmlp0f2dv0000j2l1s3hix0uq
+  Ô£à PASS: supportFeeAssignedAt set correctly: assignedAt=Mon Feb 16 2026 18:34:52 GMT+0600 (Bangladesh Standard Time)
+  Ô£à PASS: consultancyFee mirrors supportFeeAmount: consultancyFee=250
+  Ô£à PASS: Individual can read supportFeeAmount: Fetched supportFeeAmount=250
+  Ô£à PASS: Fee API route file exists: src/app/api/admin/support-member/applications/[id]/fee/route.ts
+  Ô£à PASS: Fee API updates supportFeeAmount: Found supportFeeAmount in route
+  Ô£à PASS: Fee API records assignedById: Found supportFeeAssignedById in route
+  Ô£à PASS: Client shows "To be assigned" for unset fees: Found "To be assigned" text
+  Ô£à PASS: Client references supportFee state: Found supportFee in client page
+  Ôä╣´©Å  
+Testing legacy app (no module)...
+  Ô£à PASS: Legacy app creation (no module) works: Legacy app id: cmlp5pqw5000lqpvdqlxvltn3, consultancyFee=150
+  Ô£à PASS: Legacy app has original consultancyFee: consultancyFee=150
+  Ô£à PASS: Legacy app has no supportFeeAmount: supportFeeAmount=null
+
+============================================================
+  RESULTS MATRIX
+============================================================
+
+  Section          | Test                                       | Status | Detail
+  -----------------|--------------------------------------------|--------|--------
+  Server           | Production server responds                 | Ô£à PASS | Status: 200
+  Server           | API endpoint active                        | Ô£à PASS | GET /api/applications returned 401
+  Process Step     | App creation with auto processType         | Ô£à PASS | processType=standard, module=PERSONAL
+  Process Step     | Requirements found with auto processType   | Ô£à PASS | Found 7 requirements for processType='standard', module='PER
+  Process Step     | Module steps array excludes "process"      | Ô£à PASS | Steps when module selected: ['modules', 'destination', 'prof
+  Process Step     | handleNext skips process when module selected | Ô£à PASS | Found: setStep(selectedModule ? "profession" : "process")
+  Process Step     | handleBack skips process when module selected | Ô£à PASS | Found: setStep(selectedModule ? "destination" : "process")
+  Readiness        | UI required types === Readiness required types | Ô£à PASS | Both return 7 identical required document types
+  Readiness        | Missing docs error lists specific names    | Ô£à PASS | Missing: PASSPORT_BIO_PAGE, VISA_PHOTO, BANK_STATEMENT_6M, E
+  Readiness        | All required docs uploaded -> 0 missing    | Ô£à PASS | All 7 required docs matched
+  Readiness        | Partial upload shows specific missing doc name | Ô£à PASS | Missing after removal: [PASSPORT_BIO_PAGE]
+  Fee              | Initial app has zero fee                   | Ô£à PASS | consultancyFee=0, supportFeeAmount=null
+  Fee              | supportFeeAmount set correctly             | Ô£à PASS | supportFeeAmount=250
+  Fee              | supportFeeCurrency set correctly           | Ô£à PASS | supportFeeCurrency=BDT
+  Fee              | supportFeeAssignedById set correctly       | Ô£à PASS | assignedBy=cmlp0f2dv0000j2l1s3hix0uq
+  Fee              | supportFeeAssignedAt set correctly         | Ô£à PASS | assignedAt=Mon Feb 16 2026 18:34:52 GMT+0600 (Bangladesh Sta
+  Fee              | consultancyFee mirrors supportFeeAmount    | Ô£à PASS | consultancyFee=250
+  Fee              | Individual can read supportFeeAmount       | Ô£à PASS | Fetched supportFeeAmount=250
+  Fee              | Fee API route file exists                  | Ô£à PASS | src/app/api/admin/support-member/applications/[id]/fee/route
+  Fee              | Fee API updates supportFeeAmount           | Ô£à PASS | Found supportFeeAmount in route
+  Fee              | Fee API records assignedById               | Ô£à PASS | Found supportFeeAssignedById in route
+  Fee              | Client shows "To be assigned" for unset fees | Ô£à PASS | Found "To be assigned" text
+  Fee              | Client references supportFee state         | Ô£à PASS | Found supportFee in client page
+  Fee              | Legacy app creation (no module) works      | Ô£à PASS | Legacy app id: cmlp5pqw5000lqpvdqlxvltn3, consultancyFee=150
+  Fee              | Legacy app has original consultancyFee     | Ô£à PASS | consultancyFee=150
+  Fee              | Legacy app has no supportFeeAmount         | Ô£à PASS | supportFeeAmount=null
+
+  Total: 26 | Passed: 26 | Failed: 0
+
+  ­ƒÄë ALL TESTS PASSED!

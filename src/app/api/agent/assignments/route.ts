@@ -1,37 +1,28 @@
 
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { createClient } from '@/lib/supabase/server' // Use server client helper if available, or just verify header
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
     try {
-        // 1. Get Current User (Agent)
-        // In a real app we parse the session. For MVP/Test, we might rely on a header or effective session.
-        // Let's assume we use the Supabase helper to get the user.
-
-        /* 
-        const supabase = createClient(cookies())
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-        */
-
-        // For now, we'll extract userId from a header for testing OR implement the real auth check if we can import it.
-        // Let's try to do it properly with the pattern seen in middleware/other routes.
-        // We'll mock the "Get User" part if we don't have the auth helper handy, but let's check imports.
-        // The project seems to have `createClient` in `@supabase/ssr` or `lib`.
-
-        // Simulating strict auth:
-        const userId = req.headers.get('x-user-id') // For testing script
-        // In production, we MUST use session. 
-        // If x-user-id is present (from our test script), we use it. 
-        // otherwise we fail provided we are not in a real browser session.
-
-        if (!userId) {
-            return NextResponse.json({ success: false, message: 'Unauthorized (No User ID)' }, { status: 401 })
+        // 1. Auth — use NextAuth session (proper auth)
+        const session = await getServerSession(authOptions)
+        if (!session?.user?.id) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        // 2. Fetch Assignments
-        const assignments = await prisma.agentAssignment.findMany({
+        const userId = session.user.id
+
+        // Verify user is an AGENT
+        if (session.user.role !== 'AGENT') {
+            return NextResponse.json({ success: false, message: 'Forbidden: Agent role required' }, { status: 403 })
+        }
+
+        // 2. Fetch all ACTIVE assignments with application + user + documents
+        const assignments = await (prisma as any).agentAssignment.findMany({
             where: {
                 agentUserId: userId,
                 status: 'ACTIVE'
@@ -41,21 +32,87 @@ export async function GET(req: NextRequest) {
                     select: { id: true, fullName: true, email: true, phone: true }
                 },
                 application: {
-                    select: {
-                        id: true,
-                        status: true,
-                        processType: true,
-                        country: true,
-                        createdAt: true,
-                        modules: { select: { module: true, status: true } }
+                    include: {
+                        user: {
+                            select: { id: true, fullName: true, email: true }
+                        },
+                        documents: {
+                            select: {
+                                id: true,
+                                fileName: true,
+                                documentType: true,
+                                status: true,
+                                uploadedAt: true
+                            }
+                        },
+                        modules: {
+                            select: { module: true, status: true }
+                        },
+                        uploadSessions: {
+                            select: {
+                                id: true,
+                                status: true,
+                                slotCount: true,
+                                expiresAt: true,
+                                createdAt: true,
+                                slots: {
+                                    select: {
+                                        id: true,
+                                        slotIndex: true,
+                                        label: true,
+                                        status: true
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
         })
 
-        return NextResponse.json({ success: true, data: assignments })
+        // 3. Compute dashboard stats from assignments
+        const apps: any[] = assignments
+            .filter((a: any) => a.application)
+            .map((a: any) => a.application!)
+
+        const totalApplications: number = apps.length
+        const completed = apps.filter(a => a.status === 'COMPLETED').length
+        const inProgress = apps.filter(a =>
+            ['UNDER_REVIEW', 'DOCUMENT_UNDER_REVIEW', 'DOCUMENT_UNDER_PROCESSING'].includes(a.status)
+        ).length
+        const pendingReview = apps.filter(a =>
+            ['DRAFT', 'SUBMITTED'].includes(a.status)
+        ).length
+
+        // Unique users across all assignments
+        const userIds = new Set<string>()
+        assignments.forEach((a: any) => {
+            if (a.targetUser?.id) userIds.add(a.targetUser.id)
+            if (a.application?.user?.id) userIds.add(a.application.user.id)
+        })
+        const totalUsers = userIds.size
+
+        // Pending documents: count docs with status PENDING across all assigned apps
+        const pendingDocuments = apps.reduce((count: number, app: any) => {
+            return count + (app.documents?.filter((d: any) => d.status === 'PENDING').length || 0)
+        }, 0)
+
+        const stats = {
+            totalApplications,
+            completed,
+            inProgress,
+            pendingReview,
+            totalUsers,
+            pendingDocuments
+        }
+
+        return NextResponse.json({
+            success: true,
+            data: { stats, assignments }
+        })
 
     } catch (error: any) {
+        console.error('Agent assignments error:', error)
         return NextResponse.json({ success: false, message: error.message }, { status: 500 })
     }
 }
