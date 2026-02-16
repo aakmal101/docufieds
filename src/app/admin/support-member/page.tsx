@@ -26,6 +26,11 @@ export default function MemberDashboard() {
     const { data: session } = useSession()
     const [isGenerateLinkModalOpen, setIsGenerateLinkModalOpen] = useState(false)
     const [allUsers, setAllUsers] = useState<any[]>([])
+    const [assignments, setAssignments] = useState<any[]>([])
+    const [stats, setStats] = useState({ activeCount: 0, completedToday: 0, pendingResponse: 0 })
+    const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState('')
+    const [statusFilter, setStatusFilter] = useState('ALL')
 
     const fetchData = async () => {
         try {
