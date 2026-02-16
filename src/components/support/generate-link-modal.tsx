@@ -25,7 +25,7 @@ export function GenerateLinkModal({ isOpen, onClose, users, applications, preSel
     // Form State
     const [selectedUserId, setSelectedUserId] = useState(preSelectedUserId || '')
     const [selectedAppId, setSelectedAppId] = useState<string>('')
-    const [expiresIn, setExpiresIn] = useState('72')
+    const [expiresIn, setExpiresIn] = useState('24')
 
     const [slots, setSlots] = useState<{ label: string, documentTypeId?: string }[]>([
         { label: 'Document 1' }
@@ -143,7 +143,7 @@ export function GenerateLinkModal({ isOpen, onClose, users, applications, preSel
                     <DialogDescription>
                         {step === 'FORM'
                             ? 'Create a secure link for the user to upload specific documents.'
-                            : 'Share this link with the user. It will expire in 72 hours.'}
+                            : `Share this link with the user. It will expire in ${expiresIn} hour${parseInt(expiresIn) !== 1 ? 's' : ''}.`}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -188,9 +188,12 @@ export function GenerateLinkModal({ isOpen, onClose, users, applications, preSel
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value="1">1 Hour</SelectItem>
+                                    <SelectItem value="2">2 Hours</SelectItem>
+                                    <SelectItem value="4">4 Hours</SelectItem>
                                     <SelectItem value="24">24 Hours</SelectItem>
+                                    <SelectItem value="48">48 Hours (2 Days)</SelectItem>
                                     <SelectItem value="72">72 Hours (3 Days)</SelectItem>
-                                    <SelectItem value="168">1 Week</SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>

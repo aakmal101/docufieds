@@ -759,12 +759,14 @@ model UploadSession {
   slotCount       Int           @map("slot_count")
   status          String        @default("ACTIVE") // ACTIVE, COMPLETED, EXPIRED, CANCELLED
   expiresAt       DateTime      @map("expires_at")
+  completedAt     DateTime?     @map("completed_at")
   
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   @@index([targetUserId, createdAt])
   @@index([createdByUserId, createdAt])
+  @@index([status, expiresAt])
   @@map("upload_sessions")
 }
 

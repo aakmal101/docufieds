@@ -46,10 +46,14 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json()
-        const { targetUserId, applicationId, slotCount = 1, slots, expiresInHours = 72 } = body
+        const { targetUserId, applicationId, slotCount = 1, slots, expiresInHours = 24 } = body
 
+        const ALLOWED_EXPIRY = [1, 2, 4, 24, 48, 72]
         if (!targetUserId || slotCount < 1) {
             return NextResponse.json({ success: false, message: 'Invalid payload' }, { status: 400 })
+        }
+        if (!ALLOWED_EXPIRY.includes(expiresInHours)) {
+            return NextResponse.json({ success: false, message: `Invalid expiry. Allowed: ${ALLOWED_EXPIRY.join(', ')} hours` }, { status: 400 })
         }
 
         // 2. Generate Secure Token
@@ -163,9 +167,18 @@ export async function GET(request: NextRequest) {
         if (targetUserId) whereClause.targetUserId = targetUserId
         // If recent is true, we don't add specific filters, just return latest
 
+        // Expiry sweep: mark any ACTIVE sessions past their expiresAt as EXPIRED
+        await (prisma as any).uploadSession.updateMany({
+            where: {
+                status: 'ACTIVE',
+                expiresAt: { lt: new Date() }
+            },
+            data: { status: 'EXPIRED' }
+        })
+
         const sessions = await (prisma as any).uploadSession.findMany({
             where: whereClause,
-            take: recent ? 50 : undefined, // Limit to 50 if fetching recent
+            take: recent ? 50 : undefined,
             include: {
                 createdByUser: {
                     select: { id: true, fullName: true, email: true }

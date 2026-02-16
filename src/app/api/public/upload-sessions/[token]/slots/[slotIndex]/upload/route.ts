@@ -61,20 +61,24 @@ export async function POST(
             return NextResponse.json({ success: false, message: 'Invalid upload link' }, { status: 404 })
         }
 
+        // Enforce expiry: check time first
+        if (new Date() > new Date(session.expiresAt)) {
+            // Auto-expire if still ACTIVE
+            if (session.status === 'ACTIVE') {
+                await (prisma as any).uploadSession.update({
+                    where: { id: session.id },
+                    data: { status: 'EXPIRED' }
+                })
+            }
+            return NextResponse.json({ success: false, message: 'Upload link has expired' }, { status: 410 })
+        }
+
+        // Enforce status
         if (session.status !== 'ACTIVE') {
             return NextResponse.json(
                 { success: false, message: `Upload session is ${session.status.toLowerCase()}` },
                 { status: 409 }
             )
-        }
-
-        if (new Date() > new Date(session.expiresAt)) {
-            // Auto-expire
-            await (prisma as any).uploadSession.update({
-                where: { id: session.id },
-                data: { status: 'EXPIRED' }
-            })
-            return NextResponse.json({ success: false, message: 'Upload link has expired' }, { status: 410 })
         }
 
         const slot = session.slots.find((s: any) => s.slotIndex === slotIndex)
@@ -93,11 +97,9 @@ export async function POST(
         const filePath = `uploads/${session.targetUserId}/${session.id}/${safeFileName}`
 
         try {
-            // Try Supabase Storage
             const { createServiceRoleClient } = await import('@/lib/supabase/server')
             const supabase = createServiceRoleClient()
 
-            // Convert File to Buffer for Supabase upload
             const arrayBuffer = await file.arrayBuffer()
             const buffer = Buffer.from(arrayBuffer)
 
@@ -110,8 +112,6 @@ export async function POST(
 
             if (uploadError) {
                 console.error('Supabase storage upload error:', uploadError)
-                // If bucket doesn't exist or RLS blocks, create a placeholder URL
-                // This allows the DB flow to complete even if storage is misconfigured
                 fileUrl = `/storage/documents/${filePath}`
                 console.warn('Using fallback file URL:', fileUrl)
             } else {
@@ -122,19 +122,15 @@ export async function POST(
             }
         } catch (storageError: any) {
             console.error('Storage initialization error:', storageError.message)
-            // Fallback: store with a local reference path
             fileUrl = `/storage/documents/${filePath}`
             console.warn('Storage unavailable, using fallback URL:', fileUrl)
         }
 
-        // 3. Database Transaction: Create Document + Update Slot + Audit Log
+        // 3. Database Transaction: Create Document + Update Slot + Check Completion
         const result = await prisma.$transaction(async (tx) => {
-            // Create Document record
-            // applicationId is REQUIRED on Document model, so use session.applicationId
-            // If session has no applicationId, we need to find one for this user
+            // Find applicationId
             let applicationId = session.applicationId
             if (!applicationId) {
-                // Try to find any application for this target user
                 const userApp = await tx.application.findFirst({
                     where: { userId: session.targetUserId },
                     select: { id: true },
@@ -143,8 +139,7 @@ export async function POST(
                 applicationId = userApp?.id || null
             }
 
-            // If still no applicationId, we can't create a Document (FK required)
-            // So we'll skip document creation and just store the file reference in the slot
+            // Create Document record (if we have an applicationId)
             let document = null
             if (applicationId) {
                 document = await tx.document.create({
@@ -162,7 +157,7 @@ export async function POST(
                 })
             }
 
-            // Update Slot: mark as UPLOADED and link document if created
+            // Update Slot: mark as UPLOADED
             const updatedSlot = await (tx as any).uploadSlot.update({
                 where: { id: slot.id },
                 data: {
@@ -172,8 +167,33 @@ export async function POST(
                 }
             })
 
-            // Audit Log: use session.targetUserId (valid User.id) as actorUserId
-            // since public uploads are attributed to the target user
+            // Check if ALL slots are now uploaded (within the same transaction)
+            const allSlotsNow = await (tx as any).uploadSlot.findMany({
+                where: { uploadSessionId: session.id }
+            })
+            const allUploaded = allSlotsNow.every((s: any) => s.status === 'UPLOADED')
+
+            // If all uploaded, mark session COMPLETED with completedAt (in SAME transaction)
+            if (allUploaded) {
+                await (tx as any).uploadSession.update({
+                    where: { id: session.id },
+                    data: {
+                        status: 'COMPLETED',
+                        completedAt: new Date()
+                    }
+                })
+
+                await tx.auditLog.create({
+                    data: {
+                        actorUserId: session.targetUserId,
+                        action: 'UPLOAD_SESSION_COMPLETED',
+                        targetUserId: session.targetUserId,
+                        metadata: { sessionId: session.id }
+                    }
+                })
+            }
+
+            // Audit log for this slot upload
             await tx.auditLog.create({
                 data: {
                     actorUserId: session.targetUserId,
@@ -189,31 +209,8 @@ export async function POST(
                 }
             })
 
-            return { document, updatedSlot }
+            return { document, updatedSlot, allUploaded }
         })
-
-        // 4. Check if all slots are now uploaded → mark session COMPLETED
-        const allSlots = await (prisma as any).uploadSlot.findMany({
-            where: { uploadSessionId: session.id }
-        })
-
-        const allUploaded = allSlots.every((s: any) => s.status === 'UPLOADED')
-
-        if (allUploaded) {
-            await (prisma as any).uploadSession.update({
-                where: { id: session.id },
-                data: { status: 'COMPLETED' }
-            })
-
-            await prisma.auditLog.create({
-                data: {
-                    actorUserId: session.targetUserId,
-                    action: 'UPLOAD_SESSION_COMPLETED',
-                    targetUserId: session.targetUserId,
-                    metadata: { sessionId: session.id }
-                }
-            })
-        }
 
         return NextResponse.json({
             success: true,
@@ -230,7 +227,7 @@ export async function POST(
                     slotIndex: result.updatedSlot.slotIndex,
                     status: result.updatedSlot.status
                 },
-                sessionCompleted: allUploaded
+                sessionCompleted: result.allUploaded
             }
         })
 

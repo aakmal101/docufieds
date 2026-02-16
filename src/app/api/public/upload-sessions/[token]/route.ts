@@ -24,10 +24,10 @@ export async function GET(
             where: { tokenHash },
             include: {
                 createdByUser: {
-                    select: { fullName: true } // Show who requested
+                    select: { fullName: true }
                 },
                 targetUser: {
-                    select: { fullName: true } // Confirm it's for them
+                    select: { fullName: true }
                 },
                 slots: {
                     orderBy: { slotIndex: 'asc' },
@@ -55,27 +55,34 @@ export async function GET(
             return NextResponse.json({ success: false, message: 'Invalid or expired link' }, { status: 404 })
         }
 
-        // Check status and expiry
+        // Check non-active statuses (COMPLETED, EXPIRED, CANCELLED)
+        if (session.status === 'COMPLETED') {
+            return NextResponse.json({ success: false, message: 'All documents have been uploaded. This link is now closed.' }, { status: 410 })
+        }
+
         if (session.status === 'CANCELLED') {
             return NextResponse.json({ success: false, message: 'This upload link has been cancelled' }, { status: 410 })
         }
 
-        if (new Date() > new Date(session.expiresAt)) {
-            // Auto-expire if needed, or just return error
-            if (session.status === 'ACTIVE') {
-                await (prisma as any).uploadSession.update({
-                    where: { id: session.id },
-                    data: { status: 'EXPIRED' }
-                })
-            }
+        if (session.status === 'EXPIRED') {
             return NextResponse.json({ success: false, message: 'This upload link has expired' }, { status: 410 })
         }
 
-        // Return safe public data
+        // Check time-based expiry (even if status is still ACTIVE)
+        if (new Date() > new Date(session.expiresAt)) {
+            // Atomically mark as EXPIRED
+            await (prisma as any).uploadSession.update({
+                where: { id: session.id },
+                data: { status: 'EXPIRED' }
+            })
+            return NextResponse.json({ success: false, message: 'This upload link has expired' }, { status: 410 })
+        }
+
+        // Return safe public data (only for ACTIVE sessions within expiry)
         return NextResponse.json({
             success: true,
             data: {
-                id: session.id, // Exposed ID for client-side correlation if needed, but rely on token for ops
+                id: session.id,
                 requester: session.createdByUser.fullName,
                 targetUser: session.targetUser.fullName,
                 slotCount: session.slotCount,
