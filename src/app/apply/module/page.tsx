@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ModuleType } from '@prisma/client' // Ensure this imports correctly from client, or use string literal if enum issue
+
 import { User, GraduationCap, Briefcase, HeartPulse, Plane } from 'lucide-react'
 import { motion } from 'framer-motion'
 
@@ -72,7 +72,8 @@ export default function ModuleSelectionPage() {
         // 2. User selects Module -> Redirects to /apply/country?module=PERSONAL.
         // 3. Country page reads param.
 
-        router.push(`/apply/country?module=${moduleId}`)
+        // Redirect to the existing New Application page with the selected module
+        router.push(`/dashboard/individual/new-application?module=${moduleId}`)
     }
 
     return (

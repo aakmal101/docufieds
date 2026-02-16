@@ -266,6 +266,18 @@ function NewApplicationContent() {
     }
   }
 
+
+  // Handle module query param from new flow
+  useEffect(() => {
+    const moduleParam = searchParams.get('module')
+    if (moduleParam && !selectedModule && step === 'modules') {
+      // Validate against ModuleType enum/list if needed, or just set it
+      // We assume the param is valid if coming from our own page
+      setSelectedModule(moduleParam)
+      setStep('destination')
+    }
+  }, [searchParams, selectedModule, step])
+
   const handleCountrySelect = (country: Country) => {
     setSelectedCountry(country)
     setFormData(prev => ({ ...prev, country: country.name }))
