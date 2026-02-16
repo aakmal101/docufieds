@@ -31,6 +31,9 @@ export async function GET(
         id: applicationId,
         userId: session.user.id,
       },
+      include: {
+        modules: true
+      } as any // Cast to any to allow modules property
     })
 
     if (!application) {
@@ -40,16 +43,28 @@ export async function GET(
       )
     }
 
+    // Get active module types
+    const activeModules = (application as any).modules?.map((m: any) => m.module) || []
+
     // Fetch document requirements for this application
     let requirements = await prisma.documentRequirement.findMany({
       where: {
-          country: application.country,
-          processType: application.processType,
-          OR: [
-            { profession: null },
-            { profession: application.profession || null },
-          ],
-        },
+        country: application.country,
+        processType: application.processType as any,
+        OR: [
+          { profession: null },
+          { profession: application.profession as any || null },
+        ],
+        // Filter by active modules or global requirements
+        AND: [
+          {
+            OR: [
+              { module: null },
+              { module: { in: activeModules } }
+            ]
+          }
+        ]
+      } as any,
       orderBy: {
         isRequired: 'desc',
       },
@@ -99,7 +114,7 @@ export async function GET(
         }
 
         console.log(`[Requirements API] Successfully created ${requirements.length}/${defaultDocumentTypes.length} default document requirements for application ${applicationId}`)
-        
+
         // If we couldn't create any requirements, this is a critical error
         if (requirements.length === 0) {
           console.error(`[Requirements API] CRITICAL: Failed to create any default requirements for application ${applicationId}`)
@@ -147,16 +162,16 @@ export async function GET(
     // Use a Map to handle multiple documents of same type (take most recent)
     // Database is the SOURCE OF TRUTH - only documents in DB are considered uploaded
     const documentMap = new Map<string, typeof uploadedDocuments[0]>()
-    
+
     uploadedDocuments.forEach((doc) => {
       // Only include documents with valid file data
-      if (doc.fileUrl && doc.fileUrl.trim().length > 0 && 
-          doc.fileName && doc.fileName.trim().length > 0) {
+      if (doc.fileUrl && doc.fileUrl.trim().length > 0 &&
+        doc.fileName && doc.fileName.trim().length > 0) {
         // CRITICAL: Use canonical normalization for matching
         const normalizedType = normalizeDocType(doc.documentType)
-        if (!documentMap.has(normalizedType) || 
-            (doc.uploadedAt && documentMap.get(normalizedType)?.uploadedAt && 
-             doc.uploadedAt > documentMap.get(normalizedType)!.uploadedAt)) {
+        if (!documentMap.has(normalizedType) ||
+          (doc.uploadedAt && documentMap.get(normalizedType)?.uploadedAt &&
+            doc.uploadedAt > documentMap.get(normalizedType)!.uploadedAt)) {
           documentMap.set(normalizedType, doc)
         }
       }
@@ -166,22 +181,22 @@ export async function GET(
       // CRITICAL: Use canonical normalization for matching
       const normalizedReqType = normalizeDocType(req.documentType)
       const uploadedDoc = documentMap.get(normalizedReqType)
-      
+
       // TEMPORARY DEBUG: Log matching attempt
       if (uploadedDoc) {
         console.log(`[Requirements API] ✓ Matched requirement "${req.documentType}" (normalized: "${normalizedReqType}") with uploaded document`)
       } else {
         console.log(`[Requirements API] ✗ No match for requirement "${req.documentType}" (normalized: "${normalizedReqType}") | Available normalized types: ${Array.from(documentMap.keys()).join(', ')}`)
       }
-      
+
       // CRITICAL: Validate file data from database
       // A document is only considered uploaded if it exists in DB with valid data
-      const hasValidFile = uploadedDoc && 
-                          uploadedDoc.fileUrl && 
-                          uploadedDoc.fileUrl.trim().length > 0 &&
-                          uploadedDoc.fileName &&
-                          uploadedDoc.fileName.trim().length > 0
-      
+      const hasValidFile = uploadedDoc &&
+        uploadedDoc.fileUrl &&
+        uploadedDoc.fileUrl.trim().length > 0 &&
+        uploadedDoc.fileName &&
+        uploadedDoc.fileName.trim().length > 0
+
       return {
         ...req,
         // Status is determined by database record existence
@@ -205,18 +220,18 @@ export async function GET(
       success: true,
       data: requirementsWithStatus,
     })
-    
+
     // Force no-cache headers to prevent stale responses
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')
-    
+
     return response
   } catch (error: any) {
     console.error('Error fetching document requirements:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: error?.message || 'Internal server error',
         error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },

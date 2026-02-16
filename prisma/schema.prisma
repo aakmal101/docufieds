@@ -138,12 +138,16 @@ model Application {
   lastActivityAt      DateTime?         @map("last_activity_at")
   forwardedToLegalAt  DateTime?         @map("forwarded_to_legal_at")
   
-  // Support Relations
+  // Relations
   assignment          ApplicationAssignment?
   documentRequests    DocumentRequest[]
   supportMessages     SupportMessage[]
   escalations         Escalation[]
   rejectionRequests   RejectionRequest[]
+  
+  // Module Relations
+  modules             ApplicationModule[]
+  answers             ApplicationAnswer[]
   
   @@index([bulkUploadId])
   @@map("applications")
@@ -161,6 +165,9 @@ model Document {
   isRequired    Boolean  @default(false) @map("is_required")
   status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
   uploadedAt    DateTime @default(now()) @map("uploaded_at")
+  
+  // Module Context (Optional)
+  module        ModuleType?
   
   // Relations
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -248,6 +255,9 @@ model DocumentRequirement {
   documentType String @map("document_type")
   isRequired  Boolean @default(true) @map("is_required")
   description String?
+  
+  module      ModuleType? // Nullable for global requirement
+  
   createdAt   DateTime @default(now()) @map("created_at")
   
   @@map("document_requirements")
@@ -605,4 +615,47 @@ model AutoAssignmentConfig {
   updatedAt       DateTime  @updatedAt @map("updated_at")
   
   @@map("auto_assignment_config")
+}
+
+// ============================================
+// MODULE-BASED APPLICATION FLOW
+// ============================================
+
+enum ModuleType {
+  PERSONAL
+  EDUCATION
+  BUSINESS
+  HEALTH
+  TRAVEL
+}
+
+model ApplicationModule {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  module        ModuleType
+  status        String      @default("NOT_STARTED") // NOT_STARTED, IN_PROGRESS, COMPLETE
+  
+  completedAt   DateTime?   @map("completed_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@unique([applicationId, module])
+  @@index([status])
+  @@map("application_modules")
+}
+
+model ApplicationAnswer {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  
+  module        ModuleType
+  fieldKey      String      @map("field_key")
+  value         Json
+  
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@unique([applicationId, module, fieldKey])
+  @@map("application_answers")
 }

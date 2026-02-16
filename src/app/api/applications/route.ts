@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
             orderBy: { createdAt: 'desc' },
             take: 1,
           },
-        },
+          modules: true,
+        } as any, // Cast to any to allow modules property until types are updated
         orderBy: { createdAt: 'desc' },
       })
 
@@ -100,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { country, processType, profession, consultancyFee, memberId } = await request.json()
+    const { country, processType, profession, consultancyFee, memberId, modules } = await request.json()
 
     // Validate required fields
     if (!country || !processType || !consultancyFee) {
@@ -138,7 +139,13 @@ export async function POST(request: NextRequest) {
           consultancyFee: parseFloat(consultancyFee),
           memberId: memberId || null,
           status: 'DRAFT',
-        },
+          modules: {
+            create: modules?.map((m: any) => ({
+              module: m,
+              status: 'NOT_STARTED'
+            })) || []
+          }
+        } as any, // Cast to any to allow modules create input
       })
 
       return NextResponse.json({

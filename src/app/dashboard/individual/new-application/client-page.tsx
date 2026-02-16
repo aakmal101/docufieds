@@ -20,7 +20,12 @@ import {
   MapPin,
   FileText,
   CreditCard,
-  CheckCircle
+  CreditCard,
+  CheckCircle,
+  Briefcase,
+  Heart,
+  Plane,
+  User
 } from 'lucide-react'
 import WorldMap from '@/components/world-map'
 // import RequiredDocuments directly removed to prevent SSR/Module crashes
@@ -112,7 +117,7 @@ function NewApplicationContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [step, setStep] = useState<'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('destination')
+  const [step, setStep] = useState<'destination' | 'process' | 'modules' | 'profession' | 'review' | 'documents' | 'call'>('destination')
   const [loading, setLoading] = useState(false)
   const [loadingApplication, setLoadingApplication] = useState(false)
   const [error, setError] = useState('')
@@ -123,11 +128,23 @@ function NewApplicationContent() {
     profession: '',
   })
 
+  const [selectedModules, setSelectedModules] = useState<string[]>([])
+
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
   const [applicationId, setApplicationId] = useState<string | null>(null)
   const [isReadOnly, setIsReadOnly] = useState(false)
 
+  // Module definitions
+  const MODULES = [
+    { id: 'PERSONAL', label: 'Personal Information', description: 'Basic personal details', icon: User, required: true },
+    { id: 'EDUCATION', label: 'Education History', description: 'Academic qualifications', icon: FileText, required: false },
+    { id: 'BUSINESS', label: 'Business / Employment', description: 'Work and business details', icon: Briefcase, required: false },
+    { id: 'HEALTH', label: 'Health Declaration', description: 'Medical history and records', icon: Heart, required: false },
+    { id: 'TRAVEL', label: 'Travel History', description: 'Previous travel records', icon: Plane, required: false },
+  ]
+
   useEffect(() => {
+    // ... existing auth check ...
     console.log('[NewApplication] Status:', status, 'Session:', session?.user ? 'exists' : 'null')
 
     if (status === 'loading') return
@@ -175,6 +192,11 @@ function NewApplicationContent() {
           profession: app.profession || '',
         })
 
+        // Restore modules if available (assuming API returns them)
+        if (app.modules) {
+          setSelectedModules(app.modules.map((m: any) => m.module))
+        }
+
         // Find and set selected country (you may need to match by name)
         // For now, we'll just set the country name
         if (app.country) {
@@ -192,9 +214,9 @@ function NewApplicationContent() {
 
         // Determine which step to show based on application status and progress
         if (app.status === 'DRAFT') {
-          // If no documents uploaded, go to documents step
+          // Logic to resume step...
           if (app.documents && app.documents.length > 0) {
-            // Check if ready for Call Phase (documents + payment complete)
+            // ... check payment ...
             const validPayments = app.payments?.filter(
               (p: any) => p.status === 'PAID' || p.status === 'PARTIAL'
             ) || []
@@ -202,15 +224,16 @@ function NewApplicationContent() {
             const paymentComplete = app.consultancyFee === 0 || totalPaid >= app.consultancyFee
 
             if (paymentComplete) {
-              // Auto-transition to Call Phase if ready
               setStep('call')
             } else {
               setStep('documents')
             }
           } else if (app.country && app.processType && app.profession) {
             setStep('documents')
-          } else if (app.country && app.processType) {
+          } else if (app.country && app.processType && app.modules?.length > 0) { // Check modules
             setStep('profession')
+          } else if (app.country && app.processType) {
+            setStep('modules') // Changed logic to show modules step
           } else if (app.country) {
             setStep('process')
           } else {
@@ -250,6 +273,10 @@ function NewApplicationContent() {
       setError('Please select a process type')
       return
     }
+    if (step === 'modules' && selectedModules.length === 0) {
+      setError('Please select at least one module')
+      return
+    }
     if (step === 'profession' && !formData.profession) {
       setError('Please select your profession')
       return
@@ -262,6 +289,9 @@ function NewApplicationContent() {
         setStep('process')
         break
       case 'process':
+        setStep('modules')
+        break
+      case 'modules':
         setStep('profession')
         break
       case 'profession':
@@ -281,8 +311,11 @@ function NewApplicationContent() {
       case 'process':
         setStep('destination')
         break
-      case 'profession':
+      case 'modules':
         setStep('process')
+        break
+      case 'profession':
+        setStep('modules')
         break
       case 'review':
         setStep('profession')
@@ -304,7 +337,7 @@ function NewApplicationContent() {
   }
 
   const handleSubmit = async () => {
-    if (!selectedCountry || !formData.processType || !formData.profession) {
+    if (!selectedCountry || !formData.processType || !formData.profession || selectedModules.length === 0) {
       setError('Please complete all required fields')
       return
     }
@@ -331,6 +364,7 @@ function NewApplicationContent() {
             processType: formData.processType,
             profession: formData.profession,
             consultancyFee: getCurrentFee(),
+            modules: selectedModules
           }),
         })
 
@@ -379,26 +413,26 @@ function NewApplicationContent() {
       {/* Progress Indicator */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
-          {['destination', 'process', 'profession', 'review', 'documents', 'call'].map((stepName, index) => (
+          {['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].map((stepName, index) => (
             <div key={stepName} className="flex items-center">
               <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${step === stepName
                 ? 'border-blue-600 bg-blue-600 text-white'
-                : ['destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index
+                : ['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].indexOf(step) > index
                   ? 'border-green-600 bg-green-600 text-white'
                   : 'border-gray-300 bg-white text-gray-500'
                 }`}>
-                {['destination', 'process', 'profession', 'review', 'documents', 'call'].indexOf(step) > index ? (
+                {['destination', 'process', 'modules', 'profession', 'review', 'documents', 'call'].indexOf(step) > index ? (
                   <CheckCircle className="h-4 w-4" />
                 ) : (
                   <span className="text-sm font-medium">{index + 1}</span>
                 )}
               </div>
-              <span className={`ml-2 text-sm font-medium ${step === stepName ? 'text-blue-600' : 'text-gray-500'
+              <span className={`ml-2 text-sm font-medium hidden sm:inline ${step === stepName ? 'text-blue-600' : 'text-gray-500'
                 }`}>
                 {stepName.charAt(0).toUpperCase() + stepName.slice(1)}
               </span>
-              {index < 3 && (
-                <div className={`w-16 h-0.5 mx-4 ${['destination', 'process', 'profession', 'review'].indexOf(step) > index
+              {index < 6 && (
+                <div className={`w-4 sm:w-16 h-0.5 mx-2 sm:mx-4 ${['destination', 'process', 'modules', 'profession', 'review'].indexOf(step) > index
                   ? 'bg-green-600'
                   : 'bg-gray-300'
                   }`} />
@@ -416,6 +450,7 @@ function NewApplicationContent() {
               <CardTitle>
                 {step === 'destination' && 'Select Destination Country'}
                 {step === 'process' && 'Choose Process Type'}
+                {step === 'modules' && 'Select Application Modules'}
                 {step === 'profession' && 'Select Your Profession'}
                 {step === 'review' && 'Review Application'}
                 {step === 'documents' && 'Required Documents'}
@@ -424,6 +459,7 @@ function NewApplicationContent() {
               <CardDescription>
                 {step === 'destination' && 'Choose the country you want to visit'}
                 {step === 'process' && 'Select the purpose of your visit'}
+                {step === 'modules' && 'Choose the sections relevant to your application'}
                 {step === 'profession' && 'Tell us about your profession'}
                 {step === 'review' && 'Review your application details before submitting'}
                 {step === 'documents' && 'Prepare the required documents for your application'}
@@ -501,6 +537,52 @@ function NewApplicationContent() {
                 </div>
               )}
 
+              {step === 'modules' && (
+                <div className="space-y-4">
+                  {MODULES.map((module) => (
+                    <div
+                      key={module.id}
+                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${selectedModules.includes(module.id)
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      onClick={() => {
+                        if (module.required) return // Cannot toggle required
+                        if (selectedModules.includes(module.id)) {
+                          setSelectedModules(prev => prev.filter(m => m !== module.id))
+                        } else {
+                          setSelectedModules(prev => [...prev, module.id])
+                        }
+                      }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-full ${selectedModules.includes(module.id) ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                          <module.icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">{module.label}</h3>
+                            {module.required && <Badge variant="secondary" className="text-[10px]">Required</Badge>}
+                          </div>
+                          <p className="text-sm text-gray-500">{module.description}</p>
+                        </div>
+                        <div className="h-5 w-5 border rounded flex items-center justify-center bg-white border-gray-300">
+                          {(selectedModules.includes(module.id) || module.required) && (
+                            <div className="w-3 h-3 bg-blue-600 rounded-sm" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Pre-select required modules on mount */}
+                  {React.useEffect(() => {
+                    const required = MODULES.filter(m => m.required).map(m => m.id)
+                    setSelectedModules(prev => Array.from(new Set([...prev, ...required])))
+                  }, [])}
+                </div>
+              )}
+
               {step === 'profession' && (
                 <div className="space-y-4">
                   {isReadOnly && (
@@ -560,6 +642,16 @@ function NewApplicationContent() {
                       </div>
                     </div>
                     <div>
+                      <h3 className="font-medium text-gray-900 mb-2">Selected Modules</h3>
+                      <div className="flex flex-wrap gap-2 p-3 bg-gray-50 rounded-lg min-h-[50px]">
+                        {selectedModules.map(m => (
+                          <Badge key={m} variant="outline" className="bg-white">
+                            {MODULES.find(mod => mod.id === m)?.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="col-span-1 md:col-span-2">
                       <h3 className="font-medium text-gray-900 mb-2">Consultancy Fee</h3>
                       <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                         <CreditCard className="h-5 w-5 text-purple-600 mr-2" />
@@ -715,6 +807,12 @@ function NewApplicationContent() {
                 <label className="text-sm font-medium text-gray-700">Profession</label>
                 <p className="text-gray-900">
                   {professions.find(p => p.value === formData.profession)?.label || 'Not selected'}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700">Modules</label>
+                <p className="text-gray-900 hover:truncate">
+                  {selectedModules.length > 0 ? selectedModules.length + ' selected' : 'Not selected'}
                 </p>
               </div>
               <div className="border-t pt-4">

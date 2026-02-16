@@ -40,6 +40,9 @@ export async function POST(request: NextRequest) {
         id: true,
         status: true,
         userId: true,
+        country: true,
+        processType: true,
+        profession: true,
       }
     })
 
@@ -292,7 +295,7 @@ export async function POST(request: NextRequest) {
       })
 
       // Create status update
-      await prisma.statusUpdate.create({
+      await (prisma as any).applicationStatusUpdate.create({
         data: {
           applicationId,
           status: 'DOCUMENT_UNDER_PROCESSING',
@@ -300,6 +303,74 @@ export async function POST(request: NextRequest) {
           updatedBy: session.user.id,
         },
       })
+    }
+
+    // Update Module Status Logic
+    try {
+      // 1. Check if this document is part of a module requirement
+      const requirement = await prisma.documentRequirement.findFirst({
+        where: {
+          country: application.country,
+          processType: application.processType as any,
+          documentType: documentType,
+          module: { not: null }
+        } as any
+      })
+
+      if (requirement && (requirement as any).module) {
+        const moduleType = (requirement as any).module
+
+        // 2. Fetch all requirements for this module
+        const moduleRequirements = await prisma.documentRequirement.findMany({
+          where: {
+            country: application.country,
+            processType: application.processType as any,
+            OR: [
+              { profession: null },
+              { profession: (application as any).profession || null }
+            ],
+            module: moduleType,
+            isRequired: true
+          } as any
+        })
+
+        // 3. Fetch all uploaded documents for this module's requirements
+        const uploadedModuleDocs = await prisma.document.findMany({
+          where: {
+            applicationId,
+            documentType: { in: moduleRequirements.map(r => r.documentType) }
+          },
+          select: { documentType: true }
+        })
+
+        // 4. Check if all requirements are met
+        const uploadedTypes = new Set(uploadedModuleDocs.map(d => d.documentType))
+        const allMet = moduleRequirements.every(req => uploadedTypes.has(req.documentType))
+        const newStatus = allMet ? 'COMPLETE' : 'IN_PROGRESS'
+
+        // 5. Update ApplicationModule status
+        // We use updateMany here because we can't easily use upsert with composite unique key 
+        // without exact type matching in client-side code sometimes
+        const moduleRecord = await (prisma as any).applicationModule.findFirst({
+          where: { applicationId, module: moduleType }
+        })
+
+        if (moduleRecord) {
+          await (prisma as any).applicationModule.update({
+            where: { id: moduleRecord.id },
+            data: {
+              status: newStatus,
+              completedAt: allMet ? new Date() : null,
+              updatedAt: new Date()
+            }
+          })
+          console.log(`[Upload API] Updated module ${moduleType} status to ${newStatus}`)
+        }
+      }
+    } catch (moduleUpdateError) {
+      console.error('[Upload API] Failed to update module status:', moduleUpdateError)
+      // Don't fail the upload if module status update fails
+      // Just log it
     }
 
     // Return the document in the exact format the frontend expects

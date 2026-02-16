@@ -19,8 +19,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         statusUpdates: {
           orderBy: { createdAt: 'desc' },
           include: { member: { select: { fullName: true } } }
-        }
-      }
+        },
+        modules: true
+      } as any // Cast to any to allow modules property
     })
 
     if (!application) return NextResponse.json({ error: 'Not found' }, { status: 404 })

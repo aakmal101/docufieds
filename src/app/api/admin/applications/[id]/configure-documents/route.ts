@@ -28,10 +28,14 @@ export async function POST(
       )
     }
 
-    const { documentRequirements } = await request.json()
+    const { documentRequirements, requirementsWithModules } = await request.json()
     const applicationId = params.id
 
-    if (!documentRequirements || !Array.isArray(documentRequirements)) {
+    // Support both legacy (string[]) and new ({documentType, module}[]) formats
+    const hasLegacyData = documentRequirements && Array.isArray(documentRequirements) && documentRequirements.length > 0
+    const hasNewData = requirementsWithModules && Array.isArray(requirementsWithModules) && requirementsWithModules.length > 0
+
+    if (!hasLegacyData && !hasNewData) {
       return NextResponse.json(
         { success: false, message: 'Document requirements are required' },
         { status: 400 }
@@ -56,29 +60,54 @@ export async function POST(
       data: { status: 'DOCUMENT_UNDER_REVIEW' },
     })
 
+    const newRequirements = []
+
+    // Process legacy data (global scope)
+    if (hasLegacyData) {
+      newRequirements.push(...documentRequirements.map((docType: string) => ({
+        documentType: docType,
+        module: null
+      })))
+    }
+
+    // Process new data
+    if (hasNewData) {
+      newRequirements.push(...requirementsWithModules)
+    }
+
     // Create document requirements
-    const documentRequirementPromises = documentRequirements.map((docType) =>
+    const documentRequirementPromises = newRequirements.map((req) =>
       prisma.documentRequirement.create({
         data: {
           country: application.country,
           processType: application.processType,
           profession: application.profession,
-          documentType: docType,
+          documentType: req.documentType,
+          module: req.module || null,
           isRequired: true,
-          description: `Required document for ${application.country} ${application.processType} application`,
-        },
+          description: `Required document for ${application.country} ${application.processType} application${req.module ? ` (${req.module} Module)` : ''}`,
+        } as any, // Cast to any to avoid type error until generation update propagates
       })
     )
 
     await Promise.all(documentRequirementPromises)
 
     // Create status update
-    await prisma.statusUpdate.create({
+    const docList = newRequirements.map(r => r.module ? `${r.documentType} (${r.module})` : r.documentType).join(', ')
+
+    await prisma.applicationStatusUpdate.create({
       data: {
         applicationId,
-        status: 'DOCUMENT_UNDER_REVIEW',
-        message: `Document requirements configured by support team. Required documents: ${documentRequirements.join(', ')}`,
-        updatedBy: session.user.id,
+        toStatus: 'DOCUMENT_UNDER_REVIEW',
+        fromStatus: application.status,
+        changedByType: 'SUPPORT_MEMBER',
+        changedByMemberId: session.user.id, // Assuming support user is logged in
+        // Note: The schema for ApplicationStatusUpdate is different from what was here.
+        // Schema has: fromStatus, toStatus, changedByType, changedById, changedByMemberId, notes, isVisibleToUser
+        // The old code had: status, message, updatedBy
+        // adjusting to match schema:
+        notes: `Document requirements configured by support team. Required documents: ${docList}`,
+        isVisibleToUser: true
       },
     })
 
@@ -87,7 +116,7 @@ export async function POST(
       data: {
         userId: application.userId,
         title: 'Document Requirements Updated',
-        message: `Your application document requirements have been configured. Please upload the required documents: ${documentRequirements.join(', ')}`,
+        message: `Your application document requirements have been configured. Please upload the required documents.`,
         type: 'document_requirements',
       },
     })

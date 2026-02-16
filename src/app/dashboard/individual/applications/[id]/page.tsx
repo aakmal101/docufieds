@@ -119,6 +119,11 @@ export default function UserApplicationView({ params }: { params: { id: string }
                             <TabsTrigger value="info" className="data-[state=active]:bg-gray-100">
                                 <FileText className="mr-2 h-4 w-4" /> Details
                             </TabsTrigger>
+                            {app.modules?.map((mod: any) => (
+                                <TabsTrigger key={mod.module} value={`module-${mod.module}`} className="data-[state=active]:bg-gray-100">
+                                    {mod.module.charAt(0) + mod.module.slice(1).toLowerCase()}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
 
                         <div className="flex-1 bg-white border border-t-0 rounded-b-lg p-6 min-h-[500px]">
@@ -224,19 +229,67 @@ export default function UserApplicationView({ params }: { params: { id: string }
                                         </div>
                                     </div>
                                     <div>
-                                        <h3 className="font-semibold mb-3">Uploaded Documents</h3>
+                                        <h3 className="font-semibold mb-3">General Documents</h3>
                                         <div className="space-y-2">
-                                            {app.documents?.map((doc: any) => (
+                                            {app.documents?.filter((d: any) => !d.module).map((doc: any) => (
                                                 <div key={doc.id} className="flex items-center p-2 bg-gray-50 rounded text-sm border hover:bg-gray-100 transition-colors">
                                                     <FileText className="h-4 w-4 mr-2 text-gray-500" />
                                                     <span className="truncate flex-1">{doc.documentType}</span>
                                                     <CheckCircle className="h-4 w-4 text-green-500" />
                                                 </div>
                                             ))}
+                                            {(!app.documents || app.documents.filter((d: any) => !d.module).length === 0) && (
+                                                <p className="text-sm text-gray-400 italic">No general documents uploaded.</p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
                             </TabsContent>
+
+                            {/* Dynamic Module Tabs */}
+                            {app.modules?.map((mod: any) => (
+                                <TabsContent key={mod.module} value={`module-${mod.module}`} className="mt-0">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h2 className="text-xl font-semibold">{mod.module.charAt(0) + mod.module.slice(1).toLowerCase()} Module</h2>
+                                        <Badge variant={mod.status === 'COMPLETE' ? 'default' : 'secondary'}>
+                                            {mod.status.replace(/_/g, ' ')}
+                                        </Badge>
+                                    </div>
+
+                                    <div className="space-y-6">
+                                        {/* Module Documents */}
+                                        <div>
+                                            <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                                                <FileText className="h-4 w-4" />
+                                                Module Documents
+                                            </h3>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                                {app.documents?.filter((d: any) => d.module === mod.module).map((doc: any) => (
+                                                    <div key={doc.id} className="flex items-center p-3 bg-white border rounded-lg shadow-sm">
+                                                        <FileText className="h-5 w-5 text-blue-500 mr-3" />
+                                                        <div className="overflow-hidden">
+                                                            <p className="font-medium text-sm truncate">{doc.documentType}</p>
+                                                            <p className="text-xs text-gray-500 truncate">{doc.fileName}</p>
+                                                        </div>
+                                                        <CheckCircle className="h-5 w-5 text-green-500 ml-auto flex-shrink-0" />
+                                                    </div>
+                                                ))}
+                                                {(!app.documents || app.documents.filter((d: any) => d.module === mod.module).length === 0) && (
+                                                    <div className="col-span-full text-center py-8 border-2 border-dashed rounded-lg bg-gray-50">
+                                                        <p className="text-sm text-gray-500">No documents uploaded for this module.</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Module specific info could go here */}
+                                        {/* For now just a placeholder */}
+                                        <div className="p-4 bg-gray-50 rounded text-sm text-gray-600">
+                                            Additional information for {mod.module.toLowerCase()} will appear here.
+                                        </div>
+                                    </div>
+                                </TabsContent>
+                            ))}
                         </div>
                     </Tabs>
                 </div>

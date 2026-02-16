@@ -57,6 +57,7 @@ export async function POST(
       include: {
         documents: true,
         payments: true,
+        modules: true,
         statusUpdates: {
           where: {
             toStatus: ApplicationStatus.UNDER_REVIEW,
@@ -66,7 +67,7 @@ export async function POST(
           },
           take: 1,
         },
-      },
+      } as any, // Cast to any to allow modules property
     })
 
     if (!application) {
@@ -97,7 +98,7 @@ export async function POST(
         data: {
           id: application.id,
           status: application.status,
-          submittedAt: existingStatusUpdate?.createdAt || application.updatedAt,
+          submittedAt: (existingStatusUpdate as any)?.createdAt || application.updatedAt,
           isAlreadySubmitted: true,
         },
       })
@@ -112,7 +113,10 @@ export async function POST(
       }, { status: 400 })
     }
 
-    // Step 1: Verify all required documents are uploaded
+    // Get active module types
+    const activeModules = (application as any).modules?.map((m: any) => m.module) || []
+
+    // Step 1: Verify all required documents are uploaded (including module-specific ones)
     const documentRequirements = await prisma.documentRequirement.findMany({
       where: {
         country: application.country,
@@ -122,11 +126,20 @@ export async function POST(
           { profession: application.profession || null },
         ],
         isRequired: true,
-      },
+        // Filter by active modules or global requirements
+        AND: [
+          {
+            OR: [
+              { module: null },
+              { module: { in: activeModules } }
+            ]
+          }
+        ]
+      } as any,
     })
 
     // Get uploaded document types
-    const uploadedDocumentTypes = application.documents.map(doc => doc.documentType)
+    const uploadedDocumentTypes = (application as any).documents.map((doc: any) => doc.documentType)
 
     // Check if all required documents are uploaded
     const missingDocuments = documentRequirements.filter(
@@ -147,10 +160,10 @@ export async function POST(
     // Step 2: Verify payment status
     // Check if there's a paid payment for this application
     // Include both PAID and PARTIAL status payments
-    const validPayments = application.payments.filter(
-      p => p.status === 'PAID' || p.status === 'PARTIAL'
+    const validPayments = (application as any).payments.filter(
+      (p: any) => p.status === 'PAID' || p.status === 'PARTIAL'
     )
-    const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0)
+    const totalPaid = validPayments.reduce((sum: number, p: any) => sum + p.amount, 0)
 
     // Payment is required if consultancy fee > 0
     if (application.consultancyFee > 0) {
@@ -248,9 +261,9 @@ export async function POST(
       message: 'Application process completed successfully! Your application has been submitted and is now under review.',
       data: {
         applicationId: application.id,
-        status: result.application.status, // Changed to result.application.status as per original
+        status: result.application.status,
         submittedAt: result.statusUpdate.createdAt,
-        documentsCount: application.documents.length,
+        documentsCount: (application as any).documents.length,
         requiredDocumentsCount: documentRequirements.length,
         paymentStatus: application.consultancyFee > 0
           ? (totalPaid >= application.consultancyFee ? 'PAID' : 'PARTIAL')

@@ -122,6 +122,7 @@ export interface DocumentRequirement {
   documentType: string
   isRequired: boolean
   description?: string
+  module?: string
   createdAt: Date
 }
 
