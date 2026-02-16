@@ -20,7 +20,7 @@ import {
   MapPin,
   FileText,
   CreditCard,
-  CreditCard,
+
   CheckCircle,
   Briefcase,
   Heart,
