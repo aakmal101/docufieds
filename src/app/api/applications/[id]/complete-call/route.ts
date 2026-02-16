@@ -268,7 +268,7 @@ export async function POST(
     })
 
     // Return success response with completion details
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       message: 'Application process completed successfully! Your application has been submitted and is now under review.',
       data: {
