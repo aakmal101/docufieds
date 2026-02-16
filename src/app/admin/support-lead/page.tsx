@@ -67,7 +67,8 @@ export default function SupportLeadDashboard() {
                 if (resStats.ok) setStats(await resStats.json())
                 if (resConfig.ok) setAaConfig(await resConfig.json())
                 if (resApps.ok) {
-                    const apps = await resApps.json()
+                    const data = await resApps.json()
+                    const apps = data.applications || []
                     setRecentApps(apps)
                     // Extract unique users
                     const users = Array.from(new Set(apps.map((a: any) => a.userId)))
