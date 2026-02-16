@@ -387,12 +387,8 @@ function NewApplicationContent() {
 
 
   const getCurrentFee = () => {
-    // If application has a set fee (from support or calculation), usage it
-    // For new edits, we might not have app loaded yet.
-    // If module based, fee is 0 (assigned by support)
-    if (selectedModule) return 0
-    if (!formData.processType) return 0
-    return consultancyFees[formData.processType as ProcessType]
+    // Standard 500 BDT fee for all modules and process types
+    return 500
   }
 
   const handleSubmit = async () => {
@@ -431,7 +427,7 @@ function NewApplicationContent() {
             // Use 'standard' or similar default for module-based apps if processType is skipped
             processType: selectedModule ? 'standard' : formData.processType,
             profession: formData.profession,
-            consultancyFee: 0, // Fees are now assigned by support for module apps
+            consultancyFee: 500, // Standard 500 BDT fee
             module: selectedModule // Singular
           }),
         })
@@ -875,7 +871,7 @@ function NewApplicationContent() {
                   <span className="font-bold text-lg text-blue-600">
                     {supportFee !== null
                       ? `${supportFee.toLocaleString()} BDT`
-                      : (selectedModule ? 'To be assigned' : `${getCurrentFee()} BDT`)
+                      : `${getCurrentFee()} BDT`
                     }
                   </span>
                 </div>

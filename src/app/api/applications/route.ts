@@ -103,16 +103,16 @@ export async function POST(request: NextRequest) {
 
     const { country, processType, profession, consultancyFee, memberId, module } = await request.json()
 
-    // Validate required fields
-    if (!country || !processType || !consultancyFee) {
+    // Validate required fields - consultancyFee can be 0 for legacy, use explicit check
+    if (!country || !processType || consultancyFee === undefined || consultancyFee === null) {
       return NextResponse.json(
         { success: false, message: 'Country, process type, and consultancy fee are required' },
         { status: 400 }
       )
     }
 
-    // Validate process type
-    if (!Object.values(ProcessType).includes(processType)) {
+    // Validate process type (skip for module-based apps which use 'standard')
+    if (!module && !Object.values(ProcessType).includes(processType)) {
       return NextResponse.json(
         { success: false, message: 'Invalid process type' },
         { status: 400 }
