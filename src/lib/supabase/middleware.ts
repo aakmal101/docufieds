@@ -95,6 +95,20 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // 3. Agent Dashboard Protection
+  if (request.nextUrl.pathname.startsWith('/dashboard/agent')) {
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/signin'
+      return NextResponse.redirect(url)
+    }
+    // We ideally check for role 'AGENT' here via metadata or DB.
+    // Assuming metadata is populated on login:
+    // const role = user.user_metadata?.role
+    // if (role !== 'AGENT') { ... }
+    // For now, simple auth check + page-level restriction (layout) is sufficient for MVP start.
+  }
+
   // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
   // creating a new response object with NextResponse.next() make sure to:
   // 1. Pass the request in it, like so:

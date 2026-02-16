@@ -59,7 +59,7 @@ export function MessageThread({ messages, currentUserType, onSendMessage, isLoad
                         if (currentUserType === 'USER' && isInternal) return null
 
                         const isMe = (currentUserType === 'USER' && msg.senderType === 'USER') ||
-                            (currentUserType === 'SUPPORT_MEMBER' && msg.senderType === 'SUPPORT_MEMBER')
+                            (currentUserType === 'SUPPORT_MEMBER' && (msg.senderType === 'SUPPORT_MEMBER' || msg.senderType === 'AGENT'))
 
                         if (msg.messageType === 'SYSTEM' || msg.messageType === 'DOCUMENT_REQUEST') {
                             return (
@@ -110,6 +110,7 @@ export function MessageThread({ messages, currentUserType, onSendMessage, isLoad
                                         </div>
                                         <span className="text-[10px] text-gray-400 px-1">
                                             {msg.senderType === 'SUPPORT_MEMBER' && !isMe ? `${msg.senderMember?.fullName} • ` : ''}
+                                            {msg.senderType === 'AGENT' && !isMe ? `${msg.senderUser?.fullName} (Agent) • ` : ''}
                                             {formatDistanceToNow(new Date(msg.createdAt), { addSuffix: true })}
                                         </span>
                                     </div>

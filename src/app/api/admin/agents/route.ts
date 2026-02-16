@@ -1,0 +1,93 @@
+
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { createClient } from '@supabase/supabase-js'
+
+// Using service role for admin actions if needed, or just prisma
+// ideally we use the logged in user's session to verify they are ADMIN or AGENCY
+
+export async function POST(req: NextRequest) {
+    try {
+        // 1. Auth Check (Mock/Simplification for now - in real app, check session)
+        // const session = await auth() ... 
+
+        const body = await req.json()
+        const { email, fullName, phone, agencyId, password } = body
+
+        if (!email || !fullName || !password) {
+            return NextResponse.json({ success: false, message: 'Missing fields' }, { status: 400 })
+        }
+
+        // 2. Create User in Supabase Auth (if using Supabase Auth)
+        // We typically need to create the auth user first to get the ID, OR we let the user sign up.
+        // For "Invite" flow, we often create the DB record first with a "PENDING" status
+        // OR we use Supabase Admin API to create the user.
+
+        const supabaseAdmin = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { full_name: fullName, role: 'AGENT' }
+        })
+
+        if (authError) {
+            return NextResponse.json({ success: false, message: authError.message }, { status: 400 })
+        }
+
+        const newUserId = authData.user.id
+
+        // 3. Create User in Prisma
+        const newUser = await prisma.user.create({
+            data: {
+                id: newUserId, // Sync ID
+                email,
+                fullName,
+                role: 'AGENT',
+                status: 'APPROVED',
+                isVerified: true,
+                agencyId: agencyId || undefined, // Link to agency if provided
+                agentProfile: {
+                    create: {
+                        displayName: fullName,
+                        phone: phone
+                    }
+                }
+            }
+        })
+
+        return NextResponse.json({ success: true, data: newUser })
+
+    } catch (error: any) {
+        console.error('Error creating agent:', error)
+        return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+    }
+}
+
+export async function GET(req: NextRequest) {
+    const searchParams = req.nextUrl.searchParams
+    const agencyId = searchParams.get('agencyId')
+
+    try {
+        const agents = await prisma.user.findMany({
+            where: {
+                role: 'AGENT',
+                ...(agencyId ? { agencyId } : {})
+            },
+            include: {
+                agentProfile: true,
+                _count: {
+                    select: { agentAssignments: true }
+                }
+            }
+        })
+
+        return NextResponse.json({ success: true, data: agents })
+    } catch (error: any) {
+        return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+    }
+}
