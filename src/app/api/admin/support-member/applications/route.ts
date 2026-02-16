@@ -19,11 +19,13 @@ export async function GET(req: NextRequest) {
                 application: {
                     select: {
                         id: true,
-                        user: { select: { fullName: true, email: true } },
+                        userId: true,
+                        user: { select: { id: true, fullName: true, email: true } },
                         country: true,
                         processType: true,
                         status: true,
                         supportStatus: true,
+                        payments: { select: { status: true }, take: 1 },
                         _count: { select: { documents: true } }
                     }
                 }
