@@ -71,6 +71,10 @@ model User {
   bulkUploads       BulkUpload[]
   auditLogs         AuditLog[]    @relation("AuditActor")
   targetAuditLogs   AuditLog[]    @relation("AuditTarget")
+  
+  // Upload Sessions
+  createdSessions   UploadSession[] @relation("SessionCreator")
+  targetSessions    UploadSession[] @relation("SessionTarget")
 
   // Support Team Relations
   teamMembers         SupportTeamMember[]     @relation("TeamLeadMembers")
@@ -148,6 +152,7 @@ model Application {
   // Module Relations
   modules             ApplicationModule[]
   answers             ApplicationAnswer[]
+  uploadSessions      UploadSession[]
   
   @@index([bulkUploadId])
   @@map("applications")
@@ -173,6 +178,7 @@ model Document {
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   documentRequests DocumentRequest[]
+  uploadSlot    UploadSlot?
   
   @@map("documents")
 }
@@ -658,4 +664,62 @@ model ApplicationAnswer {
 
   @@unique([applicationId, module, fieldKey])
   @@map("application_answers")
+}
+
+// ============================================
+// UPLOAD SESSION MODELS (PHASE 35)
+// ============================================
+
+model UploadSession {
+  id              String        @id @default(cuid())
+  tokenHash       String        @unique @map("token_hash")
+  
+  // Relations
+  createdByUserId String        @map("created_by_user_id")
+  createdByUser   User          @relation("SessionCreator", fields: [createdByUserId], references: [id])
+  
+  targetUserId    String        @map("target_user_id")
+  targetUser      User          @relation("SessionTarget", fields: [targetUserId], references: [id])
+  
+  applicationId   String?       @map("application_id")
+  application     Application?  @relation(fields: [applicationId], references: [id])
+  
+  slots           UploadSlot[]
+
+  // Meta
+  slotCount       Int           @map("slot_count")
+  status          String        @default("ACTIVE") // ACTIVE, COMPLETED, EXPIRED, CANCELLED
+  expiresAt       DateTime      @map("expires_at")
+  
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([targetUserId, createdAt])
+  @@index([createdByUserId, createdAt])
+  @@map("upload_sessions")
+}
+
+model UploadSlot {
+  id                  String        @id @default(cuid())
+  
+  uploadSessionId     String        @map("upload_session_id")
+  uploadSession       UploadSession @relation(fields: [uploadSessionId], references: [id], onDelete: Cascade)
+  
+  slotIndex           Int           @map("slot_index")
+  label               String?
+  
+  // Optional: Link to a specific requirement type if known
+  documentTypeId      String?       @map("document_type_id")
+  
+  // Result
+  uploadedDocumentId  String?       @unique @map("uploaded_document_id")
+  uploadedDocument    Document?     @relation(fields: [uploadedDocumentId], references: [id])
+  
+  status              String        @default("EMPTY") // EMPTY, UPLOADED
+  
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+
+  @@unique([uploadSessionId, slotIndex])
+  @@map("upload_slots")
 }
