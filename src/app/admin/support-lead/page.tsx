@@ -7,6 +7,11 @@ import toast from 'react-hot-toast'
 import { AutoAssignToggle } from '@/components/support/AutoAssignToggle'
 import { AutoAssignConfigModal } from '@/components/support/AutoAssignConfigModal'
 import { useApplicationAssignments, useEscalations, useRejectionRequests } from '@/lib/supabase/realtime-support'
+import { Link as LinkIcon } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { GenerateLinkModal } from '@/components/support/generate-link-modal'
+import { UploadSessionsList } from '@/components/support/upload-sessions-list'
+import { Button } from '@/components/ui/button'
 
 export default function SupportLeadDashboard() {
     const [loading, setLoading] = useState(true)
@@ -22,6 +27,7 @@ export default function SupportLeadDashboard() {
     // Auto-Assign State
     const [aaConfig, setAaConfig] = useState<any>(null)
     const [aaModalOpen, setAaModalOpen] = useState(false)
+    const [genLinkModalOpen, setGenLinkModalOpen] = useState(false)
 
     // Realtime Hooks
     // Note: We need a way to know the 'leadId' or just listen broadly? 
@@ -46,16 +52,29 @@ export default function SupportLeadDashboard() {
     // But the task said: "In /admin/support-lead/page.tsx: Refresh stats on assignment changes"
     // I will add a poller for now as it's robust.
 
+    const [recentUsers, setRecentUsers] = useState<any[]>([])
+    const [recentApps, setRecentApps] = useState<any[]>([])
+
     useEffect(() => {
         async function load() {
             try {
-                const [resStats, resConfig] = await Promise.all([
+                const [resStats, resConfig, resApps] = await Promise.all([
                     fetch('/api/admin/support-lead/dashboard'),
-                    fetch('/api/admin/support-lead/config/auto-assign')
+                    fetch('/api/admin/support-lead/config/auto-assign'),
+                    fetch('/api/admin/support-lead/applications?limit=50') // Fetch recent for dropdown
                 ])
 
                 if (resStats.ok) setStats(await resStats.json())
                 if (resConfig.ok) setAaConfig(await resConfig.json())
+                if (resApps.ok) {
+                    const apps = await resApps.json()
+                    setRecentApps(apps)
+                    // Extract unique users
+                    const users = Array.from(new Set(apps.map((a: any) => a.userId)))
+                        .map(id => apps.find((a: any) => a.userId === id)?.user)
+                        .filter(Boolean)
+                    setRecentUsers(users)
+                }
             } catch {
                 toast.error('Error loading dashboard')
             } finally {
@@ -63,6 +82,7 @@ export default function SupportLeadDashboard() {
             }
         }
         load()
+
 
         // Polling interval for stats (simple realtime substitute for aggregation)
         const interval = setInterval(load, 10000)
@@ -237,48 +257,85 @@ export default function SupportLeadDashboard() {
                 {/* Team Performance Placeholder */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
-                        <CardTitle>Team Performance</CardTitle>
-                        <CardDescription>Applications processed this week</CardDescription>
+                        <div className="flex justify-between items-center">
+                            <CardTitle>Tools & Team</CardTitle>
+                            <Button variant="outline" size="sm" onClick={() => setAaModalOpen(true)}>
+                                Auto-Assignment
+                            </Button>
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center border border-dashed border-gray-300">
-                            <div className="text-center text-gray-400">
-                                <BarChart3 className="h-10 w-10 mx-auto mb-2" />
-                                <p>Performance Chart Component</p>
-                                <p className="text-xs">Coming in Phase 4</p>
+                        <Tabs defaultValue="activity" className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <TabsList>
+                                    <TabsTrigger value="activity">Activity</TabsTrigger>
+                                    <TabsTrigger value="upload-sessions">Upload Links</TabsTrigger>
+                                </TabsList>
+                                <Button onClick={() => setGenLinkModalOpen(true)} size="sm" className="flex items-center gap-2">
+                                    <LinkIcon className="h-3 w-3" />
+                                    Create Link
+                                </Button>
                             </div>
-                        </div>
+
+                            <TabsContent value="activity">
+                                <Card>
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-sm font-medium">Recent Activity</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="space-y-4">
+                                            {recentActivity.map((activity) => (
+                                                <div key={activity.id} className="flex items-start space-x-3 pb-3 border-b last:border-0 last:pb-0">
+                                                    <div className="mt-1">
+                                                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm text-gray-800">
+                                                            <span className="font-semibold">{activity.user}</span> {activity.action}
+                                                        </p>
+                                                        <div className="flex items-center mt-1 text-xs text-gray-500">
+                                                            <Clock className="h-3 w-3 mr-1" />
+                                                            {activity.time}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            </TabsContent>
+
+                            <TabsContent value="upload-sessions">
+                                <UploadSessionsList />
+                            </TabsContent>
+                        </Tabs>
                     </CardContent>
                 </Card>
 
-                {/* Activity Feed */}
+                {/* Quick Actions / Activity Feed */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Recent Activity</CardTitle>
-                        <CardDescription>Latest actions from your team</CardDescription>
+                        <CardTitle>Quick Actions</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
-                            {recentActivity.map((activity) => (
-                                <div key={activity.id} className="flex items-start space-x-3 pb-3 border-b last:border-0 last:pb-0">
-                                    <div className="mt-1">
-                                        <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                                    </div>
-                                    <div>
-                                        <p className="text-sm text-gray-800">
-                                            <span className="font-semibold">{activity.user}</span> {activity.action}
-                                        </p>
-                                        <div className="flex items-center mt-1 text-xs text-gray-500">
-                                            <Clock className="h-3 w-3 mr-1" />
-                                            {activity.time}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="space-y-2">
+                            <Button variant="outline" className="w-full justify-start" onClick={() => window.location.href = '/admin/support-lead/reports'}>
+                                <BarChart3 className="mr-2 h-4 w-4" /> View Reports
+                            </Button>
+                            <Button variant="outline" className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => window.location.href = '/admin/support-lead/escalations'}>
+                                <AlertTriangle className="mr-2 h-4 w-4" /> Handle Escalations
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
             </div>
+
+            <GenerateLinkModal
+                isOpen={genLinkModalOpen}
+                onClose={() => setGenLinkModalOpen(false)}
+                users={recentUsers}
+                applications={recentApps}
+            />
         </div>
     )
 }
