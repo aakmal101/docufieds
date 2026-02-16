@@ -29,13 +29,14 @@ export async function POST(request: NextRequest) {
         if (!actorUserId) {
             const memberPayload = await verifySupportMemberToken(request)
             if (memberPayload?.id) {
-                // Lookup the support member to verify they exist
+                // Lookup the support member to get their leadId (a valid User.id)
+                // SupportTeamMember.id is NOT a User.id, so we use leadId for FK constraints
                 const member = await prisma.supportTeamMember.findUnique({
                     where: { id: memberPayload.id },
-                    select: { id: true, email: true }
+                    select: { id: true, email: true, leadId: true }
                 })
                 if (member) {
-                    actorUserId = member.id
+                    actorUserId = member.leadId // leadId IS a valid User.id
                 }
             }
         }
@@ -120,7 +121,10 @@ export async function POST(request: NextRequest) {
 
     } catch (error: any) {
         console.error('Error creating upload session:', error)
-        return NextResponse.json({ success: false, message: 'Internal Server Error' }, { status: 500 })
+        const message = error?.message?.includes('Foreign key constraint')
+            ? 'Invalid user reference. Please try again or contact admin.'
+            : `Upload session error: ${error?.message || 'Unknown error'}`
+        return NextResponse.json({ success: false, message }, { status: 500 })
     }
 }
 
