@@ -1,30 +1,47 @@
-
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
+import { verifySupportMemberToken } from '@/middleware/support-member'
 
 // Force dynamic rendering
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Auth Check (Support Only)
+        // 1. Auth Check - Support both NextAuth session AND support-member-token
+        let actorUserId: string | null = null
+
+        // Try NextAuth session first (for ADMIN users)
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
-            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        if (session?.user?.id) {
+            // Check if ADMIN or lookup support member
+            const member = await prisma.supportTeamMember.findUnique({
+                where: { email: session.user.email! },
+            })
+            if (member || session.user.role === 'ADMIN') {
+                actorUserId = session.user.id
+            }
         }
 
-        // Strict Role Check: Must be SUPPORT or ADMIN (or lead)
-        // Assuming support role checks are done via middleware or here
-        // Verify user is a support member
-        const member = await prisma.supportTeamMember.findUnique({
-            where: { email: session.user.email! },
-        })
+        // Fallback: Try support-member-token JWT (for Support Lead & Support Team Member)
+        if (!actorUserId) {
+            const memberPayload = await verifySupportMemberToken(request)
+            if (memberPayload?.id) {
+                // Lookup the support member to verify they exist
+                const member = await prisma.supportTeamMember.findUnique({
+                    where: { id: memberPayload.id },
+                    select: { id: true, email: true }
+                })
+                if (member) {
+                    actorUserId = member.id
+                }
+            }
+        }
 
-        if (!member && session.user.role !== 'ADMIN') {
-            return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
+        if (!actorUserId) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
         const body = await request.json()
@@ -49,7 +66,7 @@ export async function POST(request: NextRequest) {
             const uploadSession = await (tx as any).uploadSession.create({
                 data: {
                     tokenHash,
-                    createdByUserId: session.user.id,
+                    createdByUserId: actorUserId!,
                     targetUserId,
                     applicationId,
                     slotCount,
@@ -75,7 +92,7 @@ export async function POST(request: NextRequest) {
             // Audit Log
             await tx.auditLog.create({
                 data: {
-                    actorUserId: session.user.id,
+                    actorUserId: actorUserId!,
                     action: 'UPLOAD_SESSION_CREATED',
                     targetUserId,
                     metadata: { sessionId: uploadSession.id, slotCount }
@@ -109,8 +126,22 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
     try {
+        // Auth Check - Support both NextAuth session AND support-member-token
+        let authenticated = false
+
         const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        if (session?.user?.id) {
+            authenticated = true
+        }
+
+        if (!authenticated) {
+            const memberPayload = await verifySupportMemberToken(request)
+            if (memberPayload?.id) {
+                authenticated = true
+            }
+        }
+
+        if (!authenticated) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
