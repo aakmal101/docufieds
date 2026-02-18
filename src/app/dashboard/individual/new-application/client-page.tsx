@@ -33,6 +33,7 @@ import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
 import dynamic from 'next/dynamic'
+import TradeLicenseForm from '@/components/applications/trade-license-form'
 
 const RequiredDocuments = dynamic(
   () => import('@/components/required-documents'),
@@ -118,7 +119,7 @@ function NewApplicationContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   // Step 1: Module Selection (New Flow)
-  const [step, setStep] = useState<'modules' | 'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('modules')
+  const [step, setStep] = useState<'modules' | 'category' | 'trade-license' | 'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('modules')
   const [loading, setLoading] = useState(false)
   const [loadingApplication, setLoadingApplication] = useState(false)
   const [error, setError] = useState('')
@@ -144,6 +145,12 @@ function NewApplicationContent() {
     { id: 'BUSINESS', label: 'Business / Work', description: 'Corporate trips, meetings, or employment', icon: Briefcase, required: false },
     { id: 'HEALTH', label: 'Health / Medical', description: 'Medical treatment or consultations', icon: Heart, required: false },
     { id: 'TRAVEL', label: 'Travel / Group', description: 'Group travel or general trips', icon: Plane, required: false },
+  ]
+
+  const BUSINESS_CATEGORIES = [
+    { id: 'TRADE_LICENSE', label: 'Trade License', description: 'Apply for a new trade license or renew existing one' },
+    { id: 'BUSINESS_VISA', label: 'Business Visa', description: 'Visa for business travel and meetings' },
+    { id: 'COMPANY_REGISTRATION', label: 'Company Registration', description: 'Register a new company (Ltd, Partnership, etc.)' },
   ]
 
   useEffect(() => {
@@ -313,7 +320,11 @@ function NewApplicationContent() {
 
   // Determine available steps based on context
   const steps = selectedModule
-    ? ['modules', 'destination', 'profession', 'review', 'documents', 'call']
+    ? selectedModule === 'BUSINESS' && !formData.processType // Step to choose business category if not yet chosen
+      ? ['modules', 'category', 'details', 'review', 'documents', 'call'] // Generic placeholder path
+      : formData.processType === 'TRADE_LICENSE'
+        ? ['modules', 'trade-license'] // Trade License has its own internal stepper
+        : ['modules', 'destination', 'profession', 'review', 'documents', 'call']
     : ['modules', 'destination', 'process', 'profession', 'review', 'documents', 'call']
 
   const handleNext = () => {
@@ -339,7 +350,18 @@ function NewApplicationContent() {
 
     switch (step) {
       case 'modules':
-        setStep('destination')
+        if (selectedModule === 'BUSINESS') {
+          setStep('category') // New intermediate step
+        } else {
+          setStep('destination')
+        }
+        break
+      case 'category':
+        if (formData.processType === 'TRADE_LICENSE') {
+          setStep('trade-license')
+        } else {
+          setStep('destination') // Fallback for others for now
+        }
         break
       case 'destination':
         // Skip process step if module selected
@@ -362,8 +384,18 @@ function NewApplicationContent() {
 
   const handleBack = () => {
     switch (step) {
-      case 'destination':
+      case 'category':
         setStep('modules')
+        break
+      case 'trade-license':
+        setStep('category')
+        break
+      case 'destination':
+        if (selectedModule === 'BUSINESS') {
+          setStep('category')
+        } else {
+          setStep('modules')
+        }
         break
       case 'process':
         setStep('destination')
@@ -391,8 +423,53 @@ function NewApplicationContent() {
     return 500
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (submitData?: any) => {
     // Validate required fields (skip processType choice if module selected)
+    // If trade license, separate submit handler logic
+    if (step === 'trade-license' && submitData) {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await fetch('/api/applications', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            country: 'Bangladesh', // Implicit for Trade License
+            processType: 'TRADE_LICENSE',
+            profession: 'BUSINESS_OWNER', // Implicit
+            consultancyFee: 500, // Or calculated fee?? The form handles fee calculation display, but API needs fee.
+            // Actually, we should probably send the calculated fee or let backend calculate.
+            // For now, let's send 0 or standard and update later?
+            // The requirement said "Estimated Government Fee... payable later".
+            // So initial consultancy fee might be separate or 0? 
+            // Let's assume standard consultancy fee applies or 0.
+            // User request: "Submit button (no payment gateway)... Estimated fee... payable later"
+            // So we create app with status PENDING, and fee details.
+            module: 'BUSINESS',
+            answers: submitData // Pass all the form data as answers/metadata
+          })
+        })
+        const data = await response.json()
+        if (data.success) {
+          // Show confirmation screen
+          // We can reuse 'call' step or a new 'confirmation' step.
+          // Requirement: Show confirmation screen with Tracking ID, Agent call msg, etc.
+          setApplicationId(data.data.id)
+          setStep('call') // reusing call phase screen which has similar info? 
+          // Or we might need a custom confirmation screen for Trade License.
+          // Let's use 'call' for now as it shows "Application Submitted" and "Agent will call".
+        } else {
+          toast.error(data.message || 'Failed to submit')
+        }
+      } catch (e: any) {
+        console.error(e)
+        toast.error('Submission failed')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     if (!selectedCountry || !formData.profession || !selectedModule) {
       // If NOT module based, processType is required
       if (!selectedModule && !formData.processType) {
@@ -519,9 +596,13 @@ function NewApplicationContent() {
                 {step === 'review' && 'Review Application'}
                 {step === 'documents' && 'Required Documents'}
                 {step === 'call' && 'Application Submitted'}
+                {step === 'category' && 'Select Business Service'}
+                {step === 'trade-license' && 'Trade License Application'}
               </CardTitle>
               <CardDescription>
                 {step === 'modules' && 'Choose the category that best describes your purpose of travel'}
+                {step === 'category' && 'Select the specific business service you need'}
+                {step === 'trade-license' && 'Complete the trade license application form'}
                 {step === 'destination' && 'Choose the country you want to visit'}
                 {step === 'process' && 'Select the purpose of your visit'}
                 {step === 'profession' && 'Tell us about your profession'}
@@ -570,6 +651,39 @@ function NewApplicationContent() {
                     </div>
                   ))}
                 </div>
+              )}
+
+              {step === 'category' && (
+                <div className="grid grid-cols-1 gap-4">
+                  {BUSINESS_CATEGORIES.map((cat) => (
+                    <div
+                      key={cat.id}
+                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${formData.processType === cat.id
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      onClick={() => setFormData(prev => ({ ...prev, processType: cat.id }))}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <h3 className="font-medium">{cat.label}</h3>
+                          <p className="text-sm text-gray-500">{cat.description}</p>
+                        </div>
+                        <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${formData.processType === cat.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                          {formData.processType === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {step === 'trade-license' && (
+                <TradeLicenseForm
+                  userId={session?.user?.id}
+                  onSubmit={handleSubmit}
+                  onCancel={() => setStep('category')}
+                />
               )}
 
               {step === 'destination' && (

@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { country, processType, profession, consultancyFee, memberId, module } = await request.json()
+    const { country, processType, profession, consultancyFee, memberId, module, answers } = await request.json()
 
     // Validate required fields - consultancyFee can be 0 for legacy, use explicit check
     if (!country || !processType || consultancyFee === undefined || consultancyFee === null) {
@@ -130,24 +130,40 @@ export async function POST(request: NextRequest) {
     // Try to create application using Prisma
     let application
     try {
+      const applicationData: any = {
+        userId: session.user.id,
+        country,
+        processType: processType as ProcessType,
+        profession: profession ? (profession as Profession) : null,
+        consultancyFee: parseFloat(consultancyFee),
+        memberId: memberId || null,
+        status: 'DRAFT',
+        module: module || null,
+        moduleSelectedAt: module ? new Date() : null,
+        modules: module ? {
+          create: [{
+            module: module,
+            status: 'NOT_STARTED'
+          }]
+        } : undefined
+      }
+
+      // If validation passed and we have answers (for Trade License etc), we can create them
+      // Note: We need to create application first to get ID, or use nested write if possible.
+      // Prisma nested write for relation 'answers'
+
+      if (answers && module) {
+        applicationData.answers = {
+          create: Object.entries(answers).map(([key, value]) => ({
+            module: module, // Use the same module
+            fieldKey: key,
+            value: value as any // distinct values
+          }))
+        }
+      }
+
       application = await prisma.application.create({
-        data: {
-          userId: session.user.id,
-          country,
-          processType: processType as ProcessType,
-          profession: profession ? (profession as Profession) : null,
-          consultancyFee: parseFloat(consultancyFee),
-          memberId: memberId || null,
-          status: 'DRAFT',
-          module: module || null,
-          moduleSelectedAt: module ? new Date() : null,
-          modules: module ? {
-            create: [{
-              module: module,
-              status: 'NOT_STARTED'
-            }]
-          } : undefined
-        } as any,
+        data: applicationData,
       })
 
       // Auto-assign to agent if creator is an AGENT

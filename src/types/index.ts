@@ -176,7 +176,8 @@ export enum ProcessType {
   MEDICAL = 'MEDICAL',
   BUSINESS = 'BUSINESS',
   SPORTS = 'SPORTS',
-  VISIT = 'VISIT'
+  VISIT = 'VISIT',
+  TRADE_LICENSE = 'TRADE_LICENSE'
 }
 
 export enum Profession {
