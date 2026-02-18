@@ -309,7 +309,11 @@ function NewApplicationContent() {
       // Validate against ModuleType enum/list if needed, or just set it
       // We assume the param is valid if coming from our own page
       setSelectedModule(moduleParam)
-      setStep('destination')
+      if (moduleParam === 'BUSINESS') {
+        setStep('category')
+      } else {
+        setStep('destination')
+      }
     }
   }, [searchParams, selectedModule, step])
 
