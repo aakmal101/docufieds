@@ -961,28 +961,48 @@ function NewApplicationContent() {
               <CardTitle>Application Summary</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Destination</label>
-                <p className="text-gray-900">{formData.country || 'Not selected'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Process Type</label>
-                <p className="text-gray-900">
-                  {processTypes.find(t => t.value === formData.processType)?.label || 'Not selected'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Profession</label>
-                <p className="text-gray-900">
-                  {professions.find(p => p.value === formData.profession)?.label || 'Not selected'}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700">Application Type</label>
-                <p className="text-gray-900 hover:truncate">
-                  {selectedModule ? MODULES.find(m => m.id === selectedModule)?.label : 'Not selected'}
-                </p>
-              </div>
+              {formData.processType === 'TRADE_LICENSE' ? (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Application Type</label>
+                    <p className="text-gray-900 font-medium">Trade License</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Sector</label>
+                    <p className="text-gray-900">Business / Commercial</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Region</label>
+                    <p className="text-gray-900">Bangladesh</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Destination</label>
+                    <p className="text-gray-900">{formData.country || 'Not selected'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Process Type</label>
+                    <p className="text-gray-900">
+                      {processTypes.find(t => t.value === formData.processType)?.label || 'Not selected'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Profession</label>
+                    <p className="text-gray-900">
+                      {professions.find(p => p.value === formData.profession)?.label || 'Not selected'}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Application Type</label>
+                    <p className="text-gray-900 hover:truncate">
+                      {selectedModule ? MODULES.find(m => m.id === selectedModule)?.label : 'Not selected'}
+                    </p>
+                  </div>
+                </>
+              )}
+
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="font-medium text-gray-900">Consultancy Fee</span>
@@ -1002,42 +1022,85 @@ function NewApplicationContent() {
               <CardTitle>What's Next?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-start">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                  <span className="text-xs font-medium text-blue-600">1</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Submit Application</p>
-                  <p className="text-xs text-gray-600">Create your visa application</p>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                  <span className="text-xs font-medium text-gray-600">2</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Make Payment</p>
-                  <p className="text-xs text-gray-600">Pay consultancy fee</p>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                  <span className="text-xs font-medium text-gray-600">3</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Upload Documents</p>
-                  <p className="text-xs text-gray-600">Submit required documents</p>
-                </div>
-              </div>
-              <div className="flex items-start">
-                <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
-                  <span className="text-xs font-medium text-gray-600">4</span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Track Progress</p>
-                  <p className="text-xs text-gray-600">Monitor application status</p>
-                </div>
-              </div>
+              {formData.processType === 'TRADE_LICENSE' ? (
+                <>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-blue-600">1</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Submit Application</p>
+                      <p className="text-xs text-gray-600">Fill details & upload documents</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">2</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Pay Government Fees</p>
+                      <p className="text-xs text-gray-600">Calculated based on capital</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">3</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Verification</p>
+                      <p className="text-xs text-gray-600">Authority verifies details</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">4</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Receive License</p>
+                      <p className="text-xs text-gray-600">Get your digital trade license</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-blue-600">1</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Submit Application</p>
+                      <p className="text-xs text-gray-600">Create your visa application</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">2</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Make Payment</p>
+                      <p className="text-xs text-gray-600">Pay consultancy fee</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">3</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Upload Documents</p>
+                      <p className="text-xs text-gray-600">Submit required documents</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start">
+                    <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center mr-3 mt-0.5">
+                      <span className="text-xs font-medium text-gray-600">4</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Track Progress</p>
+                      <p className="text-xs text-gray-600">Monitor application status</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
