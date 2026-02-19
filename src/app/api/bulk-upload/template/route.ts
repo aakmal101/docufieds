@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
-import * as XLSX from 'xlsx';
 import { generateTemplateWorkbook } from '@/lib/bulk-upload-parser';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {
-        const workbook = generateTemplateWorkbook();
+        const workbook = await generateTemplateWorkbook();
+        const XLSX = await import('xlsx');
 
         // Generate buffer
         const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });

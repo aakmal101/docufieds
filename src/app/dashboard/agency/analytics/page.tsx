@@ -3,10 +3,21 @@
 import { useState } from 'react'
 import { useAgencyAnalyticsOverview } from '@/lib/hooks/use-agency-analytics'
 import { useAgencyApplicationStats } from '@/lib/hooks/use-agency-applications'
+import dynamic from 'next/dynamic'
 import { MetricCard } from '@/components/agency/analytics/metric-card'
-import { ApplicationsByCountryChart } from '@/components/agency/analytics/applications-by-country-chart'
-import { MonthlyTrendChart } from '@/components/agency/analytics/monthly-trend-chart'
-import { StatusDistributionChart } from '@/components/agency/analytics/status-distribution-chart'
+
+const ApplicationsByCountryChart = dynamic(
+    () => import('@/components/agency/analytics/applications-by-country-chart').then(m => ({ default: m.ApplicationsByCountryChart })),
+    { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-gray-100 rounded-lg" /> }
+)
+const MonthlyTrendChart = dynamic(
+    () => import('@/components/agency/analytics/monthly-trend-chart').then(m => ({ default: m.MonthlyTrendChart })),
+    { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-gray-100 rounded-lg" /> }
+)
+const StatusDistributionChart = dynamic(
+    () => import('@/components/agency/analytics/status-distribution-chart').then(m => ({ default: m.StatusDistributionChart })),
+    { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-gray-100 rounded-lg" /> }
+)
 import { FileText, CheckCircle, Clock, DollarSign, TrendingUp } from 'lucide-react'
 import {
     Select,

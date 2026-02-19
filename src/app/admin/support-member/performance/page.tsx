@@ -3,8 +3,17 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Loader2, TrendingUp, CheckCircle, Clock, FileText, Activity } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import dynamic from 'next/dynamic'
 import toast from 'react-hot-toast'
+
+const WeeklyActivityChart = dynamic(
+    () => import('@/components/support-member/weekly-activity-chart').then(m => ({ default: m.WeeklyActivityChart })),
+    { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-gray-100 rounded-lg" /> }
+)
+const StatusPieChart = dynamic(
+    () => import('@/components/support-member/status-pie-chart').then(m => ({ default: m.StatusPieChart })),
+    { ssr: false, loading: () => <div className="h-[300px] animate-pulse bg-gray-100 rounded-lg" /> }
+)
 
 export default function PerformanceDashboard() {
     const [stats, setStats] = useState<any>(null)
@@ -36,8 +45,6 @@ export default function PerformanceDashboard() {
     }
 
     if (!stats) return null
-
-    const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff8042', '#0088FE']
 
     return (
         <div className="space-y-6">
@@ -91,65 +98,8 @@ export default function PerformanceDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Weekly Activity Chart */}
-                <Card className="col-span-1">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-purple-600" />
-                            Weekly Activity
-                        </CardTitle>
-                        <CardDescription>Applications completed in the last 7 days</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={stats.weeklyActivity}>
-                                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                                <YAxis fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    cursor={{ fill: '#f3f4f6' }}
-                                />
-                                <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </CardContent>
-                </Card>
-
-                {/* Status Distribution */}
-                <Card className="col-span-1">
-                    <CardHeader>
-                        <CardTitle>Status Distribution</CardTitle>
-                        <CardDescription>Breakdown of current application statuses</CardDescription>
-                    </CardHeader>
-                    <CardContent className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={stats.statusDistribution}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {stats.statusDistribution.map((entry: any, index: number) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                        <div className="flex flex-wrap gap-4 justify-center mt-4">
-                            {stats.statusDistribution.map((entry: any, index: number) => (
-                                <div key={entry.name} className="flex items-center gap-2 text-sm">
-                                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                                    <span className="text-gray-600">{entry.name} ({entry.value})</span>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
+                <WeeklyActivityChart data={stats.weeklyActivity} />
+                <StatusPieChart data={stats.statusDistribution} />
             </div>
         </div>
     )

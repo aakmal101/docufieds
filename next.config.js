@@ -1,12 +1,16 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
-    domains: ['localhost', 'res.cloudinary.com', 'nrbbxcxwyqczsoscdfyw.supabase.co'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'nrbbxcxwyqczsoscdfyw.supabase.co' },
+    ],
   },
   typescript: {
     ignoreBuildErrors: true,
   },
+  poweredByHeader: false,
 }
 
 module.exports = nextConfig
-

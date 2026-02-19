@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
 export async function parseUploadedFile(file: File): Promise<any[]> {
@@ -31,6 +30,7 @@ async function parseCSV(file: File): Promise<any[]> {
 }
 
 async function parseExcel(file: File): Promise<any[]> {
+    const XLSX = await import('xlsx');
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
 
@@ -63,7 +63,9 @@ async function parseExcel(file: File): Promise<any[]> {
     });
 }
 
-export function generateTemplateWorkbook(): XLSX.WorkBook {
+export async function generateTemplateWorkbook() {
+    const XLSX = await import('xlsx');
+
     const headers = [
         'full_name',
         'email',
