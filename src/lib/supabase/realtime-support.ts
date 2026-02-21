@@ -116,14 +116,18 @@ export const useSupportMessages = (applicationId: string | undefined, callback: 
             .on(
                 'postgres_changes',
                 {
-                    event: 'INSERT',
+                    event: '*', // Listen for any change (INSERT, UPDATE, DELETE)
                     schema: 'public',
-                    table: 'support_messages',
-                    filter: `application_id=eq.${applicationId}`
+                    table: 'support_messages'
+                    // Removing server-side filter for now to ensure delivery, 
+                    // relying on RLS and JS-side check
                 },
                 (payload) => {
-                    console.log('New message received!', payload)
-                    callbackRef.current(payload)
+                    // Only trigger callback if it belongs to this application
+                    if ((payload.new as any)?.application_id === applicationId) {
+                        console.log('Relevant support message change!', payload)
+                        callbackRef.current(payload)
+                    }
                 }
             )
             .subscribe()
@@ -133,6 +137,7 @@ export const useSupportMessages = (applicationId: string | undefined, callback: 
         }
     }, [applicationId])
 }
+
 
 export const useDocumentRequests = (applicationId: string | undefined, callback: (payload: any) => void) => {
     const callbackRef = useRef(callback)

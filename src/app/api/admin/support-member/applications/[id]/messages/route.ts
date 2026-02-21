@@ -2,6 +2,8 @@ import { NextResponse, NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifySupportMemberToken } from '@/middleware/support-member'
 
+export const dynamic = 'force-dynamic'
+
 // GET: Messages for member
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     const member = await verifySupportMemberToken(req)
