@@ -265,11 +265,11 @@ export default function TradeLicenseForm({ userId, initialData, onSubmit, onCanc
                                 <Input value={formData.fullNameBn} onChange={(e) => handleInputChange('fullNameBn', e.target.value)} required />
                             </div>
                             <div className="space-y-2">
-                                <Label>Father's / Husband's Name</Label>
+                                <Label>Father&apos;s / Husband&apos;s Name</Label>
                                 <Input value={formData.fatherName} onChange={(e) => handleInputChange('fatherName', e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <Label>Mother's Name</Label>
+                                <Label>Mother&apos;s Name</Label>
                                 <Input value={formData.motherName} onChange={(e) => handleInputChange('motherName', e.target.value)} />
                             </div>
                             <div className="space-y-2">
@@ -524,8 +524,8 @@ export default function TradeLicenseForm({ userId, initialData, onSubmit, onCanc
                         <React.Fragment key={step.id}>
                             <div className="flex flex-col items-center relative z-10">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium border-2 transition-colors ${currentStep >= index
-                                        ? 'bg-blue-600 border-blue-600 text-white'
-                                        : 'bg-white border-gray-300 text-gray-500'
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'bg-white border-gray-300 text-gray-500'
                                     }`}>
                                     {index + 1}
                                 </div>

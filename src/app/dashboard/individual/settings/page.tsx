@@ -301,7 +301,7 @@ export default function SettingsPage() {
             <Alert className="mb-6">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>
-                You haven't set a password yet. Setting a password will allow you to login with your email/phone and password instead of OTP.
+                You haven&apos;t set a password yet. Setting a password will allow you to login with your email/phone and password instead of OTP.
               </AlertDescription>
             </Alert>
           )}

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const { content, attachmentUrl, attachmentName } = await req.json()
+        const { content, attachmentUrl, attachmentName, messageType } = await req.json()
 
         // Verify ownership
         const application = await prisma.application.findUnique({
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         const message = await prisma.supportMessage.create({
             data: {
                 applicationId: params.id,
-                content,
-                messageType: 'TEXT',
+                content: content || '',
+                messageType: messageType || 'TEXT',
                 senderType: 'USER',
                 senderUserId: session.user.id,
                 attachmentUrl,
@@ -77,11 +77,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
             }
         })
 
-        // Notify assigned support member? (Ideally yes, via system or email, or they just see it)
-        // For now, no explicit notification model for support, but simpler.
-
         return NextResponse.json(message)
     } catch (error) {
+        console.error('Support message creation error:', error)
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }
+

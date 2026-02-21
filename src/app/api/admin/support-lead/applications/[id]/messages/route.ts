@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         let senderType = 'SYSTEM'
         let senderMemberId = null
-        let senderUserId = session.user.id // Fallback to User ID relation?
+        let senderUserId: string | null = session.user.id // Fallback to User ID relation?
 
         if (linkedMember) {
             senderType = 'SUPPORT_MEMBER'

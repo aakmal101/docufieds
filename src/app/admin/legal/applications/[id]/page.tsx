@@ -20,6 +20,8 @@ export default function LegalApplicationDetailPage({ params }: { params: { id: s
     const [documents, setDocuments] = useState<any[]>([])
     const [decisionLoading, setDecisionLoading] = useState(false)
     const [rejectionReason, setRejectionReason] = useState('')
+    const [isApproveOpen, setIsApproveOpen] = useState(false)
+    const [isRejectOpen, setIsRejectOpen] = useState(false)
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -180,11 +182,16 @@ export default function LegalApplicationDetailPage({ params }: { params: { id: s
                                     <p className="text-sm text-green-700 mb-4">
                                         Mark the application as <strong>COMPLETED</strong>. This confirms all legal requirements are met. The user will be notified of their Visa Approval.
                                     </p>
+                                    <Button onClick={() => setIsApproveOpen(true)} className="bg-green-600 hover:bg-green-700 w-full md:w-auto">Approve & Finalize</Button>
                                     <AnimatedConfirmDialog
-                                        trigger={<Button className="bg-green-600 hover:bg-green-700 w-full md:w-auto">Approve & Finalize</Button>}
+                                        isOpen={isApproveOpen}
+                                        onClose={() => setIsApproveOpen(false)}
                                         title="Confirm Approval"
                                         description="Are you sure you want to approve this application? This action cannot be undone."
-                                        onConfirm={() => handleDecision('APPROVE')}
+                                        onConfirm={() => {
+                                            setIsApproveOpen(false)
+                                            handleDecision('APPROVE')
+                                        }}
                                     />
                                 </div>
 
@@ -200,11 +207,16 @@ export default function LegalApplicationDetailPage({ params }: { params: { id: s
                                         value={rejectionReason}
                                         onChange={(e) => setRejectionReason(e.target.value)}
                                     />
+                                    <Button variant="destructive" onClick={() => setIsRejectOpen(true)} className="w-full md:w-auto" disabled={!rejectionReason}>Reject Application</Button>
                                     <AnimatedConfirmDialog
-                                        trigger={<Button variant="destructive" className="w-full md:w-auto" disabled={!rejectionReason}>Reject Application</Button>}
+                                        isOpen={isRejectOpen}
+                                        onClose={() => setIsRejectOpen(false)}
                                         title="Confirm Rejection"
                                         description="Are you sure you want to reject this application?"
-                                        onConfirm={() => handleDecision('REJECT')}
+                                        onConfirm={() => {
+                                            setIsRejectOpen(false)
+                                            handleDecision('REJECT')
+                                        }}
                                     />
                                 </div>
                             </CardContent>

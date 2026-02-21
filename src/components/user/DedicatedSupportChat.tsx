@@ -71,6 +71,38 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
         }
     }
 
+    const handleSendVoice = async (blob: Blob, durationMs: number) => {
+        try {
+            const formData = new FormData()
+            const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' })
+            formData.append('file', file)
+            formData.append('applicationId', applicationId)
+
+            const uploadRes = await fetch('/api/chat/upload', {
+                method: 'POST',
+                body: formData
+            })
+
+            if (!uploadRes.ok) throw new Error('Upload failed')
+            const uploadData = await uploadRes.json()
+
+            await fetch(`/api/user/applications/${applicationId}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: JSON.stringify({ durationMs }),
+                    attachmentUrl: uploadData.url,
+                    attachmentName: 'voice-message.webm',
+                    messageType: 'VOICE'
+                })
+            })
+            fetchMessages()
+        } catch (error) {
+            console.error('Voice send error:', error)
+            toast.error('Failed to send voice message')
+        }
+    }
+
     if (loading) {
         return (
             <div className="h-[600px] flex items-center justify-center bg-white border rounded-lg">
@@ -85,8 +117,10 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
                 messages={messages}
                 currentUserType="USER"
                 onSendMessage={(c, i, a) => handleSend(c, i, a)}
+                onSendVoice={handleSendVoice}
                 isLoading={loading}
             />
         </div>
     )
 }
+

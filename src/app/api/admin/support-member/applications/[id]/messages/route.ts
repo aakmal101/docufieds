@@ -35,13 +35,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
-        const { content, isInternal, attachmentUrl, attachmentName } = await req.json()
+        const { content, isInternal, attachmentUrl, attachmentName, messageType } = await req.json()
 
         const message = await prisma.supportMessage.create({
             data: {
                 applicationId: params.id,
-                content,
-                messageType: 'TEXT',
+                content: content || '',
+                messageType: messageType || 'TEXT',
                 senderType: 'SUPPORT_MEMBER',
                 senderMemberId: member.id,
                 isInternal: isInternal || false,
@@ -61,11 +61,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 select: { userId: true }
             })
             if (app) {
+                const previewText = messageType === 'VOICE' ? 'Sent a voice message' : (content.substring(0, 50) + '...')
                 await prisma.notification.create({
                     data: {
                         userId: app.userId,
                         title: 'New Message from Support',
-                        message: content.substring(0, 50) + '...',
+                        message: previewText,
                         type: 'MESSAGE'
                     }
                 })
@@ -74,6 +75,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
         return NextResponse.json(message)
     } catch (error) {
+        console.error('Admin support message creation error:', error)
         return NextResponse.json({ error: 'Failed' }, { status: 500 })
     }
 }
+

@@ -746,7 +746,7 @@ function NewApplicationContent() {
                           <p className="text-sm text-gray-600 mt-1">{type.description}</p>
                         </div>
                         <Badge variant="secondary">
-                          {consultancyFees[type.value as ProcessType]} BDT
+                          {consultancyFees[type.value as keyof typeof consultancyFees]} BDT
                         </Badge>
                       </div>
                     </div>

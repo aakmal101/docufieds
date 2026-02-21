@@ -131,12 +131,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       if (typeof window !== 'undefined' && (window as any).__uploadTimestamps) {
         const now = Date.now()
         const UPLOAD_COOLDOWN = 5000 // 5 seconds - increased for extra safety
-        const recentUploads = Array.from((window as any).__uploadTimestamps.entries())
-          .filter(([_, timestamp]: [string, number]) => now - timestamp < UPLOAD_COOLDOWN)
+        const recentUploads = Array.from<[string, number]>((window as any).__uploadTimestamps.entries())
+          .filter(([_, timestamp]) => now - timestamp < UPLOAD_COOLDOWN)
 
         if (recentUploads.length > 0) {
-          const uploadTypes = recentUploads.map(([type]: [string]) => type).join(', ')
-          const oldestTime = Math.min(...recentUploads.map(([_, ts]: [string, number]) => ts))
+          const uploadTypes = recentUploads.map(([type]) => type).join(', ')
+          const oldestTime = Math.min(...recentUploads.map(([_, ts]) => ts))
           const timeRemaining = UPLOAD_COOLDOWN - (now - oldestTime)
           console.log(`[Frontend] ⏸ BLOCKING fetchRequirements - upload cooldown active for: ${uploadTypes} (${Math.round(timeRemaining / 1000)}s remaining)`)
           return // Skip refresh during cooldown - state is already correct
@@ -237,7 +237,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
         // TEMPORARY DEBUG: Log fetched requirements response
         console.log(`[Frontend] fetchRequirements response for applicationId: ${applicationId}`)
-        documentsWithStatus.forEach((d, idx) => {
+        documentsWithStatus.forEach((d: any, idx: number) => {
           console.log(`  [${idx}] Requirement: "${d.documentType}" | Status: ${d.status} | Has File: ${!!d.uploadedFile} | File URL: ${d.uploadedFile?.fileUrl?.substring(0, 60) || 'N/A'}...`)
         })
 
@@ -259,7 +259,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             })
           })
 
-          const merged = documentsWithStatus.map(fetchedDoc => {
+          const merged = documentsWithStatus.map((fetchedDoc: any) => {
             // Find corresponding document in current state using normalized matching
             const normalizedFetchedType = normalizeDocType(fetchedDoc.documentType)
             const currentDoc = prev.find(p => normalizeDocType(p.documentType) === normalizedFetchedType)
@@ -490,7 +490,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
 
           // CRITICAL FINAL CHECK: Verify no valid uploadedFile was lost in merge
           // This is a safety net to catch any edge cases
-          const mergedWithValidation = merged.map(doc => {
+          const mergedWithValidation = merged.map((doc: DocumentRequirement) => {
             const normalizedType = normalizeDocType(doc.documentType)
 
             // Check if we have a lock for this document
@@ -517,7 +517,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           })
 
           // TEMPORARY: Log final merged state
-          mergedWithValidation.forEach(doc => {
+          mergedWithValidation.forEach((doc: any) => {
             logStateChange('AFTER_MERGE', doc.documentType, doc.status, !!doc.uploadedFile, {
               fileUrl: doc.uploadedFile?.fileUrl?.substring(0, 50) || 'N/A'
             })
@@ -634,7 +634,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
           return fallbackDocuments
         })
         // Try to fetch templates for fallback documents
-        const templatePromises = fallbackDocuments.map(async (doc) => {
+        const templatePromises = fallbackDocuments.map(async (doc: DocumentRequirement) => {
           try {
             const templateResponse = await fetch(
               `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
@@ -719,7 +719,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
       ]
       setDocuments(fallbackDocuments)
       // Try to fetch templates for fallback documents
-      const templatePromises = fallbackDocuments.map(async (doc) => {
+      const templatePromises = fallbackDocuments.map(async (doc: DocumentRequirement) => {
         try {
           const templateResponse = await fetch(
             `/api/templates?documentType=${encodeURIComponent(doc.documentType)}`
@@ -903,8 +903,8 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
         uploadLocks.current.set(normalizedType, uploadedFile)
         console.log(`[Frontend] ✓ Locked uploadedFile for "${documentType}" (normalized: "${normalizedType}")`)
 
-        setDocuments(prev => {
-          const updated = prev.map(doc => {
+        setDocuments((prevDocs: DocumentRequirement[]) => {
+          const updated = prevDocs.map((doc: DocumentRequirement) => {
             // Use normalized matching to find the correct document
             if (normalizeDocType(doc.documentType) === normalizedType) {
               console.log(`[Frontend] ✓ Updating state for "${doc.documentType}" → "uploaded"`)
@@ -1153,7 +1153,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
             Required Documents ({requiredDocuments.length})
           </h2>
           <div className="grid gap-4">
-            {Array.isArray(requiredDocuments) && requiredDocuments.map((document) => {
+            {Array.isArray(requiredDocuments) && requiredDocuments.map((document: DocumentRequirement) => {
               // SAFETY: Ensure document exists before rendering
               if (!document || !document.documentType) {
                 return null
@@ -1161,11 +1161,12 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
               return (
                 <Card key={document.id} className="border-l-4 border-l-red-500">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg flex items-center">
-                        <FileText className="h-5 w-5 text-red-600 mr-2" />
-                        {document.documentType}
-                      </CardTitle>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-[15px] font-medium
+                leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{document.documentType.replace(/_/g, ' ')}</h3>
+                      {documents.find((doc: any) => doc.documentType === document.documentType)?.isRequired && (
+                        <Badge variant="secondary" className="bg-red-50 text-red-600 hover:bg-red-50 hover:text-red-600 font-normal text-xs uppercase cursor-default">Required</Badge>
+                      )}
                       <Badge className={getStatusColor(document.status)}>
                         {getStatusIcon(document.status)}
                         <span className="ml-1">{document.status}</span>
@@ -1196,7 +1197,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       </Button>
                       <input
                         type="file"
-                        ref={(el) => (fileInputRefs.current[document.documentType] = el)}
+                        ref={(el: HTMLInputElement | null) => { fileInputRefs.current[document.documentType] = el }}
                         onChange={(e) => handleFileSelect(document.documentType, e)}
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                         className="hidden"
@@ -1337,7 +1338,7 @@ export default function RequiredDocuments({ applicationId, onComplete, onBack }:
                       </Button>
                       <input
                         type="file"
-                        ref={(el) => (fileInputRefs.current[document.documentType] = el)}
+                        ref={(el: HTMLInputElement | null) => { fileInputRefs.current[document.documentType] = el }}
                         onChange={(e) => handleFileSelect(document.documentType, e)}
                         accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                         className="hidden"

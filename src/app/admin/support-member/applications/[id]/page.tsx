@@ -93,6 +93,33 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
         } catch { toast.error('Failed to send') }
     }
 
+    const handleSendVoice = async (blob: Blob, durationMs: number) => {
+        try {
+            const formData = new FormData()
+            const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' })
+            formData.append('file', file)
+            formData.append('applicationId', params.id)
+
+            const uploadRes = await fetch('/api/chat/upload', { method: 'POST', body: formData })
+            if (!uploadRes.ok) throw new Error('Upload failed')
+            const uploadData = await uploadRes.json()
+
+            await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    content: JSON.stringify({ durationMs }),
+                    attachmentUrl: uploadData.url,
+                    attachmentName: 'voice-message.webm',
+                    messageType: 'VOICE',
+                    isInternal: false
+                })
+            })
+            fetchMessages()
+        } catch { toast.error('Failed to send voice message') }
+    }
+
+
     const handleDocumentRequest = async (docType: string, reason: string, instructions: string) => {
         try {
             const res = await fetch(`/api/admin/support-member/applications/${params.id}/request-document`, {
@@ -295,9 +322,11 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                         messages={messages}
                         currentUserType="SUPPORT_MEMBER"
                         onSendMessage={(c, i, a) => handleSendMessage(c, i, a)}
+                        onSendVoice={handleSendVoice}
                         isLoading={loading}
                     />
                 </TabsContent>
+
             </Tabs>
 
 

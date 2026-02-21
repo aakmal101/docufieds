@@ -249,7 +249,7 @@ function AgentNewApplicationContent() {
 
     const getCurrentFee = () => {
         if (!formData.processType) return 0
-        return consultancyFees[formData.processType as ProcessType]
+        return (consultancyFees as any)[formData.processType] || 0
     }
 
     const handleSubmit = async () => {
@@ -448,7 +448,7 @@ function AgentNewApplicationContent() {
                                                     <p className="text-sm text-gray-600 mt-1">{type.description}</p>
                                                 </div>
                                                 <Badge variant="secondary">
-                                                    {consultancyFees[type.value as ProcessType]} BDT
+                                                    {consultancyFees[type.value as keyof typeof consultancyFees]} BDT
                                                 </Badge>
                                             </div>
                                         </div>
@@ -518,7 +518,7 @@ function AgentNewApplicationContent() {
                                             <h3 className="font-medium text-gray-900 mb-2">Consultancy Fee</h3>
                                             <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                                                 <CreditCard className="h-5 w-5 text-purple-600 mr-2" />
-                                                <span className="font-medium">{getCurrentFee()} BDT</span>
+                                                <span className="font-medium">{(consultancyFees as any)[formData.processType]} BDT</span>
                                             </div>
                                         </div>
                                     </div>

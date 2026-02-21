@@ -17,7 +17,7 @@ const bulkUploadRowSchema = z.object({
     visa_category: z.enum(VALID_VISA_CATEGORIES as [string, ...string[]], {
         errorMap: () => ({ message: `Must be one of: ${VALID_VISA_CATEGORIES.join(', ')}` })
     }),
-    profession: z.enum([...VALID_PROFESSIONS, ''] as [string, ...string[]]).optional(),
+    profession: z.enum(['BUSINESS_OWNER', 'JOB_HOLDER', 'STUDENT', 'HOMEMAKER', 'RETIRED', '']).optional(),
 
     place_of_birth: z.string().optional(),
     nationality: z.string().optional(),

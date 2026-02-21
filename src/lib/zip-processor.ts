@@ -16,7 +16,7 @@ export async function processZipUpload(
   bulkUploadId: string,
   userId: string
 ): Promise<ZipProcessingResult> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const zip = new JSZip();
   await zip.loadAsync(fileBuffer);
 
@@ -113,9 +113,11 @@ export async function processZipUpload(
               if (uploadError) throw new Error(uploadError.message);
 
               // Get public URL
-              const { data: { publicUrl } } = supabase.storage
+              const supabaseLocal2 = await createClient();
+              const { data: publicUrlData } = supabaseLocal2.storage
                 .from('documents')
                 .getPublicUrl(storagePath);
+              const publicUrl = publicUrlData.publicUrl;
 
               // D. Create Document Record
               await prisma.document.create({
