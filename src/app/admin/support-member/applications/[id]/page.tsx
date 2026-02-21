@@ -86,13 +86,22 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                 }
             }
 
-            await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
+            const res = await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content, isInternal, attachmentUrl, attachmentName })
             })
+
+            if (!res.ok) throw new Error('Failed to send')
+
+            toast.success('Message sent')
             fetchMessages()
-        } catch { toast.error('Failed to send') }
+        } catch (error) {
+            console.error('Admin send error:', error)
+            toast.error('Failed to send')
+        } finally {
+            setSubmitting(false)
+        }
     }
 
     const handleSendVoice = async (blob: Blob, durationMs: number) => {
@@ -106,7 +115,7 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
             if (!uploadRes.ok) throw new Error('Upload failed')
             const uploadData = await uploadRes.json()
 
-            await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
+            const res = await fetch(`/api/admin/support-member/applications/${params.id}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -117,8 +126,17 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                     isInternal: false
                 })
             })
+
+            if (!res.ok) throw new Error('Failed to send voice message')
+
+            toast.success('Voice message sent')
             fetchMessages()
-        } catch { toast.error('Failed to send voice message') }
+        } catch (error) {
+            console.error('Admin voice send error:', error)
+            toast.error('Failed to send voice message')
+        } finally {
+            setSubmitting(false)
+        }
     }
 
 

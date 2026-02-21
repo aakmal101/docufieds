@@ -32,8 +32,11 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
     useSupportMessages(applicationId, fetchMessages)
 
 
+    const [submitting, setSubmitting] = useState(false)
+
     const handleSend = async (content: string, isInternal: boolean, attachment?: File) => {
         try {
+            setSubmitting(true)
             let attachmentUrl = undefined
             let attachmentName = undefined
 
@@ -53,7 +56,7 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
                 attachmentName = uploadData.name
             }
 
-            await fetch(`/api/user/applications/${applicationId}/messages`, {
+            const res = await fetch(`/api/user/applications/${applicationId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -62,14 +65,22 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
                     attachmentName
                 })
             })
+
+            if (!res.ok) throw new Error('Failed to send')
+
+            toast.success('Message sent')
             fetchMessages()
-        } catch {
+        } catch (error) {
+            console.error('Send error:', error)
             toast.error('Failed to send')
+        } finally {
+            setSubmitting(false)
         }
     }
 
     const handleSendVoice = async (blob: Blob, durationMs: number) => {
         try {
+            setSubmitting(true)
             const formData = new FormData()
             const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' })
             formData.append('file', file)
@@ -83,7 +94,7 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
             if (!uploadRes.ok) throw new Error('Upload failed')
             const uploadData = await uploadRes.json()
 
-            await fetch(`/api/user/applications/${applicationId}/messages`, {
+            const res = await fetch(`/api/user/applications/${applicationId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -93,10 +104,16 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
                     messageType: 'VOICE'
                 })
             })
+
+            if (!res.ok) throw new Error('Failed to send')
+
+            toast.success('Voice message sent')
             fetchMessages()
         } catch (error) {
             console.error('Voice send error:', error)
             toast.error('Failed to send voice message')
+        } finally {
+            setSubmitting(false)
         }
     }
 
@@ -115,7 +132,7 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
                 currentUserType="USER"
                 onSendMessage={(c, i, a) => handleSend(c, i, a)}
                 onSendVoice={handleSendVoice}
-                isLoading={loading}
+                isLoading={submitting}
             />
         </div>
     )

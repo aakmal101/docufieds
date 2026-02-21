@@ -42,7 +42,9 @@ export function MessageComposer({ onSend, onSendVoice, isLoading, canSendInterna
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()
-            handleSend()
+            if (!isLoading) {
+                handleSend()
+            }
         }
     }
 
