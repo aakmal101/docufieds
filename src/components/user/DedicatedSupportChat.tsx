@@ -1,6 +1,4 @@
-'use client'
-
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { MessageThread } from '@/components/support/MessageThread'
 import { useSupportMessages } from '@/lib/supabase/realtime-support'
 import toast from 'react-hot-toast'
@@ -11,7 +9,7 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
     const [messages, setMessages] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async () => {
         try {
             const res = await fetch(`/api/user/applications/${applicationId}/messages`)
             if (res.ok) {
@@ -23,17 +21,16 @@ export function DedicatedSupportChat({ applicationId }: { applicationId: string 
         } finally {
             setLoading(false)
         }
-    }
+    }, [applicationId])
 
     // Initial Fetch
     useEffect(() => {
         fetchMessages()
-    }, [applicationId])
+    }, [fetchMessages])
 
     // Realtime Hook
-    useSupportMessages(applicationId, (newMessage) => {
-        fetchMessages()
-    })
+    useSupportMessages(applicationId, fetchMessages)
+
 
     const handleSend = async (content: string, isInternal: boolean, attachment?: File) => {
         try {

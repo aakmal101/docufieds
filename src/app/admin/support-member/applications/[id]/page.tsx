@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DocumentReview } from '@/components/support/DocumentReview'
 import { MessageThread } from '@/components/support/MessageThread'
+import { useSupportMessages } from '@/lib/supabase/realtime-support'
 import { DocumentRequestModal } from '@/components/support/DocumentRequestModal'
 import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, XCircle, DollarSign, Send } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -46,20 +47,21 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
         finally { setLoading(false) }
     }
 
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async () => {
         try {
             const res = await fetch(`/api/admin/support-member/applications/${params.id}/messages`)
             if (res.ok) setMessages(await res.json())
         } catch { }
-    }
+    }, [params.id])
 
     useEffect(() => {
         if (app?.id) {
             fetchMessages()
-            const interval = setInterval(fetchMessages, 5000)
-            return () => clearInterval(interval)
         }
-    }, [app?.id])
+    }, [app?.id, fetchMessages])
+
+    // Realtime support messages
+    useSupportMessages(params.id, fetchMessages)
 
     useEffect(() => { fetchApp() }, [params.id])
 

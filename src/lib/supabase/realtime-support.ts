@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/client'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 export const useApplicationAssignments = (memberId: string | undefined, callback: (payload: any) => void) => {
     const router = useRouter()
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
 
     useEffect(() => {
         if (!memberId) return
@@ -22,7 +24,7 @@ export const useApplicationAssignments = (memberId: string | undefined, callback
                 },
                 (payload) => {
                     console.log('Assignment change received!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                     router.refresh()
                 }
             )
@@ -31,11 +33,13 @@ export const useApplicationAssignments = (memberId: string | undefined, callback
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [memberId, router, callback])
+    }, [memberId, router])
 }
 
 export const useEscalations = (leadId: string | undefined, callback: (payload: any) => void) => {
     const router = useRouter()
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
 
     useEffect(() => {
         if (!leadId) return
@@ -53,7 +57,7 @@ export const useEscalations = (leadId: string | undefined, callback: (payload: a
                 },
                 (payload) => {
                     console.log('Escalation received!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                     router.refresh()
                 }
             )
@@ -62,11 +66,13 @@ export const useEscalations = (leadId: string | undefined, callback: (payload: a
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [leadId, router, callback])
+    }, [leadId, router])
 }
 
 export const useRejectionRequests = (leadId: string | undefined, callback: (payload: any) => void) => {
     const router = useRouter()
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
 
     useEffect(() => {
         if (!leadId) return
@@ -84,7 +90,7 @@ export const useRejectionRequests = (leadId: string | undefined, callback: (payl
                 },
                 (payload) => {
                     console.log('Rejection Request received!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                     router.refresh()
                 }
             )
@@ -93,10 +99,13 @@ export const useRejectionRequests = (leadId: string | undefined, callback: (payl
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [leadId, router, callback])
+    }, [leadId, router])
 }
 
 export const useSupportMessages = (applicationId: string | undefined, callback: (payload: any) => void) => {
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
+
     useEffect(() => {
         if (!applicationId) return
 
@@ -114,7 +123,7 @@ export const useSupportMessages = (applicationId: string | undefined, callback: 
                 },
                 (payload) => {
                     console.log('New message received!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                 }
             )
             .subscribe()
@@ -122,10 +131,13 @@ export const useSupportMessages = (applicationId: string | undefined, callback: 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [applicationId, callback])
+    }, [applicationId])
 }
 
 export const useDocumentRequests = (applicationId: string | undefined, callback: (payload: any) => void) => {
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
+
     useEffect(() => {
         if (!applicationId) return
 
@@ -143,7 +155,7 @@ export const useDocumentRequests = (applicationId: string | undefined, callback:
                 },
                 (payload) => {
                     console.log('Doc request update!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                 }
             )
             .subscribe()
@@ -151,10 +163,13 @@ export const useDocumentRequests = (applicationId: string | undefined, callback:
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [applicationId, callback])
+    }, [applicationId])
 }
 
 export const useSupportNotifications = (memberId: string | undefined, callback: (payload: any) => void) => {
+    const callbackRef = useRef(callback)
+    callbackRef.current = callback
+
     useEffect(() => {
         if (!memberId) return
 
@@ -172,7 +187,7 @@ export const useSupportNotifications = (memberId: string | undefined, callback: 
                 },
                 (payload) => {
                     console.log('New notification received!', payload)
-                    callback(payload)
+                    callbackRef.current(payload)
                 }
             )
             .subscribe()
@@ -180,5 +195,6 @@ export const useSupportNotifications = (memberId: string | undefined, callback: 
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [memberId, callback])
+    }, [memberId])
 }
+
