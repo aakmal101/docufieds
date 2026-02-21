@@ -157,6 +157,7 @@ model Application {
   supportFeeAssignedAt   DateTime?                 @map("support_fee_assigned_at")
   supportFeeAssignedById String?                   @map("support_fee_assigned_by_id")
   supportFeeCurrency     String?                   @default("BDT") @map("support_fee_currency")
+  supportFeeDescription  String?                   @map("support_fee_description")
   agentAssignments       AgentAssignment[]
   answers                ApplicationAnswer[]
   assignment             ApplicationAssignment?

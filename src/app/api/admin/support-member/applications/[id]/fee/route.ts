@@ -19,7 +19,7 @@ export async function POST(
         }
 
         // Handle both Promise and direct params
-        const resolvedParams = params instanceof Promise ? await params : params
+        const resolvedParams = await params
         const applicationId = resolvedParams.id
 
         const body = await request.json()
@@ -38,13 +38,10 @@ export async function POST(
             data: {
                 supportFeeAmount: amount,
                 supportFeeCurrency: currency || 'BDT',
+                supportFeeDescription: notes,
                 supportFeeAssignedById: session.user.id,
                 supportFeeAssignedAt: new Date(),
                 // Also update main consultancyFee field for backward compatibility 
-                // if this fee is intended to replace the process-based fee.
-                // User request says "Move fee assignment... per application".
-                // It's safer to map it to the main `consultancyFee` logic too so payment gateways work?
-                // Let's assume `consultancyFee` matches `supportFeeAmount`.
                 consultancyFee: amount
             }
         })

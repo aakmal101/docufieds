@@ -15,7 +15,8 @@ import { DocumentReview } from '@/components/support/DocumentReview'
 import { MessageThread } from '@/components/support/MessageThread'
 import { useSupportMessages } from '@/lib/supabase/realtime-support'
 import { DocumentRequestModal } from '@/components/support/DocumentRequestModal'
-import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, XCircle, DollarSign, Send } from 'lucide-react'
+import { Loader2, ArrowLeft, CheckCircle, AlertTriangle, XCircle, DollarSign, Send, Info } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { AnimatedConfirmDialog } from '@/components/ui/animated-confirm-dialog'
@@ -33,6 +34,8 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
     const [docReqOpen, setDocReqOpen] = useState(false)
     const [legalConfirmOpen, setLegalConfirmOpen] = useState(false)
     const [reason, setReason] = useState('')
+    const [feeAmount, setFeeAmount] = useState('')
+    const [feeDescription, setFeeDescription] = useState('')
     const [submitting, setSubmitting] = useState(false)
 
     // Messages
@@ -279,9 +282,25 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                                     </div>
                                     <div>
                                         <p className="text-gray-500">Consultancy Fee</p>
-                                        <p className="font-medium text-blue-600">
-                                            {app.consultancyFee ? `${app.consultancyFee.toLocaleString()} BDT` : 'N/A'}
-                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-blue-600">
+                                                {app.consultancyFee ? `${app.consultancyFee.toLocaleString()} BDT` : 'N/A'}
+                                            </p>
+                                            {app.supportFeeDescription && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                                                                <Info className="h-4 w-4" />
+                                                            </button>
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            <p className="max-w-[200px] text-xs">{app.supportFeeDescription}</p>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             </CardContent>
@@ -434,24 +453,30 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                                     type="number"
                                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                                     placeholder="e.g. 5000"
-                                    id="fee-amount-input"
+                                    value={feeAmount}
+                                    onChange={e => setFeeAmount(e.target.value)}
                                 />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Notes (Optional)</label>
-                                <Textarea id="fee-notes-input" placeholder="Reason for fee assignment..." />
+                                <Textarea
+                                    placeholder="Reason for fee assignment..."
+                                    value={feeDescription}
+                                    onChange={e => setFeeDescription(e.target.value)}
+                                />
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button onClick={async () => {
-                                const amount = parseFloat((document.getElementById('fee-amount-input') as HTMLInputElement).value)
-                                const notes = (document.getElementById('fee-notes-input') as HTMLTextAreaElement).value
+                            <Button disabled={submitting} onClick={async () => {
+                                const amount = parseFloat(feeAmount)
+                                const notes = feeDescription
 
                                 if (!amount || amount <= 0) {
                                     toast.error("Please enter a valid amount")
                                     return
                                 }
 
+                                setSubmitting(true)
                                 try {
                                     const res = await fetch(`/api/admin/support-member/applications/${params.id}/fee`, {
                                         method: 'POST',
@@ -461,13 +486,16 @@ export default function ApplicationDetailPage({ params }: { params: { id: string
                                     if (res.ok) {
                                         toast.success("Fee assigned successfully")
                                         fetchApp()
-                                        // Close dialog - utilizing a ref would be better but simple reload works
-                                        window.location.reload()
+                                        setFeeAmount('')
+                                        setFeeDescription('')
+                                        // window.location.reload() // no need if fetchApp works
                                     } else {
                                         toast.error("Failed to assign fee")
                                     }
                                 } catch {
                                     toast.error("Error assigning fee")
+                                } finally {
+                                    setSubmitting(false)
                                 }
                             }}>Save Fee</Button>
                         </DialogFooter>

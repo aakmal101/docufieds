@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { SupportMessages } from '@/components/user/SupportMessages'
 import { DocumentRequestCard } from '@/components/user/DocumentRequestCard'
-import { Loader2, ArrowLeft, FileText, CheckCircle, Clock, AlertTriangle, MessageSquare, History } from 'lucide-react'
+import { Loader2, ArrowLeft, FileText, CheckCircle, Clock, AlertTriangle, MessageSquare, History, Info, HelpCircle, DollarSign, Printer } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger
+} from '@/components/ui/dialog'
 import toast from 'react-hot-toast'
 import { useDocumentRequests } from '@/lib/supabase/realtime-support'
 
@@ -17,6 +21,7 @@ export default function UserApplicationView({ params }: { params: { id: string }
     const [app, setApp] = useState<any>(null)
     const [requests, setRequests] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [invoiceOpen, setInvoiceOpen] = useState(false)
 
     // Fetch Application
     const fetchApp = async () => {
@@ -219,7 +224,23 @@ export default function UserApplicationView({ params }: { params: { id: string }
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-gray-500 uppercase">Consultancy Fee</label>
-                                            <p className="text-gray-900 font-medium">{app.consultancyFee} BDT</p>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-gray-900 font-medium">{app.consultancyFee} BDT</p>
+                                                {app.supportFeeDescription && (
+                                                    <TooltipProvider>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                                                                    <Info className="h-4 w-4" />
+                                                                </button>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p className="max-w-[200px] text-xs">{app.supportFeeDescription}</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </TooltipProvider>
+                                                )}
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="text-xs font-semibold text-gray-500 uppercase">Payment Status</label>
@@ -320,14 +341,91 @@ export default function UserApplicationView({ params }: { params: { id: string }
                             <CardTitle className="text-sm font-medium text-gray-500 uppercase tracking-widest">Quick Actions</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
-                            {/* Future actions like 'Pay Fees' or 'Download Invoice' could go here */}
-                            <Button variant="ghost" className="w-full justify-start text-gray-600">
+                            <Button variant="outline" className="w-full justify-start" onClick={() => setInvoiceOpen(true)}>
                                 <FileText className="mr-2 h-4 w-4" /> View Invoice
                             </Button>
                         </CardContent>
                     </Card>
                 </div>
             </div>
+
+            <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle>Application Invoice</DialogTitle>
+                        <DialogDescription>Summary of fees and payment status</DialogDescription>
+                    </DialogHeader>
+
+                    <div className="border rounded-lg p-6 space-y-6 bg-white shadow-sm">
+                        <div className="flex justify-between items-start border-b pb-6">
+                            <div>
+                                <h3 className="font-bold text-xl text-blue-600">Docufieds</h3>
+                                <p className="text-sm text-gray-500">Service Fee Invoice</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-mono text-xs text-gray-400">#INV-{app.id.substring(0, 8).toUpperCase()}</p>
+                                <p className="text-sm font-medium">{new Date().toLocaleDateString()}</p>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-8 text-sm">
+                            <div>
+                                <p className="text-xs font-bold text-gray-400 uppercase mb-2">Billed To</p>
+                                <p className="font-bold">{app.user.fullName}</p>
+                                <p className="text-gray-600">{app.user.email}</p>
+                                <p className="text-gray-600">{app.user.phone}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-400 uppercase mb-2">Application</p>
+                                <p className="font-bold">{app.country} Visa</p>
+                                <p className="text-gray-600">{app.processType}</p>
+                            </div>
+                        </div>
+
+                        <div className="border rounded-lg overflow-hidden">
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-50 border-b">
+                                    <tr>
+                                        <th className="text-left px-4 py-3 font-bold">Description</th>
+                                        <th className="text-right px-4 py-3 font-bold">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    <tr>
+                                        <td className="px-4 py-4">
+                                            <p className="font-medium">Visa Consultation & Processing Fee</p>
+                                            {app.supportFeeDescription && (
+                                                <p className="text-xs text-gray-500 mt-1 italic">Note: {app.supportFeeDescription}</p>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-4 text-right font-medium">{app.consultancyFee?.toLocaleString()} BDT</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot className="bg-gray-50 font-bold border-t">
+                                    <tr>
+                                        <td className="px-4 py-4 uppercase tracking-wider text-xs">Total Amount</td>
+                                        <td className="px-4 py-4 text-right text-lg text-blue-600">
+                                            {app.consultancyFee?.toLocaleString()} BDT
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+
+                        <div className="flex justify-between items-center pt-4">
+                            <div className="flex items-center gap-2">
+                                <Badge variant={app.payments?.[0]?.status === 'PAID' || app.payments?.[0]?.status === 'VERIFIED' ? 'default' : 'secondary'} className="px-4 py-1">
+                                    {app.payments?.[0]?.status || 'UNPAID'}
+                                </Badge>
+                                <span className="text-xs text-gray-400">Payment Status</span>
+                            </div>
+                            <Button variant="ghost" size="sm" className="text-gray-400" disabled>
+                                <Printer className="h-4 w-4 mr-2" /> Print PDF (Coming Soon)
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
