@@ -24,6 +24,7 @@ import WorldMap from '@/components/world-map'
 import CallPhaseScreen from '@/components/call-phase-screen'
 import { ProcessType, Profession } from '@/types'
 import toast from 'react-hot-toast'
+import TradeLicenseForm from '@/components/applications/trade-license-form'
 import dynamic from 'next/dynamic'
 
 const RequiredDocuments = dynamic(
@@ -69,11 +70,13 @@ const consultancyFees = {
     [ProcessType.VISIT]: 120,
 }
 
-function AgentNewApplicationContent() {
+export function AgentNewApplicationContent() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const searchParams = useSearchParams()
-    const [step, setStep] = useState<'client' | 'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('client')
+    const [selectedModule, setSelectedModule] = useState<string | null>(null)
+    const [selectedBusinessCategory, setSelectedBusinessCategory] = useState<string | null>(null)
+    const [step, setStep] = useState<'client' | 'modules' | 'category' | 'trade-license' | 'destination' | 'process' | 'profession' | 'review' | 'documents' | 'call'>('client')
     const [loading, setLoading] = useState(false)
     const [loadingApplication, setLoadingApplication] = useState(false)
     const [error, setError] = useState('')
@@ -83,6 +86,8 @@ function AgentNewApplicationContent() {
         country: '',
         processType: '',
         profession: '',
+        module: '',
+        businessCategory: ''
     })
 
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(null)
@@ -123,6 +128,8 @@ function AgentNewApplicationContent() {
                     country: app.country || '',
                     processType: app.processType || '',
                     profession: app.profession || '',
+                    module: app.module || '',
+                    businessCategory: app.businessCategory || ''
                 })
 
                 if (app.country) {
@@ -176,6 +183,27 @@ function AgentNewApplicationContent() {
         }
     }
 
+    const handleModuleSelect = (moduleId: string) => {
+        setSelectedModule(moduleId)
+        setFormData(prev => ({ ...prev, module: moduleId }))
+
+        if (moduleId === 'BUSINESS') {
+            setStep('category')
+        } else {
+            setStep('destination')
+        }
+    }
+
+    const handleBusinessCategorySelect = (categoryId: string) => {
+        setSelectedBusinessCategory(categoryId)
+        setFormData(prev => ({ ...prev, businessCategory: categoryId, processType: categoryId }))
+        if (categoryId === 'TRADE_LICENSE') {
+            setStep('trade-license')
+        } else {
+            setStep('destination') // or wherever other business types go
+        }
+    }
+
     const handleCountrySelect = (country: Country) => {
         setSelectedCountry(country)
         setFormData(prev => ({ ...prev, country: country.name }))
@@ -203,7 +231,21 @@ function AgentNewApplicationContent() {
 
         switch (step) {
             case 'client':
-                setStep('destination')
+                setStep('modules')
+                break
+            case 'modules':
+                if (selectedModule === 'BUSINESS') {
+                    setStep('category')
+                } else {
+                    setStep('destination')
+                }
+                break
+            case 'category':
+                if (selectedBusinessCategory === 'TRADE_LICENSE') {
+                    setStep('trade-license')
+                } else {
+                    setStep('destination')
+                }
                 break
             case 'destination':
                 setStep('process')
@@ -225,8 +267,12 @@ function AgentNewApplicationContent() {
 
     const handleBack = () => {
         switch (step) {
-            case 'destination':
+            case 'modules':
                 setStep('client')
+                break
+            case 'category':
+            case 'destination':
+                setStep('modules')
                 break
             case 'process':
                 setStep('destination')
@@ -407,6 +453,82 @@ function AgentNewApplicationContent() {
                                 </div>
                             )}
 
+                            {step === 'category' && selectedModule === 'BUSINESS' && (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Card
+                                            className={`cursor-pointer transition-all ${selectedBusinessCategory === 'TRADE_LICENSE' ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-600 ring-offset-2' : 'hover:border-gray-400'
+                                                }`}
+                                            onClick={() => handleBusinessCategorySelect('TRADE_LICENSE')}
+                                        >
+                                            <CardContent className="p-6">
+                                                <div className="flex items-start space-x-4">
+                                                    <div className={`p-3 rounded-lg ${selectedBusinessCategory === 'TRADE_LICENSE' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                        <MapPin className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-lg">Trade License</h3>
+                                                        <p className="text-sm text-gray-500 mt-1">Apply for a new Trade License</p>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                        <Card
+                                            className={`cursor-pointer transition-all ${selectedBusinessCategory === 'COMPANY_REGISTRATION' ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-600 ring-offset-2' : 'hover:border-gray-400'
+                                                }`}
+                                            onClick={() => handleBusinessCategorySelect('COMPANY_REGISTRATION')}
+                                        >
+                                            <CardContent className="p-6">
+                                                <div className="flex items-start space-x-4">
+                                                    <div className={`p-3 rounded-lg ${selectedBusinessCategory === 'COMPANY_REGISTRATION' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                                                        <MapPin className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <h3 className="font-semibold text-lg">Company Registration</h3>
+                                                        <p className="text-sm text-gray-500 mt-1">Register a new company (RJSC)</p>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === 'trade-license' && (
+                                <TradeLicenseForm
+                                    initialData={formData}
+                                    applicationId={applicationId}
+                                    onSaveDraft={async (submitData) => {
+                                        try {
+                                            const response = await fetch('/api/applications', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    country: 'Bangladesh',
+                                                    processType: 'TRADE_LICENSE',
+                                                    businessCategory: 'TRADE_LICENSE',
+                                                    module: 'BUSINESS',
+                                                    status: 'DRAFT',
+                                                    memberId: formData.memberId,
+                                                    answers: submitData
+                                                })
+                                            })
+                                            const data = await response.json()
+                                            if (data.success) {
+                                                setApplicationId(data.data.id)
+                                                return data.data.id
+                                            }
+                                            return null
+                                        } catch (e) {
+                                            console.error('Failed to save draft:', e)
+                                            return null
+                                        }
+                                    }}
+                                    onSubmit={handleSubmit}
+                                    onCancel={() => setStep('category')}
+                                />
+                            )}
+
                             {step === 'destination' && (
                                 <div className="space-y-6">
                                     <div className="border border-gray-200 rounded-lg overflow-hidden">
@@ -556,7 +678,7 @@ function AgentNewApplicationContent() {
                                 />
                             )}
 
-                            {step !== 'documents' && step !== 'call' && (
+                            {step !== 'documents' && step !== 'call' && step !== 'trade-license' && (
                                 <div className="flex justify-between mt-8">
                                     <Button
                                         variant="outline"

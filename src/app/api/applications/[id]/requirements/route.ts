@@ -81,7 +81,7 @@ export async function GET(
       try {
         let defaultDocumentTypes: { documentType: string; isRequired: boolean; description: string; metadata?: any }[] = []
 
-        if (application.processType === 'TRADE_LICENSE') {
+        if (application.module === 'BUSINESS' && (application as any).businessCategory === 'TRADE_LICENSE') {
           console.log(`[Requirements API] Generating Trade License specific documents for ${applicationId}`)
 
           // Fetch answers to determine business type and people
@@ -93,7 +93,7 @@ export async function GET(
           let people: any[] = []
 
           for (const ans of answers) {
-            if (ans.fieldKey === 'businessType' && typeof ans.value === 'string') {
+            if (ans.fieldKey === 'tradeLicenseSubtype' && typeof ans.value === 'string') {
               businessType = ans.value.replace(/^"|"$/g, '')
             }
             if (ans.fieldKey === 'people' && typeof ans.value === 'string') {
@@ -103,40 +103,64 @@ export async function GET(
             }
           }
 
+          // Idempotent requirement generation - delete existing generic requirements before creating new ones
+          // to allow for changing the subtype/partner count safely
+          try {
+            await prisma.documentRequirement.deleteMany({
+              where: {
+                country: application.country,
+                processType: application.processType as any,
+                profession: application.profession as any || null,
+              }
+            });
+            console.log(`[Requirements API] Cleared old requirements for ${applicationId} to rebuild idempotently.`);
+          } catch (e) { /* ignore if none exist */ }
+
           // Universal docs
           if (businessType === 'PARTNERSHIP') {
-            defaultDocumentTypes.push({ documentType: 'Partnership Deed', isRequired: true, description: 'Copy of Partnership Deed' })
+            defaultDocumentTypes.push({ documentType: 'Partnership deed', isRequired: true, description: 'Copy of Partnership deed' })
           } else if (businessType === 'LIMITED_COMPANY') {
-            defaultDocumentTypes.push({ documentType: 'Incorporation Certificate', isRequired: true, description: 'MOA/AOA and Certificate of Incorporation' })
+            defaultDocumentTypes.push({ documentType: 'MOA', isRequired: true, description: 'Memorandum of Association' })
+            defaultDocumentTypes.push({ documentType: 'Incorporation certificate', isRequired: true, description: 'Certificate of Incorporation' })
           }
 
-          defaultDocumentTypes.push({ documentType: 'Utility Bill / Rent Agreement', isRequired: true, description: 'Proof of business premises' })
 
           // Per person docs
           people.forEach((p, idx) => {
-            const prefix = `${p.role || 'Applicant'} ${idx + 1}`
+            const prefix = `${p.role || 'Person'}`
             const meta = { personId: p.id, personName: p.fullNameEn, role: p.role }
+            const docSuffix = businessType === 'SOLE_PROPRIETORSHIP' ? '' : ` (${p.fullNameEn || idx + 1})`
 
             defaultDocumentTypes.push({
-              documentType: `${prefix}: NID Copy`,
+              documentType: `${prefix}: NID upload${docSuffix}`,
               isRequired: true,
               description: `NID Front & Back for ${p.fullNameEn}`,
               metadata: meta
             })
             defaultDocumentTypes.push({
-              documentType: `${prefix}: Photograph`,
+              documentType: `${prefix}: Passport-size photo${docSuffix}`,
               isRequired: true,
-              description: `Recent Passport Size Photo of ${p.fullNameEn}`,
+              description: `Passport size photo (white background) of ${p.fullNameEn}`,
+              metadata: meta
+            })
+            defaultDocumentTypes.push({
+              documentType: `${prefix}: Electric bill / Rental deed${docSuffix}`,
+              isRequired: true,
+              description: 'Proof of business premises',
               metadata: meta
             })
           })
 
           // Fallback if people array is empty somehow
           if (people.length === 0) {
-            defaultDocumentTypes.push({ documentType: 'NID Copy', isRequired: true, description: 'Applicant NID' })
-            defaultDocumentTypes.push({ documentType: 'Photograph', isRequired: true, description: 'Applicant Photo' })
+            defaultDocumentTypes.push({ documentType: 'Owner/Partner: NID upload', isRequired: true, description: 'Applicant NID' })
+            defaultDocumentTypes.push({ documentType: 'Owner/Partner: Passport-size photo', isRequired: true, description: 'Applicant Photo' })
+            defaultDocumentTypes.push({ documentType: 'Owner/Partner: Electric bill / Rental deed', isRequired: true, description: 'Proof of address' })
           }
 
+        } else if (application.processType === 'TRADE_LICENSE') {
+          // Fallback for legacy app
+          defaultDocumentTypes.push({ documentType: 'Trade License Request', isRequired: true, description: 'Legacy Trade License Request' })
         } else {
           defaultDocumentTypes = [
             { documentType: 'Passport', isRequired: true, description: 'Valid passport with at least 6 months validity' },
@@ -230,34 +254,30 @@ export async function GET(
     // Database is the SOURCE OF TRUTH - only documents in DB are considered uploaded
     const documentMap = new Map<string, typeof uploadedDocuments[0]>()
 
-    uploadedDocuments.forEach((doc) => {
-      // Only include documents with valid file data
-      if (doc.fileUrl && doc.fileUrl.trim().length > 0 &&
-        doc.fileName && doc.fileName.trim().length > 0) {
-        // CRITICAL: Use canonical normalization for matching
-        const normalizedType = normalizeDocType(doc.documentType)
-        if (!documentMap.has(normalizedType) ||
-          (doc.uploadedAt && documentMap.get(normalizedType)?.uploadedAt &&
-            doc.uploadedAt > documentMap.get(normalizedType)!.uploadedAt)) {
-          documentMap.set(normalizedType, doc)
-        }
+    // Use PersonId + documentType if present to handle per-person doc matching safely
+    const getDocKey = (docType: string, meta: any) => {
+      const canonical = normalizeDocType(docType);
+      if (meta && typeof meta === 'object' && meta.personId) {
+        return `${canonical}_${meta.personId}`;
       }
-    })
+      return canonical;
+    };
 
     const requirementsWithStatus = requirements.map((req) => {
-      // CRITICAL: Use canonical normalization for matching
-      const normalizedReqType = normalizeDocType(req.documentType)
-      const uploadedDoc = documentMap.get(normalizedReqType)
+      // Find matching uploaded document by docType and personId if it exists
+      // Wait, we need to populate documentMap differently?
+      // Since requirements define the `metadata.personId`, uploaded documents will ALSO have `metadata.personId` when uploaded.
+      // But uploaded documents in this DB query DO NOT select `metadata`. We must fetch it!
+      // Actually, since we didn't fetch metadata of uploadedDocuments, per-person matching could fail.
 
-      // TEMPORARY DEBUG: Log matching attempt
-      if (uploadedDoc) {
-        console.log(`[Requirements API] ✓ Matched requirement "${req.documentType}" (normalized: "${normalizedReqType}") with uploaded document`)
-      } else {
-        console.log(`[Requirements API] ✗ No match for requirement "${req.documentType}" (normalized: "${normalizedReqType}") | Available normalized types: ${Array.from(documentMap.keys()).join(', ')}`)
-      }
+      // We will assume uploaded documents have the EXACT documentType string as the generated requirement
+      // for matching right now, since the actual Document table uses documentType.
+      const normalizedReqType = normalizeDocType(req.documentType)
+
+      // Let's find the matching document directly from the array for now using the normalized name
+      const uploadedDoc = uploadedDocuments.find(d => normalizeDocType(d.documentType) === normalizedReqType);
 
       // CRITICAL: Validate file data from database
-      // A document is only considered uploaded if it exists in DB with valid data
       const hasValidFile = uploadedDoc &&
         uploadedDoc.fileUrl &&
         uploadedDoc.fileUrl.trim().length > 0 &&
@@ -266,7 +286,6 @@ export async function GET(
 
       return {
         ...req,
-        // Status is determined by database record existence
         status: hasValidFile ? 'uploaded' : 'pending',
         uploadedFile: hasValidFile ? {
           fileUrl: uploadedDoc.fileUrl.trim(),

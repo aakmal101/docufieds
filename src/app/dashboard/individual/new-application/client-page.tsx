@@ -590,275 +590,272 @@ function NewApplicationContent() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
         <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                {step === 'modules' && 'Select Application Type'}
-                {step === 'destination' && 'Select Destination Country'}
-                {step === 'process' && 'Choose Process Type'}
-                {step === 'profession' && 'Select Your Profession'}
-                {step === 'review' && 'Review Application'}
-                {step === 'documents' && 'Required Documents'}
-                {step === 'call' && 'Application Submitted'}
-                {step === 'category' && 'Select Business Service'}
-                {step === 'trade-license' && 'Trade License Application'}
-              </CardTitle>
-              <CardDescription>
-                {step === 'modules' && 'Choose the category that best describes your purpose of travel'}
-                {step === 'category' && 'Select the specific business service you need'}
-                {step === 'trade-license' && 'Complete the trade license application form'}
-                {step === 'destination' && 'Choose the country you want to visit'}
-                {step === 'process' && 'Select the purpose of your visit'}
-                {step === 'profession' && 'Tell us about your profession'}
-                {step === 'review' && 'Review your application details before submitting'}
-                {step === 'documents' && 'Prepare the required documents for your application'}
-                {step === 'call' && 'Your application has been submitted and is now being processed'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <Alert className="mb-4" variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+          {step === 'trade-license' ? (
+            <TradeLicenseForm
+              initialData={formData}
+              applicationId={applicationId}
+              onSaveDraft={async (submitData) => {
+                // Save as DRAFT and return the ID if successful
+                try {
+                  const response = await fetch('/api/applications', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      country: 'Bangladesh',
+                      processType: 'TRADE_LICENSE',
+                      businessCategory: 'TRADE_LICENSE',
+                      module: 'BUSINESS',
+                      status: 'DRAFT', // Explicitly marking as draft
+                      consultancyFee: 500, // Explicitly provide required fee for API validaiton
+                      answers: submitData
+                    })
+                  })
+                  const data = await response.json()
+                  if (data.success) {
+                    setApplicationId(data.data.id)
+                    return data.data.id
+                  }
+                  return null
+                } catch (e) {
+                  console.error('Failed to save draft:', e)
+                  return null
+                }
+              }}
+              onSubmit={handleSubmit}
+              onCancel={() => setStep('category')}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  {step === 'modules' && 'Select Application Type'}
+                  {step === 'destination' && 'Select Destination Country'}
+                  {step === 'process' && 'Choose Process Type'}
+                  {step === 'profession' && 'Select Your Profession'}
+                  {step === 'review' && 'Review Application'}
+                  {step === 'documents' && 'Required Documents'}
+                  {step === 'call' && 'Application Submitted'}
+                  {step === 'category' && 'Select Business Service'}
+                </CardTitle>
+                <CardDescription>
+                  {step === 'modules' && 'Choose the category that best describes your purpose of travel'}
+                  {step === 'category' && 'Select the specific business service you need'}
+                  {step === 'destination' && 'Choose the country you want to visit'}
+                  {step === 'process' && 'Select the purpose of your visit'}
+                  {step === 'profession' && 'Tell us about your profession'}
+                  {step === 'review' && 'Review your application details before submitting'}
+                  {step === 'documents' && 'Prepare the required documents for your application'}
+                  {step === 'call' && 'Your application has been submitted and is now being processed'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <Alert className="mb-4" variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
 
-              {step === 'modules' && (
-                <div className="grid grid-cols-1 gap-4">
-                  {MODULES.map((module) => (
-                    <div
-                      key={module.id}
-                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${selectedModule === module.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      onClick={() => setSelectedModule(module.id)}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-full ${selectedModule === module.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                          <module.icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium">{module.label}</h3>
+                {step === 'modules' && (
+                  <div className="grid grid-cols-1 gap-4">
+                    {MODULES.map((module) => (
+                      <div
+                        key={module.id}
+                        className={`p-4 border rounded-lg transition-colors cursor-pointer ${selectedModule === module.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        onClick={() => setSelectedModule(module.id)}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-full ${selectedModule === module.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                            <module.icon className="w-5 h-5" />
                           </div>
-                          <p className="text-sm text-gray-500">{module.description}</p>
-                        </div>
-                        <div className="flex items-center justify-center">
-                          <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${selectedModule === module.id
-                            ? 'border-blue-600 bg-blue-600'
-                            : 'border-gray-300 bg-white'
-                            }`}>
-                            {selectedModule === module.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-medium">{module.label}</h3>
+                            </div>
+                            <p className="text-sm text-gray-500">{module.description}</p>
+                          </div>
+                          <div className="flex items-center justify-center">
+                            <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${selectedModule === module.id
+                              ? 'border-blue-600 bg-blue-600'
+                              : 'border-gray-300 bg-white'
+                              }`}>
+                              {selectedModule === module.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {step === 'category' && (
-                <div className="grid grid-cols-1 gap-4">
-                  {BUSINESS_CATEGORIES.map((cat) => (
-                    <div
-                      key={cat.id}
-                      className={`p-4 border rounded-lg transition-colors cursor-pointer ${formData.processType === cat.id
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      onClick={() => setFormData(prev => ({ ...prev, processType: cat.id }))}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <h3 className="font-medium">{cat.label}</h3>
-                          <p className="text-sm text-gray-500">{cat.description}</p>
-                        </div>
-                        <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${formData.processType === cat.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
-                          {formData.processType === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {step === 'trade-license' && (
-                <TradeLicenseForm
-                  userId={session?.user?.id}
-                  applicationId={applicationId}
-                  onSubmit={handleSubmit}
-                  onSaveDraft={async (submitData) => {
-                    // Save as DRAFT and return the ID if successful
-                    try {
-                      const response = await fetch('/api/applications', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          country: 'Bangladesh',
-                          processType: 'TRADE_LICENSE',
-                          profession: 'BUSINESS_OWNER',
-                          consultancyFee: 500,
-                          module: 'BUSINESS',
-                          status: 'DRAFT', // Explicitly marking as draft
-                          answers: submitData
-                        })
-                      })
-                      const data = await response.json()
-                      if (data.success) {
-                        setApplicationId(data.data.id)
-                        return data.data.id
-                      }
-                      return null
-                    } catch (e) {
-                      console.error('Failed to save draft:', e)
-                      return null
-                    }
-                  }}
-                  onCancel={() => setStep('category')}
-                />
-              )}
-
-              {step === 'destination' && (
-                <div className="space-y-6">
-                  {isReadOnly && (
-                    <Alert>
-                      <AlertDescription>
-                        This application has been submitted and cannot be edited. You are viewing it in read-only mode.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {/* WorldMap */}
-                  <div className="border border-gray-200 rounded-lg overflow-hidden">
-                    <WorldMap
-                      onCountrySelect={(country) => {
-                        handleCountrySelect({
-                          id: country.code.toLowerCase(), // Ensure ID format matches expectations
-                          name: country.name,
-                          code: country.code,
-                          continent: 'Unknown', // Map component needs to provide this or we default
-                          position: [0, 0, 0],
-                          color: 'blue'
-                        })
-                      }}
-                      selectedCountry={selectedCountry?.code}
-                    />
+                    ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {step === 'process' && (
-                <div className="space-y-4">
-                  {isReadOnly && (
-                    <Alert>
-                      <AlertDescription>
-                        This application has been submitted and cannot be edited.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {processTypes.map((type) => (
-                    <div
-                      key={type.value}
-                      className={`p-4 border rounded-lg transition-colors ${formData.processType === type.value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200'
-                        } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-gray-300'}`}
-                      onClick={() => {
-                        if (!isReadOnly) {
-                          setFormData(prev => ({ ...prev, processType: type.value }))
-                        }
-                      }}
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{type.label}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{type.description}</p>
+                {step === 'category' && (
+                  <div className="grid grid-cols-1 gap-4">
+                    {BUSINESS_CATEGORIES.map((cat) => (
+                      <div
+                        key={cat.id}
+                        className={`p-4 border rounded-lg transition-colors cursor-pointer ${formData.processType === cat.id
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        onClick={() => setFormData(prev => ({ ...prev, processType: cat.id }))}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <h3 className="font-medium">{cat.label}</h3>
+                            <p className="text-sm text-gray-500">{cat.description}</p>
+                          </div>
+                          <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${formData.processType === cat.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                            {formData.processType === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                          </div>
                         </div>
-                        <Badge variant="secondary">
-                          {consultancyFees[type.value as keyof typeof consultancyFees]} BDT
-                        </Badge>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {step === 'profession' && (
-                <div className="space-y-4">
-                  {isReadOnly && (
-                    <Alert>
-                      <AlertDescription>
-                        This application has been submitted and cannot be edited.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="space-y-2">
-                    <Label htmlFor="profession">Profession</Label>
-                    <Select
-                      value={formData.profession}
-                      onValueChange={(value) => {
-                        if (!isReadOnly) {
-                          setFormData(prev => ({ ...prev, profession: value }))
-                        }
-                      }}
-                      disabled={isReadOnly}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your profession" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {professions.map((profession) => (
-                          <SelectItem key={profession.value} value={profession.value}>
-                            {profession.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    ))}
                   </div>
-                </div>
-              )}
+                )}
 
-              {step === 'review' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-2">Destination</h3>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <MapPin className="h-5 w-5 text-blue-600 mr-2" />
-                        <span>{formData.country}</span>
-                      </div>
+                {step === 'destination' && (
+                  <div className="space-y-6">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited. You are viewing it in read-only mode.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {/* WorldMap */}
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <WorldMap
+                        onCountrySelect={(country) => {
+                          handleCountrySelect({
+                            id: country.code.toLowerCase(), // Ensure ID format matches expectations
+                            name: country.name,
+                            code: country.code,
+                            continent: 'Unknown', // Map component needs to provide this or we default
+                            position: [0, 0, 0],
+                            color: 'blue'
+                          })
+                        }}
+                        selectedCountry={selectedCountry?.code}
+                      />
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-2">Process Type</h3>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <FileText className="h-5 w-5 text-green-600 mr-2" />
-                        <span>{processTypes.find(t => t.value === formData.processType)?.label}</span>
+                  </div>
+                )}
+
+                {step === 'process' && (
+                  <div className="space-y-4">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    {processTypes.map((type) => (
+                      <div
+                        key={type.value}
+                        className={`p-4 border rounded-lg transition-colors ${formData.processType === type.value
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200'
+                          } ${isReadOnly ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:border-gray-300'}`}
+                        onClick={() => {
+                          if (!isReadOnly) {
+                            setFormData(prev => ({ ...prev, processType: type.value }))
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h3 className="font-medium text-gray-900">{type.label}</h3>
+                            <p className="text-sm text-gray-600 mt-1">{type.description}</p>
+                          </div>
+                          <Badge variant="secondary">
+                            {consultancyFees[type.value as keyof typeof consultancyFees]} BDT
+                          </Badge>
+                        </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+
+                {step === 'profession' && (
+                  <div className="space-y-4">
+                    {isReadOnly && (
+                      <Alert>
+                        <AlertDescription>
+                          This application has been submitted and cannot be edited.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="space-y-2">
+                      <Label htmlFor="profession">Profession</Label>
+                      <Select
+                        value={formData.profession}
+                        onValueChange={(value) => {
+                          if (!isReadOnly) {
+                            setFormData(prev => ({ ...prev, profession: value }))
+                          }
+                        }}
+                        disabled={isReadOnly}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your profession" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {professions.map((profession) => (
+                            <SelectItem key={profession.value} value={profession.value}>
+                              {profession.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-2">Profession</h3>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <span>{professions.find(p => p.value === formData.profession)?.label}</span>
+                  </div>
+                )}
+
+                {step === 'review' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Destination</h3>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <MapPin className="h-5 w-5 text-blue-600 mr-2" />
+                          <span>{formData.country}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900 mb-2">Application Type</h3>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <Briefcase className="h-5 w-5 text-blue-600 mr-2" />
-                        <span>{MODULES.find(m => m.id === selectedModule)?.label}</span>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Process Type</h3>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <FileText className="h-5 w-5 text-green-600 mr-2" />
+                          <span>{processTypes.find(t => t.value === formData.processType)?.label}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-span-1 md:col-span-2">
-                      <h3 className="font-medium text-gray-900 mb-2">Consultancy Fee</h3>
-                      <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                        <CreditCard className="h-5 w-5 text-purple-600 mr-2" />
-                        <span className="font-medium">{getCurrentFee()} BDT</span>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Profession</h3>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <span>{professions.find(p => p.value === formData.profession)?.label}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900 mb-2">Application Type</h3>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <Briefcase className="h-5 w-5 text-blue-600 mr-2" />
+                          <span>{MODULES.find(m => m.id === selectedModule)?.label}</span>
+                        </div>
+                      </div>
+                      <div className="col-span-1 md:col-span-2">
+                        <h3 className="font-medium text-gray-900 mb-2">Consultancy Fee</h3>
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <CreditCard className="h-5 w-5 text-purple-600 mr-2" />
+                          <span className="font-medium">{getCurrentFee()} BDT</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* 
+                {/* 
               {step === 'documents' && applicationId && (
                 <RequiredDocuments
                   applicationId={applicationId}
@@ -867,91 +864,90 @@ function NewApplicationContent() {
                 />
               )}
               */}
-              {step === 'documents' && applicationId && (
-                <ComponentErrorBoundary name="RequiredDocuments">
-                  <RequiredDocuments
+                {step === 'documents' && applicationId && (
+                  <ComponentErrorBoundary name="RequiredDocuments">
+                    <RequiredDocuments
+                      applicationId={applicationId}
+                      onComplete={() => setStep('call')}
+                      onBack={() => setStep('review')}
+                    />
+                  </ComponentErrorBoundary>
+                )}
+                {step === 'documents' && !applicationId && (
+                  <div className="text-center py-12">
+                    <Alert className="mb-4">
+                      <AlertDescription>
+                        Please complete the application form first before uploading documents.
+                      </AlertDescription>
+                    </Alert>
+                    <Button onClick={() => setStep('review')}>
+                      Go to Review
+                    </Button>
+                  </div>
+                )}
+
+                {step === 'call' && applicationId && (
+                  <CallPhaseScreen
                     applicationId={applicationId}
-                    onComplete={() => setStep('call')}
-                    onBack={() => setStep('review')}
-                  />
-                </ComponentErrorBoundary>
-              )}
-              {step === 'documents' && !applicationId && (
-                <div className="text-center py-12">
-                  <Alert className="mb-4">
-                    <AlertDescription>
-                      Please complete the application form first before uploading documents.
-                    </AlertDescription>
-                  </Alert>
-                  <Button onClick={() => setStep('review')}>
-                    Go to Review
-                  </Button>
-                </div>
-              )}
+                    onBackToDashboard={async () => {
+                      // Check if application needs to be submitted first
+                      try {
+                        const appResponse = await fetch(`/api/applications/${applicationId}`)
+                        const appData = await appResponse.json()
 
-              {step === 'call' && applicationId && (
-                <CallPhaseScreen
-                  applicationId={applicationId}
-                  onBackToDashboard={async () => {
-                    // Check if application needs to be submitted first
-                    try {
-                      const appResponse = await fetch(`/api/applications/${applicationId}`)
-                      const appData = await appResponse.json()
+                        if (appData.success && appData.data) {
+                          const app = appData.data
 
-                      if (appData.success && appData.data) {
-                        const app = appData.data
+                          // If still in DRAFT, try to submit
+                          if (app.status === 'DRAFT') {
+                            setLoading(true)
+                            const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                            })
 
-                        // If still in DRAFT, try to submit
-                        if (app.status === 'DRAFT') {
-                          setLoading(true)
-                          const response = await fetch(`/api/applications/${applicationId}/complete-call`, {
-                            method: 'POST',
-                            headers: {
-                              'Content-Type': 'application/json',
-                            },
-                          })
+                            const data = await response.json()
 
-                          const data = await response.json()
-
-                          if (data.success) {
-                            toast.success(data.message || 'Application successfully submitted!')
-                            setTimeout(() => {
-                              router.push('/dashboard/individual')
-                            }, 1500)
-                          } else {
-                            // Handle validation errors
-                            if (data.missingDocuments) {
-                              const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
-                              toast.error(`Please upload all required documents: ${missingList}`, {
-                                duration: 5000,
-                              })
-                              setStep('documents')
-                            } else if (data.requiredAmount) {
-                              toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before finalizing.`, {
-                                duration: 5000,
-                              })
-                              setStep('documents')
+                            if (data.success) {
+                              toast.success(data.message || 'Application successfully submitted!')
+                              setTimeout(() => {
+                                router.push('/dashboard/individual')
+                              }, 1500)
                             } else {
-                              toast.error(data.message || 'Failed to submit application. Please check all requirements.')
+                              // Handle validation errors
+                              if (data.missingDocuments) {
+                                const missingList = data.missingDocuments.map((d: any) => d.documentType).join(', ')
+                                toast.error(`Please upload all required documents: ${missingList}`, {
+                                  duration: 5000,
+                                })
+                                setStep('documents')
+                              } else if (data.requiredAmount) {
+                                toast.error(`Payment required: ${data.requiredAmount} BDT. Please complete payment before finalizing.`, {
+                                  duration: 5000,
+                                })
+                                setStep('documents')
+                              } else {
+                                toast.error(data.message || 'Failed to submit application. Please check all requirements.')
+                              }
+                              setLoading(false)
                             }
-                            setLoading(false)
+                          } else {
+                            // Already submitted, just go to dashboard
+                            router.push('/dashboard/individual')
                           }
                         } else {
-                          // Already submitted, just go to dashboard
                           router.push('/dashboard/individual')
                         }
-                      } else {
+                      } catch (error: any) {
+                        console.error('Error checking application status:', error)
                         router.push('/dashboard/individual')
                       }
-                    } catch (error: any) {
-                      console.error('Error checking application status:', error)
-                      router.push('/dashboard/individual')
-                    }
-                  }}
-                />
-              )}
+                    }}
+                  />
+                )}
 
-              {step !== 'documents' && step !== 'call' && (
                 <div className="flex justify-between mt-8">
                   <Button
                     variant="outline"
@@ -977,9 +973,9 @@ function NewApplicationContent() {
                     </Button>
                   )}
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Sidebar */}
