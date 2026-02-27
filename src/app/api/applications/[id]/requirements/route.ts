@@ -79,16 +79,76 @@ export async function GET(
     // If no requirements found, create default requirements for this application
     if (requirements.length === 0) {
       try {
-        const defaultDocumentTypes = [
-          { documentType: 'Passport', isRequired: true, description: 'Valid passport with at least 6 months validity' },
-          { documentType: 'National ID Card', isRequired: true, description: 'Government-issued national identification card' },
-          { documentType: 'Birth Certificate', isRequired: true, description: 'Official birth certificate with apostille' },
-          { documentType: 'Bank Statements', isRequired: true, description: 'Last 6 months bank statements showing sufficient funds' },
-          { documentType: 'Employment Letter', isRequired: true, description: 'Letter from employer confirming employment and salary' },
-          { documentType: 'Travel Insurance', isRequired: true, description: 'Comprehensive travel insurance coverage' },
-          { documentType: 'Accommodation Proof', isRequired: false, description: 'Hotel booking or accommodation confirmation' },
-          { documentType: 'Educational Certificates', isRequired: false, description: 'Academic certificates and transcripts' },
-        ]
+        let defaultDocumentTypes: { documentType: string; isRequired: boolean; description: string; metadata?: any }[] = []
+
+        if (application.processType === 'TRADE_LICENSE') {
+          console.log(`[Requirements API] Generating Trade License specific documents for ${applicationId}`)
+
+          // Fetch answers to determine business type and people
+          const answers = await prisma.applicationAnswer.findMany({
+            where: { applicationId }
+          })
+
+          let businessType = 'SOLE_PROPRIETORSHIP'
+          let people: any[] = []
+
+          for (const ans of answers) {
+            if (ans.fieldKey === 'businessType' && typeof ans.value === 'string') {
+              businessType = ans.value.replace(/^"|"$/g, '')
+            }
+            if (ans.fieldKey === 'people' && typeof ans.value === 'string') {
+              try {
+                people = JSON.parse(ans.value)
+              } catch (e) { console.error('Failed to parse people json', e) }
+            }
+          }
+
+          // Universal docs
+          if (businessType === 'PARTNERSHIP') {
+            defaultDocumentTypes.push({ documentType: 'Partnership Deed', isRequired: true, description: 'Copy of Partnership Deed' })
+          } else if (businessType === 'LIMITED_COMPANY') {
+            defaultDocumentTypes.push({ documentType: 'Incorporation Certificate', isRequired: true, description: 'MOA/AOA and Certificate of Incorporation' })
+          }
+
+          defaultDocumentTypes.push({ documentType: 'Utility Bill / Rent Agreement', isRequired: true, description: 'Proof of business premises' })
+
+          // Per person docs
+          people.forEach((p, idx) => {
+            const prefix = `${p.role || 'Applicant'} ${idx + 1}`
+            const meta = { personId: p.id, personName: p.fullNameEn, role: p.role }
+
+            defaultDocumentTypes.push({
+              documentType: `${prefix}: NID Copy`,
+              isRequired: true,
+              description: `NID Front & Back for ${p.fullNameEn}`,
+              metadata: meta
+            })
+            defaultDocumentTypes.push({
+              documentType: `${prefix}: Photograph`,
+              isRequired: true,
+              description: `Recent Passport Size Photo of ${p.fullNameEn}`,
+              metadata: meta
+            })
+          })
+
+          // Fallback if people array is empty somehow
+          if (people.length === 0) {
+            defaultDocumentTypes.push({ documentType: 'NID Copy', isRequired: true, description: 'Applicant NID' })
+            defaultDocumentTypes.push({ documentType: 'Photograph', isRequired: true, description: 'Applicant Photo' })
+          }
+
+        } else {
+          defaultDocumentTypes = [
+            { documentType: 'Passport', isRequired: true, description: 'Valid passport with at least 6 months validity' },
+            { documentType: 'National ID Card', isRequired: true, description: 'Government-issued national identification card' },
+            { documentType: 'Birth Certificate', isRequired: true, description: 'Official birth certificate with apostille' },
+            { documentType: 'Bank Statements', isRequired: true, description: 'Last 6 months bank statements showing sufficient funds' },
+            { documentType: 'Employment Letter', isRequired: true, description: 'Letter from employer confirming employment and salary' },
+            { documentType: 'Travel Insurance', isRequired: true, description: 'Comprehensive travel insurance coverage' },
+            { documentType: 'Accommodation Proof', isRequired: false, description: 'Hotel booking or accommodation confirmation' },
+            { documentType: 'Educational Certificates', isRequired: false, description: 'Academic certificates and transcripts' },
+          ]
+        }
 
         console.log(`[Requirements API] No requirements found for country="${application.country}", processType="${application.processType}". Creating defaults...`)
 
@@ -103,6 +163,7 @@ export async function GET(
                 documentType: doc.documentType,
                 isRequired: doc.isRequired,
                 description: doc.description,
+                metadata: doc.metadata ? doc.metadata : undefined,
               },
             })
           )

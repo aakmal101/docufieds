@@ -246,6 +246,22 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    // Find if the requirement for this document has metadata
+    // This allows us to link the uploaded document to a specific person, for example.
+    let documentMetadata = null
+    try {
+      const req = await prisma.documentRequirement.findFirst({
+        where: {
+          documentType,
+          country: application.country,
+          processType: application.processType as any
+        }
+      })
+      if (req && req.metadata) {
+        documentMetadata = req.metadata
+      }
+    } catch (e) { console.error('Error fetching requirement metadata', e) }
+
     let document
     if (existingDocument) {
       // Update existing document (replace the old one)
@@ -257,6 +273,7 @@ export async function POST(request: NextRequest) {
           fileType: file.type,
           fileSize: file.size,
           uploadedAt: new Date(),
+          metadata: documentMetadata || existingDocument.metadata || undefined,
         },
       })
     } else {
@@ -271,6 +288,7 @@ export async function POST(request: NextRequest) {
           fileSize: file.size,
           documentType,
           isRequired: true,
+          metadata: documentMetadata || undefined,
         },
       })
     }

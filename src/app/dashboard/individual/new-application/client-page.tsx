@@ -685,7 +685,35 @@ function NewApplicationContent() {
               {step === 'trade-license' && (
                 <TradeLicenseForm
                   userId={session?.user?.id}
+                  applicationId={applicationId}
                   onSubmit={handleSubmit}
+                  onSaveDraft={async (submitData) => {
+                    // Save as DRAFT and return the ID if successful
+                    try {
+                      const response = await fetch('/api/applications', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          country: 'Bangladesh',
+                          processType: 'TRADE_LICENSE',
+                          profession: 'BUSINESS_OWNER',
+                          consultancyFee: 500,
+                          module: 'BUSINESS',
+                          status: 'DRAFT', // Explicitly marking as draft
+                          answers: submitData
+                        })
+                      })
+                      const data = await response.json()
+                      if (data.success) {
+                        setApplicationId(data.data.id)
+                        return data.data.id
+                      }
+                      return null
+                    } catch (e) {
+                      console.error('Failed to save draft:', e)
+                      return null
+                    }
+                  }}
                   onCancel={() => setStep('category')}
                 />
               )}

@@ -118,6 +118,16 @@ export default function TradeLicenseForm({ userId, initialData, onSubmit, onCanc
     }
 
     const handleSubmit = async () => {
+        // Validation: Required fields check based on step 1 & 2 basic needs
+        if (!formData.businessNameEn || !formData.businessNameBn || !formData.tinNumber) {
+            toast.error('Please complete all required business information fields (Name, TIN).')
+            return
+        }
+        if (!formData.fullNameEn || !formData.fullNameBn || !formData.nidNumber || !formData.mobile) {
+            toast.error('Please complete all required applicant information fields (Name, NID, Mobile).')
+            return
+        }
+
         if (!formData.declared || !formData.termsAccepted) {
             toast.error('Please accept the declaration and terms.')
             return

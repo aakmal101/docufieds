@@ -191,6 +191,7 @@ model Document {
   isRequired       Boolean           @default(false) @map("is_required")
   status           String            @default("PENDING")
   uploadedAt       DateTime          @default(now()) @map("uploaded_at")
+  metadata         Json?
   module           ModuleType?
   documentRequests DocumentRequest[]
   application      Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
@@ -272,6 +273,7 @@ model DocumentRequirement {
   documentType String      @map("document_type")
   isRequired   Boolean     @default(true) @map("is_required")
   description  String?
+  metadata     Json?
   module       ModuleType?
   createdAt    DateTime    @default(now()) @map("created_at")
 
