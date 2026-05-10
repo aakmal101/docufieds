@@ -41,13 +41,23 @@ export async function POST(req: NextRequest) {
 
         const newUserId = authData.user.id
 
+        const parts = fullName.split(' ')
+        const firstName = parts[0]
+        const lastName = parts.slice(1).join(' ') || ''
+
         // 3. Create User in Prisma
         const newUser = await prisma.user.create({
             data: {
                 id: newUserId, // Sync ID
                 email,
-                fullName,
                 role: 'AGENT',
+                individualProfile: {
+                    create: {
+                        firstName,
+                        lastName,
+                        phoneNumber: phone
+                    }
+                },
                 status: 'APPROVED',
                 isVerified: true,
                 agencyId: agencyId || undefined, // Link to agency if provided

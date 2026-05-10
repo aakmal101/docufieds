@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { verifySupportMemberToken } from '@/middleware/support-member'
 
 // Helper to determine user context
@@ -10,10 +9,10 @@ async function getUserContext(req: NextRequest) {
     const supportMember = await verifySupportMemberToken(req)
     if (supportMember) return { type: 'SUPPORT_MEMBER', id: supportMember.id }
 
-    // Check for NextAuth Session (headers/cookies via getServerSession)
-    // Note: getServerSession needs clean headers in API route
-    const session = await getServerSession(authOptions)
-    if (session?.user) return { type: 'USER', id: session.user.id }
+    // Check for Supabase Auth (headers/cookies via Supabase Auth)
+    // Note: getCurrentUser needs clean headers in API route
+    const user = await getCurrentUser()
+    if (user?.id) return { type: 'USER', id: user.id }
 
     return null
 }
@@ -32,7 +31,7 @@ export async function GET(req: NextRequest) {
     // If Support: must be assigned (or Lead/Admin can view all - for now loose assignment check or just allow support members to view)
     const application = await prisma.application.findUnique({
         where: { id: applicationId },
-        select: { userId: true, assignment: { select: { memberId: true } } }
+        select: { userId: true, assignment: { select: { assignedToId: true } } }
     })
 
     if (!application) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -49,8 +48,7 @@ export async function GET(req: NextRequest) {
             ...(context.type === 'USER' ? { isInternal: false } : {})
         },
         include: {
-            senderUser: { select: { fullName: true, photoUrl: true } },
-            senderMember: { select: { fullName: true, photoUrl: true } }
+            senderUser: { select: { individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true } },
         },
         orderBy: { createdAt: 'asc' }
     })
@@ -86,12 +84,11 @@ export async function POST(req: NextRequest) {
                 messageType,
                 senderType: context.type,
                 // Polymorphic ID setting
-                ...(context.type === 'USER' ? { senderUserId: context.id } : { senderMemberId: context.id }),
+                ...(context.type === 'USER' ? { senderUserId: context.id } : { senderUserId: context.id }),
                 isInternal: false // Default to public
             },
             include: {
-                senderUser: { select: { fullName: true, photoUrl: true } },
-                senderMember: { select: { fullName: true, photoUrl: true } }
+                senderUser: { select: { individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true } },
             }
         })
 

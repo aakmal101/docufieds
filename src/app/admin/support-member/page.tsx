@@ -11,7 +11,6 @@ import Link from 'next/link'
 import ReactCountryFlag from 'react-country-flag'
 import { formatDistanceToNow } from 'date-fns'
 import { useApplicationAssignments } from '@/lib/supabase/realtime-support'
-import { useSession } from 'next-auth/react'
 import { Link as LinkIcon } from 'lucide-react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { GenerateLinkModal } from '@/components/support/generate-link-modal'
@@ -23,7 +22,6 @@ const getCountryCode = (countryName: string) => {
 }
 
 export default function MemberDashboard() {
-    const { data: session } = useSession()
     const [isGenerateLinkModalOpen, setIsGenerateLinkModalOpen] = useState(false)
     const [allUsers, setAllUsers] = useState<any[]>([])
     const [assignments, setAssignments] = useState<any[]>([])

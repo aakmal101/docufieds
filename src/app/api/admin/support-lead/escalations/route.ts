@@ -20,7 +20,7 @@ export async function GET(req: Request) {
                     select: { id: true, country: true, processType: true, supportStatus: true }
                 },
                 escalatedBy: {
-                    select: { id: true, fullName: true, photoUrl: true }
+                    select: { id: true, photoUrl: true, individualProfile: { select: { firstName: true, lastName: true } } }
                 }
             },
             orderBy: [

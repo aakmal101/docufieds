@@ -3,7 +3,7 @@
 import React, { useState, useEffect, Suspense } from 'react'
 import { ComponentErrorBoundary } from '@/components/ui/component-error-boundary'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -72,7 +72,7 @@ const consultancyFees = {
 }
 
 export function AgencyNewApplicationContent() {
-    const { data: session, status } = useSession()
+
     const router = useRouter()
     const searchParams = useSearchParams()
     const [selectedModule, setSelectedModule] = useState<string | null>(null)
@@ -96,23 +96,11 @@ export function AgencyNewApplicationContent() {
     const [isReadOnly, setIsReadOnly] = useState(false)
 
     useEffect(() => {
-        if (status === 'loading') return
-
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin?callbackUrl=/dashboard/agency/new-application')
-            return
-        }
-
-        if (session?.user?.role !== 'AGENCY') {
-            router.push('/dashboard')
-            return
-        }
-
         const appId = searchParams.get('id')
         if (appId) {
             loadApplication(appId)
         }
-    }, [session, status, router, searchParams])
+    }, [router, searchParams])
 
     const loadApplication = async (id: string) => {
         try {
@@ -349,19 +337,15 @@ export function AgencyNewApplicationContent() {
         }
     }
 
-    if (status === 'loading' || loadingApplication) {
+    if (loadingApplication) {
         return (
             <div className="flex items-center justify-center min-h-screen bg-gray-50">
                 <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-blue-600" />
-                    <p className="text-gray-600">Loading {loadingApplication ? 'application' : 'session'}...</p>
+                    <p className="text-gray-600">Loading application...</p>
                 </div>
             </div>
         )
-    }
-
-    if (status === 'unauthenticated') {
-        return null
     }
 
     return (

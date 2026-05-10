@@ -9,7 +9,7 @@ export async function GET(req: Request) {
         if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const notifications = await prisma.notification.findMany({
-            where: { memberId: member.id },
+            where: { userId: member.id },
             orderBy: { createdAt: 'desc' },
             take: 20
         })
@@ -47,7 +47,7 @@ export async function PUT(req: Request) {
         if (!member) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         await prisma.notification.updateMany({
-            where: { memberId: member.id, isRead: false },
+            where: { userId: member.id, isRead: false },
             data: { isRead: true }
         })
 

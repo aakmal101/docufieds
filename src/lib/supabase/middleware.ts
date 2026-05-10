@@ -1,11 +1,50 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 
-export async function updateSession(request: NextRequest) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Supabase Middleware Utility — Session Refresh & Cookie Sync
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// This file implements the canonical `updateSession` pattern from the official
+// Supabase SSR documentation. It creates a middleware-scoped Supabase client,
+// refreshes the auth token via `supabase.auth.getUser()`, and carefully
+// propagates the refreshed cookies from the Supabase response back into the
+// Next.js `NextResponse`.
+//
+// IMPORTANT: `getUser()` is used (not `getSession()`) because `getUser()`
+// revalidates the JWT against the Supabase Auth server every time, making it
+// safe for server-side trust boundaries. `getSession()` only reads the JWT
+// from cookies without revalidation and MUST NOT be trusted in middleware.
+//
+// Edge Runtime compatible — no Prisma, no Node.js-only APIs.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SessionResult {
+  response: NextResponse
+  user: User | null
+}
+
+/**
+ * Refreshes the Supabase auth session and synchronizes cookies between the
+ * incoming request and the outgoing response.
+ *
+ * Returns both the `NextResponse` (with updated cookies) and the validated
+ * `user` object (or `null` if unauthenticated), so the caller can make
+ * routing decisions without a second Supabase call.
+ */
+export async function updateSession(
+  request: NextRequest
+): Promise<SessionResult> {
+  // Start with a pass-through response that carries the original request
+  // headers (including cookies) forward to the Next.js server.
   let supabaseResponse = NextResponse.next({
     request,
   })
 
+  // Create a fresh Supabase server client scoped to this single request.
+  // NEVER store this in a global variable — each request must get its own
+  // client to avoid cross-request cookie contamination.
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -15,10 +54,18 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+          // 1. Write cookies into the *request* object so that downstream
+          //    Server Components / Route Handlers see the refreshed values.
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value)
+          )
+
+          // 2. Rebuild the response so it carries the mutated request cookies.
           supabaseResponse = NextResponse.next({
             request,
           })
+
+          // 3. Write cookies into the *response* so the browser stores them.
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -27,100 +74,16 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Avoid writing any logic between createServerClient and
-  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // ── CRITICAL ──────────────────────────────────────────────────────────────
+  // Do NOT insert any logic between `createServerClient` and `getUser()`.
+  // Doing so risks subtle bugs where users are randomly logged out because
+  // the cookie state drifts between the client construction and the auth
+  // call.
+  // ─────────────────────────────────────────────────────────────────────────
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (
-    !user &&
-    !request.nextUrl.pathname.startsWith('/auth') &&
-    !request.nextUrl.pathname.startsWith('/api/auth') &&
-    request.nextUrl.pathname !== '/' &&
-    !request.nextUrl.pathname.startsWith('/admin/support-member')
-  ) {
-    // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/signin'
-    return NextResponse.redirect(url)
-  }
-
-  // PROTECTED ROUTES LOGIC
-
-  // 1. Support Lead Protection
-  if (request.nextUrl.pathname.startsWith('/admin/support-lead')) {
-    // Must be logged in and have SUPPORT_LEAD role.
-    // Note: user.user_metadata.role might differ from our DB 'role'. 
-    // Ideally we check DB, but in middleware we want speed.
-    // We assume public.users table syncs with auth.users or we check session metadata.
-    // For now, let's assume we can trust session metadata if we set it, or query DB (expensive).
-    // Or we just check if user exists, and let the page component handle granular role check/redirect?
-    // Middleware is best for hard blocks. 
-    // For this MVP, we'll check if user exists. If role check needed, we assume metadata 'role' exists.
-    // If not, we might let them through and Page handles it. 
-    // BUT requirement says "Update middleware... requires SUPPORT_LEAD role".
-    // Let's try to check metadata if available.
-
-    const role = user?.user_metadata?.role || 'INDIVIDUAL' // Fallback
-
-    // If we are strictly using Prisma 'role' column, we can't easily check it here without a DB call which is bad in Edge middleware.
-    // HOWEVER, we can rely on our Page components for strict security and here just ensure they are logged in.
-    // Wait, can we? "Update middleware.ts to protect routes: /admin/support-lead/* requires SUPPORT_LEAD role"
-    // If I can't check role efficiently, I'll assume they need to be logged in. 
-    // But let's look at `user`. If we have custom claims we could use them.
-    // I will implement a check based on `user_metadata` assuming we save role there on signup.
-    // If not, I'll redirect to unauthorized if not logged in.
-
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/signin'
-      return NextResponse.redirect(url)
-    }
-
-    // OPTIONAL: If we have role in metadata
-    // if (user.user_metadata?.role !== 'SUPPORT_LEAD') { ... }
-  }
-
-  // 2. Support Member Protection
-  if (request.nextUrl.pathname.startsWith('/admin/support-member')) {
-    // Must have 'support-member-token' cookie
-    const token = request.cookies.get('support-member-token')
-    if (!token) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/signin' // Or specific support login
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // 3. Agent Dashboard Protection
-  if (request.nextUrl.pathname.startsWith('/dashboard/agent')) {
-    if (!user) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/auth/signin'
-      return NextResponse.redirect(url)
-    }
-    // We ideally check for role 'AGENT' here via metadata or DB.
-    // Assuming metadata is populated on login:
-    // const role = user.user_metadata?.role
-    // if (role !== 'AGENT') { ... }
-    // For now, simple auth check + page-level restriction (layout) is sufficient for MVP start.
-  }
-
-  // IMPORTANT: You *must* return the supabaseResponse object as it is. If you're
-  // creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely.
-
-  return supabaseResponse
+  return { response: supabaseResponse, user }
 }

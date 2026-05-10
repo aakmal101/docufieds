@@ -3,7 +3,6 @@
 // Force dynamic rendering - this page fetches from /api/admin/applications which uses headers/cookies
 export const dynamic = 'force-dynamic'
 
-import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -38,7 +37,6 @@ import { Link as LinkIcon } from 'lucide-react'
 // ... imports ...
 
 export default function SupportDashboard() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

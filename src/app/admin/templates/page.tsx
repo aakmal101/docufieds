@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +22,6 @@ import toast from 'react-hot-toast'
 export const dynamic = 'force-dynamic'
 
 export default function TemplatesPage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,18 +35,11 @@ export default function TemplatesPage() {
   })
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
+    
 
-    if (session?.user?.role !== 'ADMIN' && session?.user?.role !== 'SUPPORT') {
-      router.push('/dashboard')
-      return
-    }
-
+    
     fetchTemplates()
-  }, [session, status, router])
+  }, [])
 
   const fetchTemplates = async () => {
     try {

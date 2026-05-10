@@ -1,7 +1,7 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -26,27 +26,18 @@ import {
   ShieldCheck
 } from 'lucide-react'
 import { UserStatus, ApplicationStatus } from '@/types'
+import { AppUser } from '@/types/user'
 
 export default function AgencyDashboard() {
-  const { data: session, status } = useSession()
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [applications, setApplications] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'AGENCY') {
-      router.push('/dashboard')
-      return
-    }
-
+    // Middleware handles auth gating — if we're here, user is authenticated
     fetchUserData()
-  }, [session, status, router])
+  }, [])
 
   const fetchUserData = async () => {
     try {
@@ -105,8 +96,8 @@ export default function AgencyDashboard() {
   }
 
   const getCreditUtilization = () => {
-    if (!user || !user.creditLimit) return 0
-    return Math.round((user.outstandingAmount / user.creditLimit) * 100)
+    if (!user || !user.agencyProfile?.creditLimit) return 0
+    return Math.round(((user.agencyProfile?.outstandingAmount ?? 0) / user.agencyProfile.creditLimit) * 100)
   }
 
   const getDocumentUtilization = () => {
@@ -118,7 +109,9 @@ export default function AgencyDashboard() {
   }
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    window.location.href = '/'
   }
 
   if (loading) {
@@ -149,7 +142,7 @@ export default function AgencyDashboard() {
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user.agencyName}!
+            Welcome back, {user.agencyProfile?.businessName ?? 'Unknown Agency'}!
           </h1>
           {user.profileStatus === 'APPROVED' && (
             <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200 gap-1">
@@ -211,7 +204,7 @@ export default function AgencyDashboard() {
               Credit Utilization
             </CardTitle>
             <CardDescription className="text-red-700">
-              Outstanding: {user.outstandingAmount || 0} / {user.creditLimit || 0} BDT
+              Outstanding: {user.agencyProfile?.outstandingAmount ?? 0} / {user.agencyProfile?.creditLimit ?? 0} BDT
             </CardDescription>
           </CardHeader>
           <CardContent>

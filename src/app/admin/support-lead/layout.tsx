@@ -19,7 +19,6 @@ import {
     UserCheck
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { signOut } from 'next-auth/react'
 
 export default function SupportLeadLayout({
     children,
@@ -106,7 +105,7 @@ export default function SupportLeadLayout({
                 <Button
                     variant="outline"
                     className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    onClick={() => signOut({ callbackUrl: '/auth/signin' })}
+                    onClick={async () => { await fetch('/api/auth/signout', { method: 'POST' }); window.location.href = '/auth/signin' }}
                 >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out

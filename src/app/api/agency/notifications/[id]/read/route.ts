@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -11,9 +10,9 @@ export async function POST(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id) {
+        if (!user?.id) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -23,7 +22,7 @@ export async function POST(
         const notification = await prisma.notification.updateMany({
             where: {
                 id: params.id,
-                userId: session.user.id,
+                userId: user!.id,
             },
             data: {
                 isRead: true,

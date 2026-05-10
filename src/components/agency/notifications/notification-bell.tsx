@@ -12,8 +12,12 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import Link from 'next/link'
 
-export function NotificationBell() {
-    const { data: countData } = useUnreadCount()
+interface NotificationBellProps {
+    userId?: string
+}
+
+export function NotificationBell({ userId }: NotificationBellProps) {
+    const { data: countData } = useUnreadCount(userId)
     const { data: notificationsData } = useNotifications({ limit: 5, unreadOnly: true })
     const markAsRead = useMarkAsRead()
 

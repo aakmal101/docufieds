@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireSupportLead()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { action, resolution, newMemberId } = await req.json()
@@ -25,7 +25,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 data: {
                     status: 'RESOLVED',
                     resolution,
-                    resolvedById: session.user.id,
+                    resolvedById: user.id,
                     resolvedAt: new Date()
                 }
             })
@@ -36,7 +36,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 await tx.applicationAssignment.update({
                     where: { applicationId: escalation.applicationId },
                     data: {
-                        memberId: newMemberId,
+                        assignedToId: newMemberId,
                         status: 'ACTIVE', // Reset status if it was stuck
                         notes: `Reassigned from escalation resolution. Prev notes: ${resolution}`
                     }

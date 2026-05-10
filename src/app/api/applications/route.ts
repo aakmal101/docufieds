@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { ProcessType, Profession } from '@/types'
 
-// Force dynamic rendering - this route uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this route uses getCurrentUser which requires headers/cookies
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -20,10 +19,10 @@ export async function GET(request: NextRequest) {
 
     // Try to fetch from database
     try {
-      let whereClause: any = { userId: session.user.id }
+      let whereClause: any = { userId: user!.id }
 
       // If user is SUPPORT or ADMIN, fetch all submitted applications
-      if (['SUPPORT', 'ADMIN'].includes(session.user.role)) {
+      if (['SUPPORT', 'ADMIN'].includes(user!.role)) {
         whereClause = {
           status: {
             not: 'DRAFT'
@@ -92,9 +91,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -131,7 +130,7 @@ export async function POST(request: NextRequest) {
     let application
     try {
       const applicationData: any = {
-        userId: session.user.id,
+        userId: user!.id,
         country,
         processType: processType as ProcessType,
         profession: profession ? (profession as Profession) : null,
@@ -167,14 +166,14 @@ export async function POST(request: NextRequest) {
       })
 
       // Auto-assign to agent if creator is an AGENT
-      if (session.user.role === 'AGENT') {
+      if (user!.role === 'AGENT') {
         try {
           await (prisma as any).agentAssignment.create({
             data: {
-              agentUserId: session.user.id,
-              targetUserId: session.user.id,
+              agentUserId: user!.id,
+              targetUserId: user!.id,
               applicationId: application.id,
-              assignedByUserId: session.user.id,
+              assignedByUserId: user!.id,
               status: 'ACTIVE'
             }
           })
@@ -198,7 +197,7 @@ export async function POST(request: NextRequest) {
 
       const demoApplication = {
         id: applicationId,
-        userId: session.user.id,
+        userId: user!.id,
         country,
         processType,
         profession: profession || null,

@@ -1,11 +1,10 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string, requestId: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { documentId } = await req.json()
@@ -15,7 +14,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string,
             where: { id: params.id },
             select: { userId: true }
         })
-        if (!application || application.userId !== session.user.id) {
+        if (!application || application.userId !== user!.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 

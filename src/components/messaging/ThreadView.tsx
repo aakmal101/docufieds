@@ -5,7 +5,7 @@ import { Composer } from './Composer'
 import { MessageBubble, UnifiedMessage } from './MessageBubble'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Loader2 } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 
 interface ThreadViewProps {
     threadId: string
@@ -44,7 +44,7 @@ export function ThreadView({ threadId, currentUserId, supabaseUrl, supabaseAnonK
         fetchMessages()
 
         // Setup Realtime Subscription
-        const supabase = createClient(supabaseUrl, supabaseAnonKey)
+        const supabase = createClient()
         const channel = supabase.channel(`realtime-thread-${threadId}`)
 
         channel.on('postgres_changes', {
@@ -113,7 +113,7 @@ export function ThreadView({ threadId, currentUserId, supabaseUrl, supabaseAnonK
         setIsSending(true)
         try {
             // Upload to Supabase Storage Directly
-            const supabase = createClient(supabaseUrl, supabaseAnonKey)
+            const supabase = createClient()
 
             // Create a unique message ID early for the file path
             const dummyId = `voice_${Date.now()}`

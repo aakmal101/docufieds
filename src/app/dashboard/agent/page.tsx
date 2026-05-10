@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -19,27 +18,25 @@ import {
 } from 'lucide-react'
 
 export default function AgentDashboard() {
-    const { data: session, status } = useSession()
     const router = useRouter()
     const [stats, setStats] = useState<any>(null)
     const [assignments, setAssignments] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [userName, setUserName] = useState<string>('Agent')
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin')
-            return
-        }
-
-        if (status === 'authenticated' && session?.user?.role !== 'AGENT') {
-            router.push('/dashboard')
-            return
-        }
-
-        if (status === 'authenticated') {
-            fetchDashboardData()
-        }
-    }, [session, status, router])
+        // Middleware handles auth gating — if we're here, user is authenticated
+        fetchDashboardData()
+        // Fetch user profile for display name
+        fetch('/api/user/profile')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    setUserName(data.data.fullName || data.data.individualProfile?.firstName || 'Agent')
+                }
+            })
+            .catch(() => {})
+    }, [])
 
     const fetchDashboardData = async () => {
         try {
@@ -98,7 +95,7 @@ export default function AgentDashboard() {
             <div className="mb-8">
                 <div className="flex items-center gap-3 mb-2">
                     <h1 className="text-3xl font-bold text-gray-900">
-                        Welcome back, {session?.user?.name || 'Agent'}!
+                        Welcome back, {userName}!
                     </h1>
                     <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200 gap-1">
                         <Briefcase className="h-3 w-3" />

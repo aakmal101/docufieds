@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
-// Force dynamic rendering - this route uses getServerSession
+// Force dynamic rendering - this route uses getCurrentUser
 export const dynamic = 'force-dynamic'
 
 export async function DELETE(
@@ -12,9 +11,9 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -22,7 +21,7 @@ export async function DELETE(
     }
 
     // Check if user has admin privileges
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPPORT') {
+    if (user!.role !== 'ADMIN' && user!.role !== 'SUPPORT') {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }

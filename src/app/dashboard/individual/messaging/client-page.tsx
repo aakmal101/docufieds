@@ -2,7 +2,7 @@
 
 
 
-import { useSession } from 'next-auth/react'
+
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useRef, useEffect, useState, Suspense } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +18,7 @@ import {
 import toast from 'react-hot-toast'
 
 function MessagingContent() {
-  const { data: session, status } = useSession()
+
   const router = useRouter()
   const searchParams = useSearchParams()
   const [activeChat, setActiveChat] = useState<string>('support')
@@ -27,24 +27,12 @@ function MessagingContent() {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    if (status === 'loading') return
-
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'INDIVIDUAL') {
-      router.push('/dashboard')
-      return
-    }
-
     // Get chat type from URL params
     const chatParam = searchParams.get('chat')
     if (chatParam) {
       setActiveChat(chatParam)
     }
-  }, [session, status, router, searchParams])
+  }, [router, searchParams])
 
   const chatHeads = [
     {
@@ -104,16 +92,7 @@ function MessagingContent() {
   const activeChatHead = chatHeads.find(c => c.id === activeChat)
   const ActiveChatIcon = activeChatHead?.icon
 
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading messages...</p>
-        </div>
-      </div>
-    )
-  }
+
 
   // Re-rendering
   return (

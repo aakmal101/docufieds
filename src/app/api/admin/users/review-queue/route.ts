@@ -5,8 +5,8 @@ import { requireProfileReviewer } from '@/lib/auth/admin-guard'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
-    const session = await requireProfileReviewer()
-    if (!session) {
+    const user = await requireProfileReviewer()
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -27,9 +27,10 @@ export async function GET(req: Request) {
 
     if (search) {
         whereClause['OR'] = [
-            { fullName: { contains: search, mode: 'insensitive' } },
+            { individualProfile: { firstName: { contains: search, mode: 'insensitive' } } },
+            { individualProfile: { lastName: { contains: search, mode: 'insensitive' } } },
             { email: { contains: search, mode: 'insensitive' } },
-            { phone: { contains: search, mode: 'insensitive' } }
+            { individualProfile: { phoneNumber: { contains: search, mode: 'insensitive' } } }
         ]
     }
 
@@ -39,14 +40,13 @@ export async function GET(req: Request) {
                 where: whereClause,
                 select: {
                     id: true,
-                    fullName: true,
+                    individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true } },
+                    photoUrl: true,
                     email: true,
-                    phone: true,
                     createdAt: true,
                     profileStatus: true,
                     role: true,
-                    nationality: true,
-                    photoUrl: true
+                    nationality: true
                 },
                 orderBy: { createdAt: 'asc' }, // Oldest first for queue
                 skip: (page - 1) * limit,

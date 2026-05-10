@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { ArrowLeft } from 'lucide-react'
@@ -9,7 +8,6 @@ import NotificationDropdown from '@/components/notifications/notification-dropdo
 import ProfileDropdown from '@/components/profile/profile-dropdown'
 
 export default function IndividualHeader() {
-  const { data: session } = useSession()
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<any>(null)
@@ -19,12 +17,10 @@ export default function IndividualHeader() {
   const isMainDashboard = pathname === '/dashboard/individual'
 
   useEffect(() => {
-    if (session?.user?.id) {
-      fetchUserProfile()
-      const interval = setInterval(fetchUserProfile, 10000)
-      return () => clearInterval(interval)
-    }
-  }, [session])
+    fetchUserProfile()
+    const interval = setInterval(fetchUserProfile, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const fetchUserProfile = async () => {
     try {
@@ -77,9 +73,9 @@ export default function IndividualHeader() {
           </div>
 
           <div className="flex items-center gap-3">
-            {session?.user?.id && (
+            {user?.id && (
               <>
-                <NotificationDropdown userId={session.user.id} />
+                <NotificationDropdown userId={user.id} />
                 <ProfileDropdown user={user} />
               </>
             )}

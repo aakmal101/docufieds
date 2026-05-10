@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -8,9 +7,9 @@ export const dynamic = 'force-dynamic'
 // GET /api/agency/notifications/unread-count
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id) {
+        if (!user?.id) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -19,7 +18,7 @@ export async function GET() {
 
         const count = await prisma.notification.count({
             where: {
-                userId: session.user.id,
+                userId: user!.id,
                 isRead: false,
             },
         })

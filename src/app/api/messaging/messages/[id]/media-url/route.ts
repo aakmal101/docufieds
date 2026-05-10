@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 // Assuming docufieds uses supabase-js or standard storage approach
 import { createClient } from '@supabase/supabase-js'
@@ -23,9 +22,9 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id) {
+        if (!user?.id) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized' },
                 { status: 401 }
@@ -33,7 +32,7 @@ export async function GET(
         }
 
         const messageId = params.id
-        const currentUserId = session.user.id
+        const currentUserId = user!.id
 
         // Fetch the message and thread to check access
         const message = await prisma.chatMessage.findUnique({

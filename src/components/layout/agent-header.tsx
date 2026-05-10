@@ -1,7 +1,6 @@
 
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Globe, ArrowLeft } from 'lucide-react'
@@ -9,25 +8,32 @@ import { Button } from '@/components/ui/button'
 import AgentProfileDropdown from '@/components/profile/agent-profile-dropdown'
 
 export default function AgentHeader() {
-    const { data: session } = useSession()
     const router = useRouter()
     const pathname = usePathname()
-    const [profileStatus, setProfileStatus] = useState<string | null>(null)
+    const [user, setUser] = useState<{
+        fullName?: string | null
+        email?: string | null
+        photoUrl?: string | null
+        profileStatus?: string | null
+    } | null>(null)
 
     const showBackButton = pathname !== '/dashboard/agent'
 
     useEffect(() => {
-        if (session?.user?.id) {
-            fetch('/api/user/profile')
-                .then(res => res.json())
-                .then(data => {
-                    if (data.success && data.data) {
-                        setProfileStatus(data.data.profileStatus || null)
-                    }
-                })
-                .catch(() => { })
-        }
-    }, [session?.user?.id])
+        fetch('/api/user/profile')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data) {
+                    setUser({
+                        fullName: data.data.fullName || data.data.individualProfile?.firstName,
+                        email: data.data.email,
+                        photoUrl: data.data.photoUrl,
+                        profileStatus: data.data.profileStatus || null,
+                    })
+                }
+            })
+            .catch(() => { })
+    }, [])
 
     const handleBack = () => {
         router.push('/dashboard/agent')
@@ -56,13 +62,8 @@ export default function AgentHeader() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {session?.user && (
-                            <AgentProfileDropdown user={{
-                                fullName: session.user.name,
-                                email: session.user.email,
-                                photoUrl: session.user.image,
-                                profileStatus: profileStatus,
-                            }} />
+                        {user && (
+                            <AgentProfileDropdown user={user} />
                         )}
                     </div>
                 </div>

@@ -28,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 content: `Document Requested: ${documentType}`,
                 messageType: 'DOCUMENT_REQUEST',
                 senderType: 'SUPPORT_MEMBER',
-                senderMemberId: member.id
+                senderUserId: member.id
             }
         })
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 fromStatus: 'CURRENT',
                 toStatus: 'WAITING_FOR_USER',
                 changedByType: 'SUPPORT_MEMBER',
-                changedByMemberId: member.id,
+                changedById: member.id,
                 notes: `Document requested: ${documentType}`
             }
         })

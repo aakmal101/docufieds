@@ -22,10 +22,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 profession: true,
                 user: {
                     select: {
-                        fullName: true,
                         email: true,
-                        phone: true,
-                        photoUrl: true
+                        photoUrl: true,
+                        individualProfile: {
+                            select: { firstName: true, lastName: true, phoneNumber: true }
+                        }
                     }
                 },
                 // Include documents (Both applicant provided and legal output)
@@ -44,8 +45,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                 supportMessages: {
                     orderBy: { createdAt: 'desc' },
                     include: {
-                        senderMember: { select: { fullName: true } },
-                        senderUser: { select: { fullName: true } } // If user sent
+                        senderUser: { select: { email: true, individualProfile: { select: { firstName: true, lastName: true } } } }
                     }
                 }
             }

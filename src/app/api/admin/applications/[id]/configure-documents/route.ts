@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
-// Force dynamic rendering - this route uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this route uses getCurrentUser which requires headers/cookies
 export const dynamic = 'force-dynamic'
 
 export async function POST(
@@ -11,9 +10,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -21,7 +20,7 @@ export async function POST(
     }
 
     // Check if user has support privileges
-    if (session.user.role !== 'SUPPORT') {
+    if (user!.role !== 'SUPPORT') {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -101,7 +100,7 @@ export async function POST(
         toStatus: 'DOCUMENT_UNDER_REVIEW',
         fromStatus: application.status,
         changedByType: 'SUPPORT_MEMBER',
-        changedByMemberId: session.user.id, // Assuming support user is logged in
+        changedById: user!.id, // Assuming support user is logged in
         // Note: The schema for ApplicationStatusUpdate is different from what was here.
         // Schema has: fromStatus, toStatus, changedByType, changedById, changedByMemberId, notes, isVisibleToUser
         // The old code had: status, message, updatedBy

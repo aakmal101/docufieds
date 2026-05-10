@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/services/auth-service';
 import { prisma } from '@/lib/prisma';
 import { processZipUpload } from '@/lib/zip-processor';
 
@@ -10,8 +9,8 @@ export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const authUser = await getCurrentUser();
+        if (!authUser?.id) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -20,7 +19,7 @@ export async function POST(request: NextRequest) {
 
         // 1. Check permissions
         const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
+            where: { id: authUser.id },
             select: { role: true }
         });
 
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
             where: { id: bulkUploadId },
         });
 
-        if (!bulkUpload || bulkUpload.userId !== session.user.id) {
+        if (!bulkUpload || bulkUpload.userId !== authUser.id) {
             return NextResponse.json(
                 { success: false, error: 'Bulk upload not found or access denied' },
                 { status: 404 }
@@ -78,7 +77,7 @@ export async function POST(request: NextRequest) {
         const result = await processZipUpload(
             arrayBuffer,
             bulkUploadId,
-            session.user.id
+            authUser.id
         );
 
         // 4. Return results

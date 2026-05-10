@@ -12,7 +12,7 @@ export async function GET(req: Request) {
         // 1. Active Count
         const activeCount = await prisma.applicationAssignment.count({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'ACTIVE'
             }
         })
@@ -26,7 +26,7 @@ export async function GET(req: Request) {
 
         const completedToday = await prisma.applicationAssignment.count({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'COMPLETED',
                 completedAt: {
                     gte: startOfDay,
@@ -40,7 +40,7 @@ export async function GET(req: Request) {
         // AND assignment is ACTIVE? Usually if waiting for user, assignment is still active.
         const pendingResponse = await prisma.applicationAssignment.count({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'ACTIVE',
                 application: {
                     supportStatus: 'Waiting for User' // Ensure exact string match from other parts of app

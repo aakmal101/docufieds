@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { createClient } from '@/lib/supabase/server'
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const formData = await req.formData()
@@ -27,11 +26,12 @@ export async function POST(req: NextRequest) {
 
         if (error) throw error
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('documents')
-            .getPublicUrl(`chat/${fileName}`)
+        const internalPath = `chat/${fileName}`
+        
+        const { getSignedDocumentUrl } = await import('@/lib/utils/storage');
+        const signedUrl = await getSignedDocumentUrl(internalPath) || internalPath;
 
-        return NextResponse.json({ url: publicUrl, name: file.name })
+        return NextResponse.json({ url: signedUrl, path: internalPath, name: file.name })
     } catch (error) {
         console.error('Chat upload error:', error)
         return NextResponse.json({ error: 'Upload failed' }, { status: 500 })

@@ -50,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 fromStatus: 'CURRENT',
                 toStatus: 'PENDING_REJECTION',
                 changedByType: 'SUPPORT_MEMBER',
-                changedByMemberId: member.id,
+                changedById: member.id,
                 notes: `Rejection requested: ${reason}`
             }
         })

@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { ArrowLeft, Globe } from 'lucide-react'
@@ -9,24 +8,22 @@ import NotificationDropdown from '@/components/notifications/notification-dropdo
 import AgencyProfileDropdown from '@/components/profile/agency-profile-dropdown'
 
 import { VerifiedBadge } from '@/components/user/VerifiedBadge'
+import { AppUser } from '@/types/user'
 
 export default function AgencyHeader() {
-    const { data: session } = useSession()
     const router = useRouter()
     const pathname = usePathname()
-    const [user, setUser] = useState<any>(null)
+    const [user, setUser] = useState<AppUser | null>(null)
 
     // Determine if we should show back button (not on main dashboard)
     const showBackButton = pathname !== '/dashboard/agency'
 
     useEffect(() => {
-        if (session?.user?.id) {
-            fetchUserProfile()
-            // Poll for status updates
-            const interval = setInterval(fetchUserProfile, 10000)
-            return () => clearInterval(interval)
-        }
-    }, [session])
+        fetchUserProfile()
+        // Poll for status updates
+        const interval = setInterval(fetchUserProfile, 10000)
+        return () => clearInterval(interval)
+    }, [])
 
     const fetchUserProfile = async () => {
         try {
@@ -70,15 +67,15 @@ export default function AgencyHeader() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                        {session?.user?.id && (
+                        {user?.id && (
                             <>
                                 <div className="mr-2 hidden md:block flex items-center gap-2">
                                     <p className="text-sm font-medium text-gray-900 text-right flex items-center gap-1">
-                                        {user?.agencyName}
-                                        <VerifiedBadge status={user?.profileStatus} className="h-4 w-4" />
+                                        {user?.agencyProfile?.businessName ?? 'Agency'}
+                                        <VerifiedBadge status={user?.profileStatus ?? undefined} className="h-4 w-4" />
                                     </p>
                                 </div>
-                                <NotificationDropdown userId={session.user.id} />
+                                <NotificationDropdown userId={user.id} />
                                 <AgencyProfileDropdown user={user} />
                             </>
                         )}

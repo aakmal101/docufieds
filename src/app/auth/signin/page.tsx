@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,6 +31,8 @@ export default function SignInPage() {
     password: '',
   })
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const next = searchParams.get('next') || '/dashboard'
 
   const handlePasswordLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -38,59 +40,32 @@ export default function SignInPage() {
     setError('')
 
     try {
-      const result = await signIn('credentials', {
-        identifier: credentials.identifier,
+      const supabase = createClient()
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: credentials.identifier,
         password: credentials.password,
-        redirect: false,
       })
 
-      if (result?.error) {
-        console.error('Sign in error:', result.error)
-        setError(result.error || 'Login failed. Please check your credentials.')
+      if (authError) {
+        console.error('Sign in error:', authError.message)
+        setError(authError.message || 'Login failed. Please check your credentials.')
         toast.error('Login failed. Please check your credentials.')
-      } else {
-        // Wait a moment for session to be created
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        // Get the updated session
-        const session = await getSession()
-
-        if (!session?.user) {
-          setError('Session not created. Please try again.')
-          toast.error('Session not created. Please try again.')
-          setLoading(false)
-          return
-        }
-
-        toast.success('Signed in successfully!')
-
-        // Redirect based on user role
-        const redirectPath = (() => {
-          switch (session.user.role) {
-            case 'INDIVIDUAL':
-              return '/dashboard/individual'
-            case 'AGENCY':
-              return '/dashboard/agency'
-            case 'AGENT':
-              return '/dashboard/agent'
-            case 'ADMIN':
-              return '/admin'
-            case 'SUPPORT':
-              return '/dashboard/support'
-            case 'LEGAL':
-              return '/admin/legal'
-            case 'ACCOUNTS':
-              return '/admin/accounts'
-            case 'CASH_OFFICER':
-              return '/admin/cash'
-            default:
-              return '/dashboard'
-          }
-        })()
-
-        // Use window.location for a full page reload to ensure session is loaded
-        window.location.href = redirectPath
+        setLoading(false)
+        return
       }
+
+      if (!data.user) {
+        setError('Authentication failed. Please try again.')
+        toast.error('Authentication failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      toast.success('Signed in successfully!')
+
+      // Redirect to the requested page or dashboard (role routing handled by /dashboard page)
+      window.location.href = next
     } catch (error: any) {
       console.error('Login error:', error)
       const errorMessage = error?.message || 'Something went wrong. Please try again.'
@@ -106,62 +81,36 @@ export default function SignInPage() {
     setError('')
 
     try {
-      // Create a mock identifier based on role
+      const supabase = createClient()
+
+      // Demo login — use the role-specific demo email
       const identifier = `${role.toLowerCase()}@demo.com`
 
-      const result = await signIn('credentials', {
-        identifier,
-        otp: '123456', // Dummy OTP since verification is disabled
-        redirect: false,
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: identifier,
+        password: 'demo123456', // Standard demo password
       })
 
-      if (result?.error) {
-        console.error('Sign in error:', result.error)
-        setError(result.error || 'Login failed. Please try again.')
-        toast.error('Login failed. Please try again.')
-      } else {
-        // Wait a moment for session to be created
-        await new Promise(resolve => setTimeout(resolve, 500))
-
-        // Get the updated session
-        const session = await getSession()
-
-        if (!session?.user) {
-          setError('Session not created. Please try again.')
-          toast.error('Session not created. Please try again.')
-          setLoading(false)
-          return
-        }
-
-        toast.success(`Signed in as ${role}!`)
-
-        // Redirect based on user role
-        const redirectPath = (() => {
-          switch (session.user.role) {
-            case 'INDIVIDUAL':
-              return '/dashboard/individual'
-            case 'AGENCY':
-              return '/dashboard/agency'
-            case 'AGENT':
-              return '/dashboard/agent'
-            case 'ADMIN':
-              return '/admin'
-            case 'SUPPORT':
-              return '/dashboard/support'
-            case 'LEGAL':
-              return '/admin/legal'
-            case 'ACCOUNTS':
-              return '/admin/accounts'
-            case 'CASH_OFFICER':
-              return '/admin/cash'
-            default:
-              return '/dashboard'
-          }
-        })()
-
-        // Use window.location for a full page reload to ensure session is loaded
-        window.location.href = redirectPath
+      if (authError) {
+        console.error('Demo sign in error:', authError.message)
+        setError(authError.message || 'Demo login failed. Please try again.')
+        toast.error('Demo login failed. Please try again.')
+        setLoading(false)
+        return
       }
+
+      if (!data.user) {
+        setError('Demo session not created. Please try again.')
+        toast.error('Demo session not created. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      toast.success(`Signed in as ${role}!`)
+
+      // Redirect to /dashboard — the server-side dashboard router
+      // will read the user's role and redirect to the correct sub-dashboard.
+      window.location.href = '/dashboard'
     } catch (error: any) {
       console.error('Login error:', error)
       const errorMessage = error?.message || 'Something went wrong. Please try again.'

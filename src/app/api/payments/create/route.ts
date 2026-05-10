@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { PaymentMethod } from '@/types'
 
-// Force dynamic rendering - this route uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this route uses getCurrentUser which requires headers/cookies
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -31,7 +30,7 @@ export async function POST(request: NextRequest) {
     const application = await prisma.application.findFirst({
       where: {
         id: applicationId,
-        userId: session.user.id,
+        userId: user!.id,
       },
     })
 
@@ -64,7 +63,7 @@ export async function POST(request: NextRequest) {
     const payment = await prisma.payment.create({
       data: {
         applicationId,
-        userId: session.user.id,
+        userId: user!.id,
         amount: parseFloat(amount),
         status: 'PENDING',
         method: method as PaymentMethod,
@@ -116,7 +115,7 @@ export async function POST(request: NextRequest) {
     // Create notification for user
     await prisma.notification.create({
       data: {
-        userId: session.user.id,
+        userId: user!.id,
         title: 'Payment Created',
         message: `Payment of ${amount} BDT has been created for your application. Please complete the payment to proceed.`,
         type: 'payment_created',

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session || !['SUPPORT', 'SUPPORT_LEAD'].includes(session.user?.role || '')) {
+    const user = await getCurrentUser()
+    if (!user || !['SUPPORT', 'SUPPORT_LEAD'].includes(user?.role || '')) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -43,8 +42,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 applicationId,
                 fromStatus: 'CURRENT', // Placeholder since we don't track prev payment status in this table easily without query
                 toStatus: 'PAYMENT_VERIFIED',
-                changedByType: session.user.role || 'SUPPORT',
-                changedById: session.user.id,
+                changedByType: user!.role || 'SUPPORT',
+                changedById: user!.id,
                 notes: `Payment verified manually by support staff. ${notes ? `Note: ${notes}` : ''}`
             }
         })

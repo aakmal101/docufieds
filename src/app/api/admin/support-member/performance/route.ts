@@ -11,19 +11,19 @@ export async function GET(req: Request) {
 
         // 1. Overview Stats
         const totalAssignments = await prisma.applicationAssignment.count({
-            where: { memberId: member.id }
+            where: { assignedToId: member.id }
         })
 
         const activeAssignments = await prisma.applicationAssignment.count({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'ACTIVE'
             }
         })
 
         const completedAssignments = await prisma.applicationAssignment.count({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'COMPLETED'
             }
         })
@@ -39,7 +39,7 @@ export async function GET(req: Request) {
 
         const recentCompleted = await prisma.applicationAssignment.findMany({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'COMPLETED',
                 completedAt: {
                     gte: sevenDaysAgo
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
 
         // 3. Status Distribution
         const assignments = await prisma.applicationAssignment.findMany({
-            where: { memberId: member.id },
+            where: { assignedToId: member.id },
             include: { application: { select: { supportStatus: true } } }
         })
 

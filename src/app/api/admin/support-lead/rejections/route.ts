@@ -11,10 +11,10 @@ export async function GET() {
             where: { status: 'PENDING' },
             include: {
                 application: {
-                    include: { user: { select: { fullName: true, email: true } } }
+                    include: { user: { select: { email: true, individualProfile: { select: { firstName: true, lastName: true } } } } }
                 },
                 requestedBy: {
-                    select: { fullName: true, photoUrl: true }
+                    select: { photoUrl: true, individualProfile: { select: { firstName: true, lastName: true } } }
                 }
             },
             orderBy: { requestedAt: 'asc' }

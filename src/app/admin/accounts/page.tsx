@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,28 +19,16 @@ import {
 } from 'lucide-react'
 
 export default function AccountsDashboard() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [payments, setPayments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'ACCOUNTS') {
-      router.push('/dashboard')
-      return
-    }
-
     fetchPayments()
-  }, [session, status, router])
+  }, [])
 
   const fetchPayments = async () => {
     try {
-      // Mock payment data for demo
       setPayments([
         {
           id: '1',
@@ -82,21 +69,17 @@ export default function AccountsDashboard() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'PAID':
-        return 'bg-green-100 text-green-800'
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'FAILED':
-        return 'bg-red-100 text-red-800'
-      case 'REFUNDED':
-        return 'bg-blue-100 text-blue-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
+      case 'PAID': return 'bg-green-100 text-green-800'
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800'
+      case 'FAILED': return 'bg-red-100 text-red-800'
+      case 'REFUNDED': return 'bg-blue-100 text-blue-800'
+      default: return 'bg-gray-100 text-gray-800'
     }
   }
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    await fetch('/api/auth/signout', { method: 'POST' })
+    window.location.href = '/auth/signin'
   }
 
   if (loading) {
@@ -115,7 +98,6 @@ export default function AccountsDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
@@ -126,7 +108,7 @@ export default function AccountsDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{session?.user?.fullName}</p>
+                <p className="text-sm font-medium text-gray-900">Accounts Officer</p>
                 <p className="text-sm text-gray-500">Accounts Team</p>
               </div>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -138,17 +120,11 @@ export default function AccountsDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Accounts Dashboard
-          </h1>
-          <p className="text-gray-600">
-            Manage payments, revenue, and financial transactions
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Accounts Dashboard</h1>
+          <p className="text-gray-600">Manage payments, revenue, and financial transactions</p>
         </div>
 
-        {/* Financial Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
@@ -161,7 +137,6 @@ export default function AccountsDashboard() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
@@ -173,29 +148,23 @@ export default function AccountsDashboard() {
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <CheckCircle className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {payments.filter(p => p.status === 'PAID').length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{payments.filter(p => p.status === 'PAID').length}</p>
                   <p className="text-sm text-gray-600">Completed Payments</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <TrendingUp className="h-8 w-8 text-purple-600" />
                 <div className="ml-4">
-                  <p className="text-2xl font-bold text-gray-900">
-                    {payments.filter(p => p.status === 'PENDING').length}
-                  </p>
+                  <p className="text-2xl font-bold text-gray-900">{payments.filter(p => p.status === 'PENDING').length}</p>
                   <p className="text-sm text-gray-600">Pending Transactions</p>
                 </div>
               </div>
@@ -203,7 +172,6 @@ export default function AccountsDashboard() {
           </Card>
         </div>
 
-        {/* Payment Methods Breakdown */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <Card>
             <CardHeader>
@@ -216,7 +184,6 @@ export default function AccountsDashboard() {
                   const methodPayments = payments.filter(p => p.method === method && p.status === 'PAID')
                   const amount = methodPayments.reduce((sum, p) => sum + p.amount, 0)
                   const count = methodPayments.length
-                  
                   return (
                     <div key={method} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="font-medium">{method}</span>
@@ -242,15 +209,11 @@ export default function AccountsDashboard() {
                   <div key={payment.id} className="flex justify-between items-center p-3 border rounded-lg">
                     <div>
                       <p className="font-medium">{payment.user.fullName}</p>
-                      <p className="text-sm text-gray-600">
-                        {payment.application.country} - {payment.application.processType}
-                      </p>
+                      <p className="text-sm text-gray-600">{payment.application.country} - {payment.application.processType}</p>
                     </div>
                     <div className="text-right">
                       <p className="font-semibold">{payment.amount} BDT</p>
-                      <Badge className={getStatusColor(payment.status)}>
-                        {payment.status}
-                      </Badge>
+                      <Badge className={getStatusColor(payment.status)}>{payment.status}</Badge>
                     </div>
                   </div>
                 ))}
@@ -259,7 +222,6 @@ export default function AccountsDashboard() {
           </Card>
         </div>
 
-        {/* All Payments */}
         <Card>
           <CardHeader>
             <CardTitle>All Payments</CardTitle>
@@ -279,12 +241,8 @@ export default function AccountsDashboard() {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-medium text-gray-900">
-                            {payment.user.fullName}
-                          </h3>
-                          <Badge className={getStatusColor(payment.status)}>
-                            {payment.status}
-                          </Badge>
+                          <h3 className="text-lg font-medium text-gray-900">{payment.user.fullName}</h3>
+                          <Badge className={getStatusColor(payment.status)}>{payment.status}</Badge>
                         </div>
                         <div className="flex items-center space-x-6 text-sm text-gray-600">
                           <div className="flex items-center">
@@ -304,9 +262,7 @@ export default function AccountsDashboard() {
                       <div className="text-right">
                         <p className="text-2xl font-bold text-gray-900">{payment.amount} BDT</p>
                         {payment.paidAt && (
-                          <p className="text-sm text-gray-600">
-                            Paid: {new Date(payment.paidAt).toLocaleDateString()}
-                          </p>
+                          <p className="text-sm text-gray-600">Paid: {new Date(payment.paidAt).toLocaleDateString()}</p>
                         )}
                       </div>
                     </div>
@@ -320,14 +276,3 @@ export default function AccountsDashboard() {
     </div>
   )
 }
-
-
-
-
-
-
-
-
-
-
-

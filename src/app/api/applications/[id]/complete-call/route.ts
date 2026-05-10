@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { triggerAutoAssign } from '@/lib/support/auto-assign-trigger'
 import { ApplicationStatus } from '@/types'
@@ -27,9 +26,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -52,7 +51,7 @@ export async function POST(
     const application = await prisma.application.findFirst({
       where: {
         id: applicationId,
-        userId: session.user.id, // Ensure ownership
+        userId: user!.id, // Ensure ownership
       },
       include: {
         documents: true,
@@ -232,7 +231,7 @@ export async function POST(
           toStatus: ApplicationStatus.UNDER_REVIEW,
           notes: `Application submitted successfully. All required documents (${application.documents.length}) uploaded and payment verified (${totalPaid} BDT). Application is now under review and will be processed by our legal team.`,
           changedByType: 'USER',
-          changedById: session.user.id,
+          changedById: user!.id,
         },
       })
 
@@ -240,7 +239,7 @@ export async function POST(
       // Check for recent notification to prevent duplicates
       const recentNotification = await tx.notification.findFirst({
         where: {
-          userId: session.user.id,
+          userId: user!.id,
           type: 'application_submitted',
           createdAt: {
             gte: new Date(Date.now() - 60000), // Within last minute
@@ -252,7 +251,7 @@ export async function POST(
       if (!recentNotification) {
         notification = await tx.notification.create({
           data: {
-            userId: session.user.id,
+            userId: user!.id,
             title: 'Application Successfully Submitted',
             message: 'Your application has been submitted and is under processing.',
             type: 'application_submitted',

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -8,24 +7,23 @@ export const dynamic = 'force-dynamic'
 // GET: Return the agent's current approval status
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        const authUser = await getCurrentUser()
+        if (!authUser?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        if (session.user.role !== 'AGENT') {
+        if (authUser.role !== 'AGENT') {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
         const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
+            where: { id: authUser.id },
             select: {
                 profileStatus: true,
                 profileReviewNotes: true,
                 profileReviewedAt: true,
-                fullName: true,
+                individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true } },
                 email: true,
-                phone: true,
             }
         })
 
@@ -39,9 +37,9 @@ export async function GET() {
                 profileStatus: user.profileStatus,
                 reviewNotes: user.profileReviewNotes,
                 reviewedAt: user.profileReviewedAt,
-                fullName: user.fullName,
+                fullName: user.individualProfile ? `${user.individualProfile.firstName} ${user.individualProfile.lastName}`.trim() : null,
                 email: user.email,
-                phone: user.phone,
+                phone: user.individualProfile?.phoneNumber,
             }
         })
     } catch (error: any) {
@@ -53,12 +51,12 @@ export async function GET() {
 // POST: Submit an approval request
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        const authUser = await getCurrentUser()
+        if (!authUser?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        if (session.user.role !== 'AGENT') {
+        if (authUser.role !== 'AGENT') {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
@@ -74,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         // Check current status
         const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
+            where: { id: authUser.id },
             select: { profileStatus: true }
         })
 
@@ -99,12 +97,27 @@ export async function POST(request: NextRequest) {
         }
 
         // Also update profile info if provided
-        if (fullName?.trim()) updateData.fullName = fullName.trim()
         if (email?.trim()) updateData.email = email.trim()
-        if (phone?.trim()) updateData.phone = phone.trim()
+        
+        if (fullName?.trim() || phone?.trim()) {
+            const parts = fullName?.trim() ? fullName.trim().split(' ') : [];
+            updateData.individualProfile = {
+                upsert: {
+                    create: {
+                        firstName: parts[0] || '',
+                        lastName: parts.slice(1).join(' ') || '',
+                        phoneNumber: phone?.trim() || undefined
+                    },
+                    update: {
+                        ...(fullName?.trim() ? { firstName: parts[0] || '', lastName: parts.slice(1).join(' ') || '' } : {}),
+                        ...(phone?.trim() ? { phoneNumber: phone.trim() } : {})
+                    }
+                }
+            }
+        }
 
         await prisma.user.update({
-            where: { id: session.user.id },
+            where: { id: authUser.id },
             data: updateData,
         })
 

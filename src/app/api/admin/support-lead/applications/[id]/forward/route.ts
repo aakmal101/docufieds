@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session || !['SUPPORT', 'SUPPORT_LEAD', 'LEGAL'].includes(session.user?.role || '')) {
+    const user = await getCurrentUser()
+    if (!user || !['SUPPORT', 'LEGAL'].includes(user.role)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -33,8 +32,8 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 applicationId,
                 fromStatus: 'PROCESSING',
                 toStatus: 'READY_FOR_LEGAL',
-                changedByType: session.user.role || 'SYSTEM',
-                changedById: session.user.id,
+                changedByType: user!.role || 'SYSTEM',
+                changedById: user!.id,
                 notes: 'Forwarded to Legal Team for final review.'
             }
         })

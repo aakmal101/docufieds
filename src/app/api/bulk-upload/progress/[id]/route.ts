@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -10,8 +9,8 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const user = await getCurrentUser();
+        if (!user?.id) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -42,7 +41,7 @@ export async function GET(
         }
 
         // Verify ownership
-        if (upload.userId !== session.user.id) {
+        if (upload.userId !== user!.id) {
             return NextResponse.json(
                 { success: false, error: 'Access denied' },
                 { status: 403 }

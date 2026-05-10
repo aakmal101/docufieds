@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@/lib/supabase/server'
 
-// Force dynamic rendering - this route uses getServerSession
+// Force dynamic rendering - this route uses getCurrentUser
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has admin privileges
-    if (session.user.role !== 'ADMIN' && session.user.role !== 'SUPPORT') {
+    if (user!.role !== 'ADMIN' && user!.role !== 'SUPPORT') {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -78,10 +77,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Get public URL for the uploaded file
-    const { data: { publicUrl } } = supabase.storage
-      .from('documents')
-      .getPublicUrl(fileName)
+    // Save raw path instead of public URL
+    const internalPath = fileName;
 
     // Create template record
     const template = await prisma.documentTemplate.create({
@@ -90,10 +87,10 @@ export async function POST(request: NextRequest) {
         country: country || null,
         processType: processType || null,
         fileName: file.name,
-        fileUrl: publicUrl,
+        fileUrl: internalPath,
         fileType: file.type,
         fileSize: file.size,
-        uploadedBy: session.user.id,
+        uploadedBy: user!.id,
       },
     })
 
@@ -113,9 +110,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -147,9 +144,20 @@ export async function GET(request: NextRequest) {
       },
     })
 
+    const { getSignedDocumentUrl } = await import('@/lib/utils/storage');
+
+    // Generate signed URLs for all templates
+    const templatesWithUrls = await Promise.all(templates.map(async (t) => {
+      if (t.fileUrl && !t.fileUrl.startsWith('http')) {
+        const signedUrl = await getSignedDocumentUrl(t.fileUrl);
+        return { ...t, fileUrl: signedUrl || t.fileUrl };
+      }
+      return t;
+    }));
+
     return NextResponse.json({
       success: true,
-      data: templates,
+      data: templatesWithUrls,
     })
   } catch (error) {
     console.error('Error fetching templates:', error)

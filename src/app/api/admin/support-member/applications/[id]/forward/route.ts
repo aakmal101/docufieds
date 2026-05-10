@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 fromStatus: 'DOCUMENT_UNDER_PROCESSING',
                 toStatus: 'DOCUMENT_UNDER_REVIEW',
                 changedByType: 'SUPPORT_MEMBER',
-                changedByMemberId: member.id,
+                changedById: member.id,
                 notes: 'Forwarded to Legal Team'
             }
         })

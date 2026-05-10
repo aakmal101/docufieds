@@ -23,7 +23,7 @@ export async function GET(req: Request) {
             console.warn('[API] Unauthenticated Access Attempt');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-        console.log('[API] Authenticated as:', session.user?.email);
+        console.log('[API] Authenticated as:', session.email);
 
         // 2. Query Params Parsing
         const { searchParams } = new URL(req.url)
@@ -86,7 +86,7 @@ export async function GET(req: Request) {
             whereConditions.push({
                 OR: [
                     { id: { contains: search, mode: 'insensitive' } },
-                    { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                    { user: { individualProfile: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }] } } },
                     { user: { email: { contains: search, mode: 'insensitive' } } }
                 ]
             });
@@ -104,7 +104,7 @@ export async function GET(req: Request) {
             prisma.application.findMany({
                 where: whereClause,
                 include: {
-                    user: { select: { fullName: true, email: true } },
+                    user: { select: { email: true, individualProfile: { select: { firstName: true, lastName: true } } } },
                     _count: { select: { documents: true } },
                     payments: {
                         select: { status: true, amount: true },
@@ -113,7 +113,7 @@ export async function GET(req: Request) {
                     },
                     assignment: {
                         include: {
-                            member: { select: { fullName: true } }
+                            assignedTo: { select: { individualProfile: { select: { firstName: true, lastName: true } } } }
                         }
                     }
                 },

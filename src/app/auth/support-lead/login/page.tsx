@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -24,21 +24,26 @@ export default function SupportLeadLogin() {
         setLoading(true)
         setError('')
 
-        // Use standard NextAuth signIn
-        const result = await signIn('credentials', {
-            identifier,
-            password,
-            redirect: false,
-        })
+        try {
+            const supabase = createClient()
 
-        if (result?.error) {
-            setError('Invalid credentials. Please try again.')
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: identifier,
+                password,
+            })
+
+            if (authError) {
+                setError('Invalid credentials. Please try again.')
+                setLoading(false)
+            } else {
+                // Success - Redirect manually to the Support Lead Dashboard
+                toast.success('Login successful')
+                router.push('/admin/support-lead')
+                router.refresh()
+            }
+        } catch (err) {
+            setError('Something went wrong. Please try again.')
             setLoading(false)
-        } else {
-            // Success - Redirect manually to the Support Lead Dashboard
-            toast.success('Login successful')
-            router.push('/admin/support-lead')
-            router.refresh()
         }
     }
 

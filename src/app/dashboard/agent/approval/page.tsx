@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +22,6 @@ import {
 import toast from 'react-hot-toast'
 
 export default function AgentApprovalPage() {
-    const { data: session, status: authStatus } = useSession()
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [submitting, setSubmitting] = useState(false)
@@ -37,18 +35,8 @@ export default function AgentApprovalPage() {
     })
 
     useEffect(() => {
-        if (authStatus === 'unauthenticated') {
-            router.push('/auth/signin')
-            return
-        }
-        if (authStatus === 'authenticated' && session?.user?.role !== 'AGENT') {
-            router.push('/dashboard')
-            return
-        }
-        if (authStatus === 'authenticated') {
-            fetchApprovalStatus()
-        }
-    }, [session, authStatus])
+        fetchApprovalStatus()
+    }, [])
 
     const fetchApprovalStatus = async () => {
         try {

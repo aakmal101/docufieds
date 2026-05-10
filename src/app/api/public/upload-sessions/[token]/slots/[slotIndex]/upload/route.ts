@@ -112,18 +112,15 @@ export async function POST(
 
             if (uploadError) {
                 console.error('Supabase storage upload error:', uploadError)
-                fileUrl = `/storage/documents/${filePath}`
-                console.warn('Using fallback file URL:', fileUrl)
+                fileUrl = filePath
+                console.warn('Using fallback file path:', fileUrl)
             } else {
-                const { data: { publicUrl } } = supabase.storage
-                    .from('documents')
-                    .getPublicUrl(filePath)
-                fileUrl = publicUrl
+                fileUrl = filePath
             }
         } catch (storageError: any) {
             console.error('Storage initialization error:', storageError.message)
-            fileUrl = `/storage/documents/${filePath}`
-            console.warn('Storage unavailable, using fallback URL:', fileUrl)
+            fileUrl = filePath
+            console.warn('Storage unavailable, using fallback path:', fileUrl)
         }
 
         // 3. Database Transaction: Create Document + Update Slot + Check Completion

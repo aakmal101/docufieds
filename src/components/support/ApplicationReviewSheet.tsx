@@ -124,7 +124,7 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                                 </AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-lg text-slate-900 truncate">{app.user.fullName}</h3>
+                                <h3 className="font-bold text-lg text-slate-900 truncate">{app.user.individualProfile ? `${app.user.individualProfile.firstName} ${app.user.individualProfile.lastName || ''}`.trim() : 'Unknown User'}</h3>
                                 <div className="flex flex-wrap gap-2 mt-1.5">
                                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-100 rounded text-xs font-medium text-slate-700">
                                         <ReactCountryFlag countryCode={app.country} svg className="text-sm" />
@@ -240,11 +240,11 @@ export function ApplicationReviewSheet({ open, onOpenChange, applicationId, onSt
                                                     <div className="flex items-center gap-3 mb-3">
                                                         <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
                                                             <AvatarFallback className="bg-blue-600 text-white font-medium">
-                                                                {app.assignment.member.fullName[0]}
+                                                                {app.assignment.member.individualProfile?.firstName?.[0] || 'U'}
                                                             </AvatarFallback>
                                                         </Avatar>
                                                         <div>
-                                                            <p className="font-semibold text-sm text-slate-900">{app.assignment.member.fullName}</p>
+                                                            <p className="font-semibold text-sm text-slate-900">{app.assignment.member.individualProfile ? `${app.assignment.member.individualProfile.firstName} ${app.assignment.member.individualProfile.lastName || ''}`.trim() : 'Unknown Member'}</p>
                                                             <p className="text-xs text-blue-600 font-medium">Assigned Member</p>
                                                         </div>
                                                         <Badge variant="outline" className="ml-auto bg-white text-blue-700 border-blue-200 shadow-sm">
