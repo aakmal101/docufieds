@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -11,9 +10,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id) {
+        if (!user?.id) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized' },
                 { status: 401 }
@@ -30,7 +29,7 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        const currentUserId = session.user.id
+        const currentUserId = user!.id
 
         if (currentUserId === otherUserId) {
             return NextResponse.json(
@@ -50,7 +49,7 @@ export async function POST(request: NextRequest) {
                 participants: {
                     include: {
                         user: {
-                            select: { id: true, fullName: true, photoUrl: true, role: true }
+                            select: { id: true, individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true, role: true }
                         }
                     }
                 }
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
                     type: 'DM',
                     participants: {
                         create: [
-                            { userId: currentUserId, roleSnapshot: session.user.role },
+                            { userId: currentUserId, roleSnapshot: user!.role },
                             { userId: otherUserId, roleSnapshot: otherUser.role }
                         ]
                     }
@@ -83,7 +82,7 @@ export async function POST(request: NextRequest) {
                     participants: {
                         include: {
                             user: {
-                                select: { id: true, fullName: true, photoUrl: true, role: true }
+                                select: { id: true, individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true, role: true }
                             }
                         }
                     }

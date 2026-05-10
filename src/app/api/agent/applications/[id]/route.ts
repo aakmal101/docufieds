@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { assertAgentAccess } from '@/lib/require-agent-access'
 
@@ -15,18 +14,18 @@ export async function GET(
         const resolvedParams = params instanceof Promise ? await params : params
         const applicationId = resolvedParams.id
 
-        // 1. Auth — use NextAuth session
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        // 1. Auth — use Supabase Auth
+        const user = await getCurrentUser()
+        if (!user?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        if (session.user.role !== 'AGENT') {
+        if (user!.role !== 'AGENT') {
             return NextResponse.json({ success: false, message: 'Forbidden' }, { status: 403 })
         }
 
         // 2. Verify assignment using shared helper
-        await assertAgentAccess(applicationId, session.user.id)
+        await assertAgentAccess(applicationId, user!.id)
 
         // 3. Fetch application with full details
         const application = await prisma.application.findUnique({

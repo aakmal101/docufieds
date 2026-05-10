@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    // 1. Try standard NextAuth Session (for Admins, Leads, and standard Support)
-    const session = await getServerSession(authOptions)
+    // 1. Try standard Supabase Auth (for Admins, Leads, and standard Support)
+    const user = await getCurrentUser()
 
     // 2. If no valid session, try Support Member Token (Custom Auth)
     let memberAuth = null;
-    if (!session || !session.user?.role) {
+    if (!user || !user?.role) {
         const { verifySupportMemberToken } = await import('@/middleware/support-member');
         const member = await verifySupportMemberToken(req);
         if (member) {
@@ -23,10 +22,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         }
     }
 
-    const effectiveUser = session?.user || memberAuth?.user;
+    const effectiveUser = user || memberAuth?.user;
 
     console.log('Payment Create Auth:', {
-        method: session ? 'NextAuth' : (memberAuth ? 'SupportToken' : 'None'),
+        method: user ? 'Supabase' : (memberAuth ? 'SupportToken' : 'None'),
         role: effectiveUser?.role
     })
 

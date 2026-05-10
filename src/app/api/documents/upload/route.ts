@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { createClient, createServiceRoleClient } from '@/lib/supabase/server'
 
-// Force dynamic rendering - this route uses getServerSession and cookies() via Supabase
+// Force dynamic rendering - this route uses getCurrentUser and cookies() via Supabase
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -34,7 +33,7 @@ export async function POST(request: NextRequest) {
     const application = await prisma.application.findFirst({
       where: {
         id: applicationId,
-        userId: session.user.id,
+        userId: user!.id,
       },
       select: {
         id: true,
@@ -100,7 +99,7 @@ export async function POST(request: NextRequest) {
 
     const fileExt = file.name.split('.').pop()
     const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_')
-    const fileName = `${session.user.id}/${applicationId}/${Date.now()}-${sanitizedFileName}`
+    const fileName = `${user!.id}/${applicationId}/${Date.now()}-${sanitizedFileName}`
     const fileBuffer = await file.arrayBuffer()
 
     console.log(`[Upload API] Attempting upload: bucket=documents, fileName=${fileName}, size=${file.size}, type=${file.type}, client=${clientType}`)
@@ -220,22 +219,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Upload API] Upload successful: path=${uploadData.path}`)
 
-    // Get public URL for the uploaded file
-    const urlResult = supabase.storage
-      .from('documents')
-      .getPublicUrl(uploadData.path || fileName)
+    // Save raw path instead of public URL
+    const internalPath = uploadData.path || fileName;
+    fileUrl = internalPath;
 
-    fileUrl = urlResult.data.publicUrl
-
-    if (!fileUrl) {
-      console.error('[Upload API] Failed to generate file URL. uploadData:', uploadData)
-      return NextResponse.json(
-        { success: false, message: 'Failed to generate file URL' },
-        { status: 500 }
-      )
-    }
-
-    console.log(`[Upload API] Generated file URL: ${fileUrl.substring(0, 100)}...`)
+    console.log(`[Upload API] Using internal file path: ${fileUrl}`)
 
     // Check if a document of this type already exists for this application
     // If it does, we'll update it instead of creating a new one
@@ -281,7 +269,7 @@ export async function POST(request: NextRequest) {
       document = await prisma.document.create({
         data: {
           applicationId,
-          userId: session.user.id,
+          userId: user!.id,
           fileName: file.name,
           fileUrl,
           fileType: file.type,
@@ -318,7 +306,7 @@ export async function POST(request: NextRequest) {
           applicationId,
           status: 'DOCUMENT_UNDER_PROCESSING',
           message: `Document uploaded: ${documentType}`,
-          updatedBy: session.user.id,
+          updatedBy: user!.id,
         },
       })
     }
@@ -391,6 +379,9 @@ export async function POST(request: NextRequest) {
       // Just log it
     }
 
+    const { getSignedDocumentUrl } = await import('@/lib/utils/storage');
+    const signedUrl = await getSignedDocumentUrl(document.fileUrl) || document.fileUrl;
+
     // Return the document in the exact format the frontend expects
     // This is the SOURCE OF TRUTH - the database record
     return NextResponse.json({
@@ -401,13 +392,13 @@ export async function POST(request: NextRequest) {
         applicationId: document.applicationId,
         documentType: document.documentType,
         fileName: document.fileName,
-        fileUrl: document.fileUrl,
+        fileUrl: signedUrl,
         fileType: document.fileType,
         fileSize: document.fileSize,
         uploadedAt: document.uploadedAt,
         // Also include in the format expected by requirements API
         uploadedFile: {
-          fileUrl: document.fileUrl,
+          fileUrl: signedUrl,
           fileName: document.fileName,
           uploadedAt: document.uploadedAt,
         },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -30,13 +30,14 @@ export default function SupportLoginPage() {
         setError('')
 
         try {
-            const result = await signIn('credentials', {
-                identifier: leadCreds.identifier,
+            const supabase = createClient()
+
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: leadCreds.identifier,
                 password: leadCreds.password,
-                redirect: false,
             })
 
-            if (result?.error) {
+            if (authError) {
                 setError('Invalid Lead credentials')
                 toast.error('Login failed')
             } else {

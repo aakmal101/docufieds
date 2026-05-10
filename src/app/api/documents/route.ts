@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 // Force dynamic rendering
@@ -13,9 +12,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -51,8 +50,8 @@ export async function GET(request: NextRequest) {
 
     // Check if user has access
     const adminRoles = ['ADMIN', 'SUPPORT', 'LEGAL', 'ACCOUNTS', 'CASH_OFFICER']
-    const isAdmin = adminRoles.includes(session.user.role)
-    const isOwner = application.userId === session.user.id
+    const isAdmin = adminRoles.includes(user!.role)
+    const isOwner = application.userId === user!.id
 
     if (!isAdmin && !isOwner) {
       return NextResponse.json(

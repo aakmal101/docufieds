@@ -1,43 +1,22 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/services/auth-service'
 
 export const dynamic = 'force-dynamic'
 
 // GET /api/agency/credit/status
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id || session.user.role !== 'AGENCY') {
+        if (!user || user.role !== 'AGENCY') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
             )
         }
 
-        // Get user with credit details
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: {
-                creditLimit: true,
-                outstandingAmount: true,
-                documentLimit: true,
-                documentsUsed: true,
-                nextPaymentDue: true,
-            },
-        })
-
-        if (!user) {
-            return NextResponse.json(
-                { success: false, error: 'User not found' },
-                { status: 404 }
-            )
-        }
-
-        const creditLimit = user.creditLimit || 0
-        const outstandingAmount = user.outstandingAmount || 0
+        const creditLimit = user.agencyProfile?.creditLimit || 0
+        const outstandingAmount = user.agencyProfile?.outstandingAmount || 0
         const availableCredit = creditLimit - outstandingAmount
         const creditUsagePercent = creditLimit > 0 ? (outstandingAmount / creditLimit) * 100 : 0
 

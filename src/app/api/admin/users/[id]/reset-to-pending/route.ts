@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { requireProfileReviewer } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-    const session = await requireProfileReviewer()
-    if (!session) {
+    const authUser = await requireProfileReviewer()
+    if (!authUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
             // 3. Create Audit Log
             prisma.auditLog.create({
                 data: {
-                    actorUserId: session.user.id,
+                    actorUserId: authUser.id,
                     action: 'USER_PROFILE_RESET_PENDING',
                     targetUserId: params.id,
                     metadata: { notes }

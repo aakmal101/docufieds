@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 // Force dynamic rendering
@@ -13,9 +12,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -24,7 +23,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user has admin/support privileges
     const allowedRoles = ['ADMIN', 'SUPPORT']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!allowedRoles.includes(user!.role)) {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -56,9 +55,8 @@ export async function GET(request: NextRequest) {
         user: {
           select: {
             id: true,
-            fullName: true,
             email: true,
-            phone: true,
+            individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true } }
           },
         },
         application: {
@@ -94,9 +92,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const currentUser = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!currentUser?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -105,7 +103,7 @@ export async function POST(request: NextRequest) {
 
     // Check if user has admin/support privileges
     const allowedRoles = ['ADMIN', 'SUPPORT']
-    if (!allowedRoles.includes(session.user.role)) {
+    if (!allowedRoles.includes(currentUser!.role)) {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -123,11 +121,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify user exists
-    const user = await prisma.user.findUnique({
+    const targetUser = await prisma.user.findUnique({
       where: { id: userId },
     })
 
-    if (!user) {
+    if (!targetUser) {
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
@@ -156,17 +154,16 @@ export async function POST(request: NextRequest) {
       data: {
         applicationId: applicationId || null,
         userId,
-        senderId: session.user.id,
-        senderRole: session.user.role,
+        senderId: currentUser!.id,
+        senderRole: currentUser!.role,
         text: text.trim(),
       },
       include: {
         user: {
           select: {
             id: true,
-            fullName: true,
             email: true,
-            phone: true,
+            individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true } }
           },
         },
         application: {

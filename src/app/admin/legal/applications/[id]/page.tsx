@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -14,7 +13,6 @@ import { AnimatedConfirmDialog } from '@/components/ui/animated-confirm-dialog'
 
 export default function LegalApplicationDetailPage({ params }: { params: { id: string } }) {
     const router = useRouter()
-    const { data: session, status } = useSession()
     const [app, setApp] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [documents, setDocuments] = useState<any[]>([])
@@ -24,16 +22,8 @@ export default function LegalApplicationDetailPage({ params }: { params: { id: s
     const [isRejectOpen, setIsRejectOpen] = useState(false)
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin')
-            return
-        }
-        if (session?.user?.role !== 'LEGAL') {
-            router.push('/dashboard')
-            return
-        }
         fetchApplicationDetails()
-    }, [params.id, session, status])
+    }, [params.id])
 
     const fetchApplicationDetails = async () => {
         try {

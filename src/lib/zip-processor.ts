@@ -112,12 +112,8 @@ export async function processZipUpload(
 
               if (uploadError) throw new Error(uploadError.message);
 
-              // Get public URL
-              const supabaseLocal2 = await createClient();
-              const { data: publicUrlData } = supabaseLocal2.storage
-                .from('documents')
-                .getPublicUrl(storagePath);
-              const publicUrl = publicUrlData.publicUrl;
+              // Save raw path instead of public URL
+              const internalPath = storagePath;
 
               // D. Create Document Record
               await prisma.document.create({
@@ -125,7 +121,7 @@ export async function processZipUpload(
                   applicationId: match.app.id,
                   userId: userId,
                   fileName: cleanFileName,
-                  fileUrl: publicUrl,
+                  fileUrl: internalPath,
                   fileType: cleanFileName.split('.').pop() || 'unknown', // Simple extension extraction
                   fileSize: content.byteLength,
                   documentType: match.docType,

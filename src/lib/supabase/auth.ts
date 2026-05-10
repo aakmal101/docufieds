@@ -3,18 +3,20 @@ import { prisma } from '../prisma'
 
 /**
  * Sync Supabase Auth user with Prisma User
- * This ensures your Prisma User table stays in sync with Supabase Auth
+ * This ensures your Prisma User table stays in sync with Supabase Auth.
+ * Phone is stored on IndividualProfile, not the base User model.
  */
 export async function syncUserWithPrisma(supabaseUserId: string, email?: string, phone?: string) {
   try {
-    // Check if user exists in Prisma
+    // Check if user exists in Prisma by email or supabase userId
     let user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email },
-          { phone },
+          ...(email ? [{ email }] : []),
+          ...(supabaseUserId ? [{ userId: supabaseUserId }] : []),
         ],
       },
+      include: { individualProfile: true },
     })
 
     // If user doesn't exist, create one
@@ -22,12 +24,20 @@ export async function syncUserWithPrisma(supabaseUserId: string, email?: string,
       user = await prisma.user.create({
         data: {
           email: email || null,
-          phone: phone || null,
           userId: supabaseUserId,
           role: 'INDIVIDUAL',
           status: 'PENDING',
           isVerified: true,
+          // Store phone on IndividualProfile if provided
+          ...(phone ? {
+            individualProfile: {
+              create: {
+                phoneNumber: phone,
+              }
+            }
+          } : {}),
         },
+        include: { individualProfile: true },
       })
     } else {
       // Update user if needed
@@ -37,6 +47,7 @@ export async function syncUserWithPrisma(supabaseUserId: string, email?: string,
           userId: supabaseUserId,
           isVerified: true,
         },
+        include: { individualProfile: true },
       })
     }
 

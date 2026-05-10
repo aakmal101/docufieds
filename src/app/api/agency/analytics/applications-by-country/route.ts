@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -8,9 +7,9 @@ export const dynamic = 'force-dynamic'
 // GET /api/agency/analytics/applications-by-country?period=thisMonth
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id || session.user.role !== 'AGENCY') {
+        if (!user?.id || user!.role !== 'AGENCY') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -41,7 +40,7 @@ export async function GET(request: NextRequest) {
         const applications = await prisma.application.groupBy({
             by: ['country'],
             where: {
-                userId: session.user.id,
+                userId: user!.id,
                 createdAt: {
                     gte: startDate,
                     lte: endDate,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma'
 // import { generateInvoicePDF } from '@/lib/utils/invoice-generator' // implement this later
 
@@ -12,9 +11,9 @@ export async function GET(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id || session.user.role !== 'AGENCY') {
+        if (!user?.id || user.role !== 'AGENCY') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -27,10 +26,8 @@ export async function GET(
             include: {
                 user: {
                     select: {
-                        fullName: true,
                         email: true,
-                        phone: true,
-                        agencyName: true,
+                        agencyProfile: { select: { businessName: true } },
                     },
                 },
                 application: {
@@ -42,7 +39,7 @@ export async function GET(
             },
         })
 
-        if (!payment || payment.userId !== session.user.id) {
+        if (!payment || payment.userId !== user.id) {
             return NextResponse.json(
                 { success: false, error: 'Payment not found' },
                 { status: 404 }

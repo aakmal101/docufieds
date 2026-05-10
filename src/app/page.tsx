@@ -1,17 +1,16 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import LandingPage from '@/components/landing-page'
 
-// Force dynamic rendering - this page uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this page uses auth cookies
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
-  const session = await getServerSession(authOptions)
+  const user = await getCurrentUser()
   
-  if (session) {
+  if (user) {
     // Redirect based on user role
-    switch (session.user.role) {
+    switch (user.role) {
       case 'INDIVIDUAL':
         redirect('/dashboard/individual')
       case 'AGENCY':
@@ -33,4 +32,3 @@ export default async function Home() {
 
   return <LandingPage />
 }
-

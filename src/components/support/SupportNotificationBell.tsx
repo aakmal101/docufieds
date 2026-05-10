@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react'
 import { Bell } from 'lucide-react'
-import { useSession } from 'next-auth/react'
 import { useSupportNotifications } from '@/lib/supabase/realtime-support'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,15 +42,6 @@ export function SupportNotificationBell() {
             console.error('Failed to fetch notifications')
         }
     }
-
-    const { data: session } = useSession() // We need session to get memberId
-    // Note: session user id might be different from member id if auth structure is different. 
-    // In this project, support member has their own auth. 
-    // Wait, SupportAuth uses a different token mechanism. The session in client side usually is NextAuth.
-    // Let's check how we get member ID.
-    // In `SupportProfileMenu`, we fetch `/api/auth/support-member/me`.
-    // We should probably do the same or use a context.
-    // For now, let's fetch 'me' to get the ID for the hook.
 
     const [memberId, setMemberId] = useState<string | undefined>()
 

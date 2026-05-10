@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     try {
         const assignments = await prisma.applicationAssignment.findMany({
             where: {
-                memberId: member.id,
+                assignedToId: member.id,
                 status: 'ACTIVE'
             },
             include: {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
                     select: {
                         id: true,
                         userId: true,
-                        user: { select: { id: true, fullName: true, email: true } },
+                        user: { select: { id: true, email: true, individualProfile: { select: { firstName: true, lastName: true } } } },
                         country: true,
                         processType: true,
                         status: true,

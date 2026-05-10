@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { User, Settings, LogOut, Mail, Building2, HelpCircle, BarChart3, CreditCard, Bell } from 'lucide-react'
 import {
     DropdownMenu,
@@ -13,24 +13,19 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { VerifiedBadge } from '@/components/user/VerifiedBadge'
+import { AppUser } from '@/types/user'
 
 interface AgencyProfileDropdownProps {
-    user: {
-        fullName?: string | null
-        email?: string | null
-        agencyName?: string | null
-        agencyLicense?: string | null
-        status?: string | null
-        profileStatus?: string | null
-        photoUrl?: string | null
-    } | null
+    user: AppUser | null
 }
 
 export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownProps) {
     const router = useRouter()
 
     const handleSignOut = async () => {
-        await signOut({ callbackUrl: '/' })
+        const supabase = createClient()
+        await supabase.auth.signOut()
+        window.location.href = '/'
     }
 
     const getStatusColor = (status: string | null | undefined) => {
@@ -61,7 +56,7 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                     {user.photoUrl ? (
                         <img
                             src={user.photoUrl}
-                            alt={user.agencyName || 'Agency'}
+                            alt={user.agencyProfile?.businessName || 'Agency'}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -79,7 +74,7 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                             {user.photoUrl ? (
                                 <img
                                     src={user.photoUrl}
-                                    alt={user.agencyName || 'Agency'}
+                                    alt={user.agencyProfile?.businessName || 'Agency'}
                                     className="w-full h-full object-cover rounded-lg"
                                 />
                             ) : (
@@ -88,11 +83,11 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-gray-900 truncate flex items-center gap-1">
-                                {user.agencyName || 'Agency'}
+                                {user.agencyProfile?.businessName || 'Agency'}
                                 <VerifiedBadge status={user.profileStatus || undefined} className="h-4 w-4" />
                             </p>
                             <p className="text-xs text-gray-500 truncate flex items-center mt-0.5">
-                                License: <span className="font-mono ml-1">{user.agencyLicense || 'N/A'}</span>
+                                License: <span className="font-mono ml-1">{user.agencyProfile?.licenseNumber || 'N/A'}</span>
                             </p>
                         </div>
                     </div>
@@ -100,7 +95,7 @@ export default function AgencyProfileDropdown({ user }: AgencyProfileDropdownPro
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-xs text-gray-500">
                             <User className="h-3 w-3" />
-                            <span className="truncate max-w-[120px]">{user.fullName || 'Admin'}</span>
+                            <span className="truncate max-w-[120px]">{user.individualProfile ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim() : 'Admin'}</span>
                         </div>
                         {user.status && (
                             <Badge variant="outline" className={`${getStatusColor(user.status)} border-0`}>

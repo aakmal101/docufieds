@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,9 +19,8 @@ import {
 import toast from 'react-hot-toast'
 
 export default function SettingsPage() {
-  const { data: session, status, update } = useSession()
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   // Password state
@@ -49,58 +47,49 @@ export default function SettingsPage() {
   const [originalAccountData, setOriginalAccountData] = useState<any>(null)
 
   useEffect(() => {
-    if (status === 'loading') return
-
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'INDIVIDUAL') {
-      router.push('/dashboard')
-      return
-    }
-
-    checkPasswordStatus()
     fetchUserData()
-  }, [session, status, router])
+    checkPasswordStatus()
+  }, [])
 
   const fetchUserData = async () => {
     try {
       const response = await fetch('/api/user/profile')
       const data = await response.json()
 
-      if (data.success) {
-        setAccountData({
-          fullName: data.data.fullName || '',
-          email: data.data.email || '',
-          phone: data.data.phone || '',
-          memberId: data.data.memberId || '',
-          status: data.data.status || '',
-          userId: data.data.userId || ''
-        })
-        setOriginalAccountData(data.data)
-      } else {
-        // Fallback to session data
-        if (session?.user) {
-          setAccountData({
-            fullName: session.user.fullName || '',
-            email: session.user.email || '',
-            phone: session.user.phone || '',
-            memberId: session.user.memberId || '',
-            status: session.user.status || '',
-            userId: session.user.userId || ''
-          })
-        }
+      if (!response.ok || !data.success) {
+        router.push('/auth/signin')
+        return
       }
+
+      if (data.data?.role !== 'INDIVIDUAL') {
+        router.push('/dashboard')
+        return
+      }
+
+      const profile = data.data
+      const fullName = profile.individualProfile
+        ? `${profile.individualProfile.firstName || ''} ${profile.individualProfile.lastName || ''}`.trim()
+        : ''
+      const phone = profile.individualProfile?.phoneNumber || ''
+
+      setAccountData({
+        fullName,
+        email: profile.email || '',
+        phone,
+        memberId: profile.memberId || '',
+        status: profile.status || '',
+        userId: profile.userId || ''
+      })
+      setOriginalAccountData(profile)
     } catch (error) {
       console.error('Error fetching user data:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
   const checkPasswordStatus = async () => {
     try {
-      setLoading(true)
       const response = await fetch('/api/user/password')
       const data = await response.json()
 
@@ -109,8 +98,6 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Error checking password status:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -126,10 +113,14 @@ export default function SettingsPage() {
     if (isEditingAccount) {
       // Cancelled editing, revert to original
       if (originalAccountData) {
+        const fullName = originalAccountData.individualProfile
+          ? `${originalAccountData.individualProfile.firstName || ''} ${originalAccountData.individualProfile.lastName || ''}`.trim()
+          : ''
+        const phone = originalAccountData.individualProfile?.phoneNumber || ''
         setAccountData({
-          fullName: originalAccountData.fullName || '',
+          fullName,
           email: originalAccountData.email || '',
-          phone: originalAccountData.phone || '',
+          phone,
           memberId: originalAccountData.memberId || '',
           status: originalAccountData.status || '',
           userId: originalAccountData.userId || ''
@@ -168,17 +159,6 @@ export default function SettingsPage() {
         toast.success('Account information updated!')
         setIsEditingAccount(false)
         setOriginalAccountData({ ...originalAccountData, ...accountData })
-
-        // Update session
-        update({
-          ...session,
-          user: {
-            ...session?.user,
-            fullName: accountData.fullName,
-            email: accountData.email,
-            phone: accountData.phone
-          }
-        })
       } else {
         toast.error(data.message || 'Failed to update account info')
       }
@@ -196,7 +176,6 @@ export default function SettingsPage() {
 
     try {
       // Validate passwords match
-      // Validate passwords match
       if (passwordForm.newPassword !== passwordForm.confirmPassword) {
         toast.error('New passwords do not match')
         setSaving(false)
@@ -204,14 +183,12 @@ export default function SettingsPage() {
       }
 
       // Validate password length
-      // Validate password length
       if (passwordForm.newPassword.length < 6) {
         toast.error('Password must be at least 6 characters long')
         setSaving(false)
         return
       }
 
-      // If updating password, require current password
       // If updating password, require current password
       if (hasPassword && !passwordForm.currentPassword) {
         toast.error('Please enter your current password')
@@ -233,7 +210,6 @@ export default function SettingsPage() {
       if (data.success) {
         toast.success(hasPassword ? 'Password updated successfully!' : 'Password set successfully!')
         // Clear form
-        // Clear form
         setPasswordForm({
           currentPassword: '',
           newPassword: '',
@@ -252,7 +228,7 @@ export default function SettingsPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">

@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
-// Force dynamic rendering - this route uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this route uses getCurrentUser which requires headers/cookies
 export const dynamic = 'force-dynamic'
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -20,7 +19,7 @@ export async function PUT(request: NextRequest) {
     // Mark all notifications as read for the user
     const result = await prisma.notification.updateMany({
       where: {
-        userId: session.user.id,
+        userId: user!.id,
         isRead: false,
       },
       data: { isRead: true },

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
-// Force dynamic rendering - this route uses getServerSession
+// Force dynamic rendering - this route uses getCurrentUser
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
@@ -12,9 +11,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -29,7 +28,7 @@ export async function GET(
     const application = await prisma.application.findFirst({
       where: {
         id: applicationId,
-        userId: session.user.id,
+        userId: user!.id,
       },
       // We don't strictly need to include modules relation if we use singular field, 
       // but keeping it doesn't hurt.

@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(
@@ -9,9 +8,9 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id || !['ADMIN', 'SUPPORT'].includes(session.user.role)) {
+        if (!user?.id || !['ADMIN', 'SUPPORT'].includes(user!.role)) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized' },
                 { status: 401 }
@@ -39,7 +38,7 @@ export async function POST(
                 supportFeeAmount: amount,
                 supportFeeCurrency: currency || 'BDT',
                 supportFeeDescription: notes,
-                supportFeeAssignedById: session.user.id,
+                supportFeeAssignedById: user!.id,
                 supportFeeAssignedAt: new Date(),
                 // Also update main consultancyFee field for backward compatibility 
                 consultancyFee: amount
@@ -49,7 +48,7 @@ export async function POST(
         // Log action
         await prisma.auditLog.create({
             data: {
-                actorUserId: session.user.id,
+                actorUserId: user!.id,
                 targetUserId: application.userId,
                 action: 'APPLICATION_FEE_ASSIGNED',
                 metadata: {

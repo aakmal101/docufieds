@@ -1,7 +1,6 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -11,8 +10,8 @@ export async function POST(
     { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        const user = await getCurrentUser()
+        if (!user?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
@@ -40,7 +39,7 @@ export async function POST(
         // Audit Log
         await prisma.auditLog.create({
             data: {
-                actorUserId: session.user.id,
+                actorUserId: user!.id,
                 action: 'UPLOAD_SESSION_CANCELLED',
                 targetUserId: uploadSession.targetUserId,
                 metadata: { sessionId: id }

@@ -15,13 +15,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             where: { id: params.id },
             select: {
                 id: true,
-                fullName: true,
+                individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true, passportNumber: true } },
                 email: true,
-                phone: true,
                 dateOfBirth: true,
                 placeOfBirth: true,
                 nationality: true,
-                passportNumber: true,
+
                 nidNumber: true,
                 birthCertificateNumber: true,
                 presentAddress: true,
@@ -43,7 +42,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
                     take: 10,
                     include: {
                         actor: {
-                            select: { fullName: true, email: true }
+                            select: { individualProfile: { select: { firstName: true, lastName: true } }, email: true }
                         }
                     }
                 }

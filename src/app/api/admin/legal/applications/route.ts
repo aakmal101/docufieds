@@ -36,7 +36,7 @@ export async function GET(req: Request) {
         whereConditions.push({
             OR: [
                 { id: { contains: search, mode: 'insensitive' } },
-                { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                { user: { individualProfile: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }] } } },
                 { user: { email: { contains: search, mode: 'insensitive' } } }
             ]
         })
@@ -59,7 +59,7 @@ export async function GET(req: Request) {
                     processType: true,
                     user: {
                         select: {
-                            fullName: true,
+                            individualProfile: { select: { firstName: true, lastName: true } },
                             email: true
                         }
                     },

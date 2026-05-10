@@ -1,0 +1,653 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  INDIVIDUAL
+  ADMIN
+  LEGAL
+  SUPPORT
+  ACCOUNTS
+  CASH_OFFICER
+  AGENCY
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  email                  String?   @unique
+  userId                 String?   @unique @map("user_id")
+  role                   Role      @default(INDIVIDUAL)
+  status                 String    @default("PENDING")
+  memberId               String?   @unique @map("member_id")
+  isVerified             Boolean   @default(false) @map("is_verified")
+  createdAt              DateTime  @default(now()) @map("created_at")
+  updatedAt              DateTime  @updatedAt @map("updated_at")
+  dateOfBirth            DateTime? @map("date_of_birth")
+  placeOfBirth           String?   @map("place_of_birth")
+  photoUrl               String?   @map("photo_url")
+  birthCertificateNumber String?   @map("birth_certificate_number")
+  nidNumber              String?   @map("nid_number")
+  presentAddress         String?   @map("present_address")
+  permanentAddress       String?   @map("permanent_address")
+  documentLimit          Int?      @default(10) @map("document_limit")
+  documentsUsed          Int?      @default(0) @map("documents_used")
+  lastPaymentDate        DateTime? @map("last_payment_date")
+  nextPaymentDue         DateTime? @map("next_payment_due")
+  passwordHash           String?   @map("password_hash")
+  nationality            String?
+  passportExpiry         DateTime? @map("passport_expiry")
+  gender                 String?
+  maritalStatus          String?   @map("marital_status")
+  profileStatus          String    @default("PENDING_REVIEW") @map("profile_status")
+  profileReviewedAt      DateTime? @map("profile_reviewed_at")
+  profileReviewedById    String?   @map("profile_reviewed_by_id")
+  profileReviewNotes     String?   @map("profile_review_notes")
+  agencyId               String?   @map("agency_id")
+
+  agencyProfile     AgencyProfile?
+  supportProfile    SupportProfile?
+  individualProfile IndividualProfile?
+
+  agentAssignments        AgentAssignment[]         @relation("AssignedToAgent")
+  assignedByAgent         AgentAssignment[]         @relation("AgentAssignedBy")
+  agentAssignedOperations AgentAssignment[]         @relation("AgentAssignedTargetUser")
+  agentProfile            AgentProfile?
+  assignedByMe            ApplicationAssignment[]   @relation("AssignedByLead")
+  assignedApplications    ApplicationAssignment[]   @relation("AssignedToMember")
+  applications            Application[]
+  auditLogs               AuditLog[]                @relation("AuditActor")
+  targetAuditLogs         AuditLog[]                @relation("AuditTarget")
+  autoAssignConfigs       AutoAssignmentConfig[]    @relation("AutoAssignConfig")
+  bulkUploads             BulkUpload[]
+  documents               Document[]
+  escalationsResolved     Escalation[]              @relation("EscalationResolver")
+  escalationsCreated      Escalation[]              @relation("EscalatedBy")
+  messages                Message[]                 @relation("MessageUser")
+  sentMessages            Message[]                 @relation("MessageSender")
+  notifications           Notification[]
+  payments                Payment[]
+  rejectionReviews        RejectionRequest[]        @relation("RejectionReviewer")
+  rejectionRequests       RejectionRequest[]        @relation("RejectionRequester")
+  sentSupportMessages     SupportMessage[]          @relation("SupportMessageSender")
+  createdSessions         UploadSession[]           @relation("SessionCreator")
+  targetSessions          UploadSession[]           @relation("SessionTarget")
+  agency                  User?                     @relation("AgencyAgents", fields: [agencyId], references: [id])
+  agents                  User[]                    @relation("AgencyAgents")
+  chatParticipants        ChatParticipant[]
+  sentChatMessages        ChatMessage[]
+  documentRequests        DocumentRequest[]         @relation("DocumentRequester")
+  statusUpdates           ApplicationStatusUpdate[] @relation("StatusUpdater")
+
+  @@map("users")
+}
+
+model AgencyProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique @map("user_id")
+  licenseNumber     String?  @map("license_number")
+  businessName      String?  @map("business_name")
+  creditLimit       Float?   @default(0) @map("credit_limit")
+  outstandingAmount Float?   @default(0) @map("outstanding_amount")
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agency_profiles")
+}
+
+model SupportProfile {
+  id                 String    @id @default(cuid())
+  userId             String    @unique @map("user_id")
+  department         String?
+  shiftStart         DateTime? @map("shift_start")
+  shiftEnd           DateTime? @map("shift_end")
+  activeTicketsCount Int       @default(0) @map("active_tickets_count")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("support_profiles")
+}
+
+model IndividualProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique @map("user_id")
+  firstName      String?  @map("first_name")
+  lastName       String?  @map("last_name")
+  passportNumber String?  @map("passport_number")
+  phoneNumber    String?  @map("phone_number")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("individual_profiles")
+}
+
+model AgentProfile {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  displayName String?  @map("display_name")
+  phone       String?
+  notes       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("agent_profiles")
+}
+
+model AgentAssignment {
+  id               String       @id @default(cuid())
+  agentUserId      String       @map("agent_user_id")
+  targetUserId     String?      @map("target_user_id")
+  applicationId    String?      @map("application_id")
+  status           String       @default("ACTIVE")
+  assignedByUserId String       @map("assigned_by_user_id")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+  agentUser        User         @relation("AssignedToAgent", fields: [agentUserId], references: [id], onDelete: Cascade)
+  application      Application? @relation(fields: [applicationId], references: [id])
+  assignedByUser   User         @relation("AgentAssignedBy", fields: [assignedByUserId], references: [id])
+  targetUser       User?        @relation("AgentAssignedTargetUser", fields: [targetUserId], references: [id])
+
+  @@unique([agentUserId, targetUserId, applicationId])
+  @@index([agentUserId, status])
+  @@index([targetUserId])
+  @@index([applicationId])
+  @@map("agent_assignments")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String   @map("actor_user_id")
+  action       String
+  targetUserId String?  @map("target_user_id")
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+  actor        User     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  targetUser   User?    @relation("AuditTarget", fields: [targetUserId], references: [id])
+
+  @@index([targetUserId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
+}
+
+model Application {
+  id                     String                    @id @default(cuid())
+  userId                 String                    @map("user_id")
+  country                String
+  processType            String                    @map("process_type")
+  profession             String?
+  consultancyFee         Float                     @map("consultancy_fee")
+  status                 String                    @default("DRAFT")
+  memberId               String?                   @map("member_id")
+  createdAt              DateTime                  @default(now()) @map("created_at")
+  updatedAt              DateTime                  @updatedAt @map("updated_at")
+  bulkUploadId           String?
+  bulkUploadRecordId     String?
+  supportStatus          String                    @default("PENDING_ASSIGNMENT") @map("support_status")
+  assignedAt             DateTime?                 @map("assigned_at")
+  lastActivityAt         DateTime?                 @map("last_activity_at")
+  forwardedToLegalAt     DateTime?                 @map("forwarded_to_legal_at")
+  module                 ModuleType?
+  moduleSelectedAt       DateTime?                 @map("module_selected_at")
+  supportFeeAmount       Float?                    @map("support_fee_amount")
+  supportFeeAssignedAt   DateTime?                 @map("support_fee_assigned_at")
+  supportFeeAssignedById String?                   @map("support_fee_assigned_by_id")
+  supportFeeCurrency     String?                   @default("BDT") @map("support_fee_currency")
+  supportFeeDescription  String?                   @map("support_fee_description")
+  agentAssignments       AgentAssignment[]
+  answers                ApplicationAnswer[]
+  assignment             ApplicationAssignment?
+  modules                ApplicationModule[]
+  statusUpdates          ApplicationStatusUpdate[]
+  bulkUpload             BulkUpload?               @relation(fields: [bulkUploadId], references: [id])
+  user                   User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bulkUploadRecord       BulkUploadRecord?
+  documentRequests       DocumentRequest[]
+  documents              Document[]
+  escalations            Escalation[]
+  messages               Message[]
+  payments               Payment[]
+  rejectionRequests      RejectionRequest[]
+  supportMessages        SupportMessage[]
+  uploadSessions         UploadSession[]
+
+  @@index([bulkUploadId])
+  @@map("applications")
+}
+
+model Document {
+  id               String            @id @default(cuid())
+  applicationId    String            @map("application_id")
+  userId           String            @map("user_id")
+  fileName         String            @map("file_name")
+  fileUrl          String            @map("file_url")
+  fileType         String            @map("file_type")
+  fileSize         Int               @map("file_size")
+  documentType     String            @map("document_type")
+  isRequired       Boolean           @default(false) @map("is_required")
+  status           String            @default("PENDING")
+  uploadedAt       DateTime          @default(now()) @map("uploaded_at")
+  metadata         Json?
+  module           ModuleType?
+  documentRequests DocumentRequest[]
+  application      Application       @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadSlot       UploadSlot?
+
+  @@map("documents")
+}
+
+model Payment {
+  id              String       @id @default(cuid())
+  applicationId   String?      @map("application_id")
+  userId          String       @map("user_id")
+  amount          Float
+  status          String       @default("PENDING")
+  method          String
+  transactionId   String?      @map("transaction_id")
+  gatewayResponse String?      @map("gateway_response")
+  invoiceNumber   String?      @unique @map("invoice_number")
+  dueDate         DateTime?    @map("due_date")
+  description     String?
+  paidAt          DateTime?    @map("paid_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  application     Application? @relation(fields: [applicationId], references: [id])
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("payments")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  title     String
+  message   String
+  type      String
+  priority  String   @default("NORMAL")
+  actionUrl String?  @map("action_url")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@map("notifications")
+}
+
+model OTP {
+  id        String   @id @default(cuid())
+  phone     String?
+  email     String?
+  code      String
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("otps")
+}
+
+model Country {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  continent String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("countries")
+}
+
+model DocumentRequirement {
+  id           String      @id @default(cuid())
+  country      String
+  processType  String      @map("process_type")
+  profession   String?
+  documentType String      @map("document_type")
+  isRequired   Boolean     @default(true) @map("is_required")
+  description  String?
+  metadata     Json?
+  module       ModuleType?
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@map("document_requirements")
+}
+
+model DocumentTemplate {
+  id           String   @id @default(cuid())
+  documentType String   @map("document_type")
+  country      String?
+  processType  String?  @map("process_type")
+  fileName     String   @map("file_name")
+  fileUrl      String   @map("file_url")
+  fileType     String   @map("file_type")
+  fileSize     Int      @map("file_size")
+  uploadedBy   String   @map("uploaded_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("document_templates")
+}
+
+model Message {
+  id            String       @id @default(cuid())
+  applicationId String?      @map("application_id")
+  userId        String       @map("user_id")
+  senderId      String       @map("sender_id")
+  senderRole    String       @map("sender_role")
+  text          String
+  isRead        Boolean      @default(false) @map("is_read")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  application   Application? @relation(fields: [applicationId], references: [id])
+  user          User         @relation("MessageUser", fields: [userId], references: [id], onDelete: Cascade)
+  sender        User         @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model BulkUpload {
+  id                String             @id @default(cuid())
+  userId            String
+  fileName          String
+  fileUrl           String
+  fileSize          Int
+  uploadedAt        DateTime           @default(now())
+  totalRecords      Int
+  processedRecords  Int                @default(0)
+  successfulRecords Int                @default(0)
+  failedRecords     Int                @default(0)
+  skippedRecords    Int                @default(0)
+  status            String             @default("PENDING")
+  currentPhase      String?
+  errorSummary      Json?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  updatedAt         DateTime           @updatedAt
+  applications      Application[]
+  records           BulkUploadRecord[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("bulk_uploads")
+}
+
+model BulkUploadRecord {
+  id             String       @id @default(cuid())
+  bulkUploadId   String
+  rowNumber      Int
+  originalData   Json
+  status         String
+  errorMessage   String?
+  warningMessage String?
+  applicationId  String?      @unique
+  createdUserId  String?
+  existingUserId String?
+  createdAt      DateTime     @default(now())
+  processedAt    DateTime?
+  application    Application? @relation(fields: [applicationId], references: [id])
+  bulkUpload     BulkUpload   @relation(fields: [bulkUploadId], references: [id], onDelete: Cascade)
+
+  @@index([bulkUploadId])
+  @@index([status])
+  @@map("bulk_upload_records")
+}
+
+model ApplicationAssignment {
+  id             String      @id @default(cuid())
+  applicationId  String      @unique @map("application_id")
+  assignedToId   String      @map("assigned_to_id")
+  assignedById   String      @map("assigned_by_id")
+  assignmentType String      @default("MANUAL") @map("assignment_type")
+  priority       String      @default("NORMAL")
+  notes          String?
+  status         String      @default("ACTIVE")
+  assignedAt     DateTime    @default(now()) @map("assigned_at")
+  completedAt    DateTime?   @map("completed_at")
+  application    Application @relation(fields: [applicationId], references: [id])
+  assignedBy     User        @relation("AssignedByLead", fields: [assignedById], references: [id])
+  assignedTo     User        @relation("AssignedToMember", fields: [assignedToId], references: [id])
+
+  @@map("application_assignments")
+}
+
+model DocumentRequest {
+  id                 String      @id @default(cuid())
+  applicationId      String      @map("application_id")
+  requestedById      String      @map("requested_by_id")
+  documentType       String      @map("document_type")
+  reason             String
+  instructions       String?
+  status             String      @default("PENDING")
+  responseDocumentId String?     @map("response_document_id")
+  userNotes          String?     @map("user_notes")
+  respondedAt        DateTime?   @map("responded_at")
+  requestedAt        DateTime    @default(now()) @map("requested_at")
+  expiresAt          DateTime?   @map("expires_at")
+  application        Application @relation(fields: [applicationId], references: [id])
+  requestedBy        User        @relation("DocumentRequester", fields: [requestedById], references: [id])
+  responseDocument   Document?   @relation(fields: [responseDocumentId], references: [id])
+
+  @@map("document_requests")
+}
+
+model SupportMessage {
+  id              String      @id @default(cuid())
+  applicationId   String      @map("application_id")
+  content         String
+  messageType     String      @default("TEXT") @map("message_type")
+  senderType      String      @map("sender_type")
+  senderUserId    String?     @map("sender_user_id")
+  attachmentUrl   String?     @map("attachment_url")
+  attachmentName  String?     @map("attachment_name")
+  isReadByUser    Boolean     @default(false) @map("is_read_by_user")
+  isReadBySupport Boolean     @default(false) @map("is_read_by_support")
+  isInternal      Boolean     @default(false) @map("is_internal")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  application     Application @relation(fields: [applicationId], references: [id])
+  senderUser      User?       @relation("SupportMessageSender", fields: [senderUserId], references: [id])
+
+  @@map("support_messages")
+}
+
+model Escalation {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  escalatedById String      @map("escalated_by_id")
+  reason        String
+  priority      String      @default("HIGH")
+  status        String      @default("PENDING")
+  resolvedById  String?     @map("resolved_by_id")
+  resolution    String?
+  escalatedAt   DateTime    @default(now()) @map("escalated_at")
+  resolvedAt    DateTime?   @map("resolved_at")
+  application   Application @relation(fields: [applicationId], references: [id])
+  escalatedBy   User        @relation("EscalatedBy", fields: [escalatedById], references: [id])
+  resolvedBy    User?       @relation("EscalationResolver", fields: [resolvedById], references: [id])
+
+  @@map("escalations")
+}
+
+model RejectionRequest {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  requestedById String      @map("requested_by_id")
+  reason        String
+  category      String
+  status        String      @default("PENDING")
+  reviewedById  String?     @map("reviewed_by_id")
+  leadNotes     String?     @map("lead_notes")
+  requestedAt   DateTime    @default(now()) @map("requested_at")
+  reviewedAt    DateTime?   @map("reviewed_at")
+  application   Application @relation(fields: [applicationId], references: [id])
+  requestedBy   User        @relation("RejectionRequester", fields: [requestedById], references: [id])
+  reviewedBy    User?       @relation("RejectionReviewer", fields: [reviewedById], references: [id])
+
+  @@map("rejection_requests")
+}
+
+model ApplicationStatusUpdate {
+  id              String      @id @default(cuid())
+  applicationId   String      @map("application_id")
+  fromStatus      String      @map("from_status")
+  toStatus        String      @map("to_status")
+  changedByType   String      @map("changed_by_type")
+  changedById     String?     @map("changed_by_id")
+  notes           String?
+  isVisibleToUser Boolean     @default(true) @map("is_visible_to_user")
+  createdAt       DateTime    @default(now()) @map("created_at")
+  application     Application @relation(fields: [applicationId], references: [id])
+  changedBy       User?       @relation("StatusUpdater", fields: [changedById], references: [id])
+
+  @@map("application_status_updates")
+}
+
+model AutoAssignmentConfig {
+  id                 String   @id @default(cuid())
+  isEnabled          Boolean  @default(true) @map("is_enabled")
+  assignmentMode     String   @default("ROUND_ROBIN") @map("assignment_mode")
+  maxActivePerMember Int      @default(10) @map("max_active_per_member")
+  createdById        String   @map("created_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  createdBy          User     @relation("AutoAssignConfig", fields: [createdById], references: [id])
+
+  @@map("auto_assignment_config")
+}
+
+model ApplicationModule {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  module        ModuleType
+  status        String      @default("NOT_STARTED")
+  completedAt   DateTime?   @map("completed_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, module])
+  @@index([status])
+  @@map("application_modules")
+}
+
+model ApplicationAnswer {
+  id            String      @id @default(cuid())
+  applicationId String      @map("application_id")
+  module        ModuleType
+  fieldKey      String      @map("field_key")
+  value         Json
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, module, fieldKey])
+  @@map("application_answers")
+}
+
+model UploadSession {
+  id              String       @id @default(cuid())
+  tokenHash       String       @unique @map("token_hash")
+  createdByUserId String       @map("created_by_user_id")
+  targetUserId    String       @map("target_user_id")
+  applicationId   String?      @map("application_id")
+  slotCount       Int          @map("slot_count")
+  status          String       @default("ACTIVE")
+  expiresAt       DateTime     @map("expires_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  completedAt     DateTime?    @map("completed_at")
+  application     Application? @relation(fields: [applicationId], references: [id])
+  createdByUser   User         @relation("SessionCreator", fields: [createdByUserId], references: [id])
+  targetUser      User         @relation("SessionTarget", fields: [targetUserId], references: [id])
+  slots           UploadSlot[]
+
+  @@index([targetUserId, createdAt])
+  @@index([createdByUserId, createdAt])
+  @@index([status, expiresAt])
+  @@map("upload_sessions")
+}
+
+model UploadSlot {
+  id                 String        @id @default(cuid())
+  uploadSessionId    String        @map("upload_session_id")
+  slotIndex          Int           @map("slot_index")
+  label              String?
+  documentTypeId     String?       @map("document_type_id")
+  uploadedDocumentId String?       @unique @map("uploaded_document_id")
+  status             String        @default("EMPTY")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  uploadSession      UploadSession @relation(fields: [uploadSessionId], references: [id], onDelete: Cascade)
+  uploadedDocument   Document?     @relation(fields: [uploadedDocumentId], references: [id])
+
+  @@unique([uploadSessionId, slotIndex])
+  @@map("upload_slots")
+}
+
+enum ModuleType {
+  PERSONAL
+  EDUCATION
+  BUSINESS
+  HEALTH
+  TRAVEL
+}
+
+model ChatThread {
+  id            String            @id @default(cuid())
+  threadKey     String            @unique @map("thread_key")
+  type          String            @default("DM")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  lastMessageAt DateTime?         @map("last_message_at")
+  participants  ChatParticipant[]
+  messages      ChatMessage[]
+
+  @@index([lastMessageAt])
+  @@map("chat_threads")
+}
+
+model ChatParticipant {
+  id           String    @id @default(cuid())
+  threadId     String    @map("thread_id")
+  userId       String    @map("user_id")
+  roleSnapshot String?   @map("role_snapshot")
+  joinedAt     DateTime  @default(now()) @map("joined_at")
+  lastReadAt   DateTime? @map("last_read_at")
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@index([userId, lastReadAt])
+  @@map("chat_participants")
+}
+
+model ChatMessage {
+  id              String   @id @default(cuid())
+  threadId        String   @map("thread_id")
+  senderUserId    String   @map("sender_user_id")
+  messageType     String   @default("TEXT") @map("message_type")
+  text            String?
+  mediaPath       String?  @map("media_path")
+  mediaMime       String?  @map("media_mime")
+  mediaDurationMs Int?     @map("media_duration_ms")
+  mediaSizeBytes  Int?     @map("media_size_bytes")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  thread     ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderUser User       @relation(fields: [senderUserId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("chat_messages")
+}

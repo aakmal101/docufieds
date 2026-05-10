@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useSession } from 'next-auth/react'
 
 interface NotificationFilters {
     page?: number
@@ -25,8 +24,7 @@ export function useNotifications(filters?: NotificationFilters) {
     })
 }
 
-export function useUnreadCount() {
-    const { data: session } = useSession()
+export function useUnreadCount(userId?: string) {
     const queryClient = useQueryClient()
 
     const query = useQuery({
@@ -41,7 +39,7 @@ export function useUnreadCount() {
 
     // Real-time updates via Supabase
     useEffect(() => {
-        if (!session?.user?.id) return
+        if (!userId) return
 
         const supabase = createClient()
 
@@ -53,7 +51,7 @@ export function useUnreadCount() {
                     event: '*',
                     schema: 'public',
                     table: 'notifications',
-                    filter: `user_id=eq.${session.user.id}`,
+                    filter: `user_id=eq.${userId}`,
                 },
                 () => {
                     // Refetch count when notification changes
@@ -66,7 +64,7 @@ export function useUnreadCount() {
         return () => {
             supabase.removeChannel(channel)
         }
-    }, [session?.user?.id, queryClient])
+    }, [userId, queryClient])
 
     return query
 }

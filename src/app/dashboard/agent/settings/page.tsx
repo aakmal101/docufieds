@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +11,6 @@ import { Loader2, User, Lock, Save, Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function AgentSettingsPage() {
-    const { data: session, status } = useSession()
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
@@ -33,19 +31,9 @@ export default function AgentSettingsPage() {
     })
 
     useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/auth/signin')
-            return
-        }
-        if (status === 'authenticated' && session?.user?.role !== 'AGENT') {
-            router.push('/dashboard')
-            return
-        }
-        if (status === 'authenticated') {
-            fetchProfile()
-            fetchPasswordStatus()
-        }
-    }, [session, status])
+        fetchProfile()
+        fetchPasswordStatus()
+    }, [])
 
     const fetchProfile = async () => {
         try {
@@ -179,7 +167,6 @@ export default function AgentSettingsPage() {
                             placeholder="Enter your full name"
                         />
                     </div>
-
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
                         <Input
@@ -190,7 +177,6 @@ export default function AgentSettingsPage() {
                             placeholder="Enter your email"
                         />
                     </div>
-
                     <div className="space-y-2">
                         <Label htmlFor="phone">Phone</Label>
                         <Input
@@ -200,7 +186,6 @@ export default function AgentSettingsPage() {
                             placeholder="Enter your phone number"
                         />
                     </div>
-
                     <Button onClick={handleSaveProfile} disabled={saving}>
                         {saving ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
@@ -219,9 +204,7 @@ export default function AgentSettingsPage() {
                         {hasPassword ? 'Change Password' : 'Set Password'}
                     </CardTitle>
                     <CardDescription>
-                        {hasPassword
-                            ? 'Update your existing password'
-                            : 'Set a password for your account'}
+                        {hasPassword ? 'Update your existing password' : 'Set a password for your account'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -239,7 +222,6 @@ export default function AgentSettingsPage() {
                             </div>
                         </div>
                     )}
-
                     <div className="space-y-2">
                         <Label htmlFor="newPassword">New Password</Label>
                         <div className="relative">
@@ -252,7 +234,6 @@ export default function AgentSettingsPage() {
                             />
                         </div>
                     </div>
-
                     <div className="space-y-2">
                         <Label htmlFor="confirmPassword">Confirm Password</Label>
                         <Input
@@ -263,7 +244,6 @@ export default function AgentSettingsPage() {
                             placeholder="Confirm new password"
                         />
                     </div>
-
                     <div className="flex items-center gap-2 text-sm">
                         <button
                             type="button"
@@ -274,7 +254,6 @@ export default function AgentSettingsPage() {
                             {showPasswords ? 'Hide' : 'Show'} passwords
                         </button>
                     </div>
-
                     <Button onClick={handleChangePassword} disabled={savingPassword}>
                         {savingPassword ? (
                             <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Updating...</>

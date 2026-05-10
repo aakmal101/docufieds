@@ -1,7 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { verifySupportMemberToken } from '@/middleware/support-member'
 
 // POST: Create a request (Support Member only)
@@ -30,7 +29,7 @@ export async function POST(req: NextRequest) {
                 content: `Document Requested: ${documentType}. Reason: ${reason}`,
                 messageType: 'DOCUMENT_REQUEST',
                 senderType: 'SYSTEM',
-                senderMemberId: member.id
+                senderUserId: member.id
             }
         })
 
@@ -42,8 +41,8 @@ export async function POST(req: NextRequest) {
 
 // PUT: Respond to request (User only - upload file logic is separate, here we link it)
 export async function PUT(req: NextRequest) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { requestId, documentId } = await req.json()
@@ -55,7 +54,7 @@ export async function PUT(req: NextRequest) {
         })
 
         if (!request) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-        if (request.application.userId !== session.user.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        if (request.application.userId !== user!.id) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
         const updated = await prisma.documentRequest.update({
             where: { id: requestId },
@@ -73,7 +72,7 @@ export async function PUT(req: NextRequest) {
                 content: `Document Uploaded: ${request.documentType}`,
                 messageType: 'STATUS_UPDATE',
                 senderType: 'SYSTEM',
-                senderUserId: session.user.id
+                senderUserId: user!.id
             }
         })
 

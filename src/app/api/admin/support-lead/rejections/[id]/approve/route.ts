@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireSupportLead()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { leadNotes } = await req.json()
@@ -14,7 +14,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 where: { id: params.id },
                 data: {
                     status: 'APPROVED',
-                    reviewedById: session.user.id,
+                    reviewedById: user.id,
                     leadNotes,
                     reviewedAt: new Date()
                 },

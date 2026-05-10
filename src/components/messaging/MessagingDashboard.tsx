@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ThreadList, ThreadListItem } from './ThreadList'
 import { ThreadView } from './ThreadView'
-import { useSession } from 'next-auth/react'
 import { Loader2 } from 'lucide-react'
 
 // For standard setups, use the public URL
@@ -12,18 +11,26 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
 export function MessagingDashboard() {
-    const { data: session, status } = useSession()
     const searchParams = useSearchParams()
     const router = useRouter()
 
     const [threads, setThreads] = useState<ThreadListItem[]>([])
     const [isLoadingThreads, setIsLoadingThreads] = useState(true)
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
     // We get active thread from URL query param to support deep links
     const activeThreadId = searchParams.get('threadId') || undefined
 
     useEffect(() => {
-        if (status !== 'authenticated') return
+        // Fetch user profile to get the current user ID
+        fetch('/api/user/profile')
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.data?.id) {
+                    setCurrentUserId(data.data.id)
+                }
+            })
+            .catch(err => console.error('Failed to fetch user profile', err))
 
         const fetchThreads = async () => {
             setIsLoadingThreads(true)
@@ -41,8 +48,7 @@ export function MessagingDashboard() {
         }
 
         fetchThreads()
-
-    }, [status])
+    }, [])
 
     const handleSelectThread = (threadId: string) => {
         // Update URL to reflect active thread (supports browser history & deep links)
@@ -51,16 +57,12 @@ export function MessagingDashboard() {
         router.push(`?${newParams.toString()}`)
     }
 
-    if (status === 'loading') {
+    if (!currentUserId) {
         return (
             <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         )
-    }
-
-    if (status === 'unauthenticated') {
-        return <div>Please log in</div>
     }
 
     return (
@@ -90,7 +92,7 @@ export function MessagingDashboard() {
                 {activeThreadId ? (
                     <ThreadView
                         threadId={activeThreadId}
-                        currentUserId={session!.user.id}
+                        currentUserId={currentUserId}
                         supabaseUrl={SUPABASE_URL}
                         supabaseAnonKey={SUPABASE_ANON_KEY}
                     />

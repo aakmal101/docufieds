@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/services/auth-service';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/lib/supabase/server';
 import { parseUploadedFile } from '@/lib/bulk-upload-parser';
@@ -13,8 +12,8 @@ export const maxDuration = 300; // 5 minutes for processing
 export async function POST(request: NextRequest) {
     try {
         // 1. Authenticate user
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
+        const user = await getCurrentUser();
+        if (!user) {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -22,10 +21,6 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Check if user is an agency (only agencies can bulk upload)
-        const user = await prisma.user.findUnique({
-            where: { id: session.user.id },
-            select: { role: true, status: true }
-        });
 
         if (!user || user.role !== 'AGENCY') {
             return NextResponse.json(
@@ -64,7 +59,7 @@ export async function POST(request: NextRequest) {
         // 5. Upload file to Supabase Storage
         const supabase = await createClient();
         const timestamp = Date.now();
-        const fileName = `${session.user.id}/${timestamp}_${file.name}`;
+        const fileName = `${user.id}/${timestamp}_${file.name}`;
 
         const fileBuffer = await file.arrayBuffer();
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -82,9 +77,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const { data: { publicUrl } } = supabase.storage
-            .from('documents')
-            .getPublicUrl(`bulk-uploads/${fileName}`);
+        const internalPath = `bulk-uploads/${fileName}`;
 
         // 6. Parse file
         let parsedData: any[];
@@ -114,9 +107,9 @@ export async function POST(request: NextRequest) {
         // 7. Create bulk upload record
         const bulkUpload = await prisma.bulkUpload.create({
             data: {
-                userId: session.user.id,
+                userId: user.id,
                 fileName: file.name,
-                fileUrl: publicUrl,
+                fileUrl: internalPath,
                 fileSize: file.size,
                 totalRecords: parsedData.length,
                 status: 'VALIDATING',
@@ -261,7 +254,7 @@ async function processIndividualRecord(uploadId: string, rowNumber: number, rowD
         where: {
             OR: [
                 { email: rowData.email || undefined },
-                { phone: rowData.phone || undefined }
+                { individualProfile: { phoneNumber: rowData.phone || undefined } }
             ]
         }
     });
@@ -269,23 +262,32 @@ async function processIndividualRecord(uploadId: string, rowNumber: number, rowD
     if (existingUser) {
         userId = existingUser.id;
     } else {
+        const names = rowData.full_name ? rowData.full_name.split(' ') : ['']
+        const firstName = names[0]
+        const lastName = names.slice(1).join(' ') || ''
+
         // Create new user
         const newUser = await prisma.user.create({
             data: {
                 email: rowData.email,
-                phone: rowData.phone,
-                fullName: rowData.full_name,
                 dateOfBirth: rowData.date_of_birth ? new Date(rowData.date_of_birth) : undefined,
                 placeOfBirth: rowData.place_of_birth,
                 nationality: rowData.nationality,
-                passportNumber: rowData.passport_number,
                 passportExpiry: rowData.passport_expiry ? new Date(rowData.passport_expiry) : undefined,
                 gender: rowData.gender,
                 maritalStatus: rowData.marital_status,
                 presentAddress: rowData.address,
                 role: 'INDIVIDUAL',
                 status: 'APPROVED', // Auto-approve for bulk upload
-                isVerified: true
+                isVerified: true,
+                individualProfile: {
+                    create: {
+                        firstName: firstName,
+                        lastName: lastName,
+                        phoneNumber: rowData.phone,
+                        passportNumber: rowData.passport_number,
+                    }
+                }
             }
         });
         userId = newUser.id;

@@ -13,7 +13,6 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { signOut } from 'next-auth/react'
 
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
@@ -25,7 +24,8 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
     ]
 
     const handleSignOut = async () => {
-        await signOut({ callbackUrl: '/auth/signin' })
+        await fetch('/api/auth/signout', { method: 'POST' })
+        window.location.href = '/auth/signin'
     }
 
     return (

@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession, signOut } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +21,6 @@ import {
 } from 'lucide-react'
 
 export default function AdminDashboard() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -35,18 +33,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
+    
 
-    if (session?.user?.role !== 'ADMIN') {
-      router.push('/dashboard')
-      return
-    }
-
+    
     fetchStats()
-  }, [session, status, router])
+  }, [])
 
   const fetchStats = async () => {
     try {
@@ -67,7 +58,7 @@ export default function AdminDashboard() {
   }
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    const supabase = (await import('@/lib/supabase/client')).createClient(); await supabase.auth.signOut(); window.location.href = '/'
   }
 
   if (loading) {
@@ -94,7 +85,7 @@ export default function AdminDashboard() {
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{session?.user?.fullName}</p>
+                <p className="text-sm font-medium text-gray-900">Administrator</p>
                 <p className="text-sm text-gray-500">System Administrator</p>
               </div>
               <Button variant="outline" size="sm" onClick={handleSignOut}>

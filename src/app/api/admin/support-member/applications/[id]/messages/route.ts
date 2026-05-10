@@ -13,8 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         const messages = await prisma.supportMessage.findMany({
             where: { applicationId: params.id },
             include: {
-                senderUser: { select: { fullName: true, photoUrl: true } },
-                senderMember: { select: { fullName: true, photoUrl: true } }
+                senderUser: { select: { photoUrl: true, individualProfile: { select: { firstName: true, lastName: true } } } },
             },
             orderBy: { createdAt: 'asc' }
         })
@@ -45,14 +44,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 content: content || '',
                 messageType: messageType || 'TEXT',
                 senderType: 'SUPPORT_MEMBER',
-                senderMemberId: member.id,
+                senderUserId: member.id,
                 isInternal: isInternal || false,
                 isReadBySupport: true,
                 attachmentUrl,
                 attachmentName
             },
             include: {
-                senderMember: { select: { fullName: true } }
+                senderUser: { select: { individualProfile: { select: { firstName: true, lastName: true } } } }
             }
         })
 

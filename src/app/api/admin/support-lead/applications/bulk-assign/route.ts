@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request) {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireSupportLead()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { applicationIds, memberId } = await req.json()
@@ -13,8 +13,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
-        const member = await prisma.supportTeamMember.findUnique({
-            where: { id: memberId }
+        const member = await prisma.user.findFirst({
+            where: { id: memberId, role: 'SUPPORT' }
         })
 
         if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
@@ -33,8 +33,8 @@ export async function POST(req: Request) {
                     await tx.applicationAssignment.create({
                         data: {
                             applicationId: appId,
-                            memberId,
-                            assignedById: session.user.id,
+                            assignedToId: memberId,
+                            assignedById: user.id,
                             status: 'ACTIVE'
                         }
                     })
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
                     // Create notification
                     await tx.notification.create({
                         data: {
-                            memberId,
+                            userId: memberId,
                             title: 'New Application Assigned',
                             message: `You have been assigned application #${appId}.`,
                             type: 'ASSIGNMENT',

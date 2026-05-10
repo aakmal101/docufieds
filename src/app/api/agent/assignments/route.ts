@@ -1,23 +1,22 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
     try {
-        // 1. Auth — use NextAuth session (proper auth)
-        const session = await getServerSession(authOptions)
-        if (!session?.user?.id) {
+        // 1. Auth — use Supabase Auth (proper auth)
+        const user = await getCurrentUser()
+        if (!user?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        const userId = session.user.id
+        const userId = user!.id
 
         // Verify user is an AGENT
-        if (session.user.role !== 'AGENT') {
+        if (user!.role !== 'AGENT') {
             return NextResponse.json({ success: false, message: 'Forbidden: Agent role required' }, { status: 403 })
         }
 

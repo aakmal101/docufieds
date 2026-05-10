@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import crypto from 'crypto'
 import { verifySupportMemberToken } from '@/middleware/support-member'
@@ -10,18 +9,15 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
     try {
-        // 1. Auth Check - Support both NextAuth session AND support-member-token
+        // 1. Auth Check - Support both Supabase Auth AND support-member-token
         let actorUserId: string | null = null
 
-        // Try NextAuth session first (for ADMIN users)
-        const session = await getServerSession(authOptions)
-        if (session?.user?.id) {
-            // Check if ADMIN or lookup support member
-            const member = await prisma.supportTeamMember.findUnique({
-                where: { email: session.user.email! },
-            })
-            if (member || session.user.role === 'ADMIN') {
-                actorUserId = session.user.id
+        // Try Supabase Auth first (for ADMIN users)
+        const user = await getCurrentUser()
+        if (user?.id) {
+            // Check if ADMIN or has support role
+            if (user.role === 'ADMIN' || user.role === 'SUPPORT') {
+                actorUserId = user.id
             }
         }
 
@@ -29,15 +25,7 @@ export async function POST(request: NextRequest) {
         if (!actorUserId) {
             const memberPayload = await verifySupportMemberToken(request)
             if (memberPayload?.id) {
-                // Lookup the support member to get their leadId (a valid User.id)
-                // SupportTeamMember.id is NOT a User.id, so we use leadId for FK constraints
-                const member = await prisma.supportTeamMember.findUnique({
-                    where: { id: memberPayload.id },
-                    select: { id: true, email: true, leadId: true }
-                })
-                if (member) {
-                    actorUserId = member.leadId // leadId IS a valid User.id
-                }
+                actorUserId = memberPayload.id
             }
         }
 
@@ -134,11 +122,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
     try {
-        // Auth Check - Support both NextAuth session AND support-member-token
+        // Auth Check - Support both Supabase Auth AND support-member-token
         let authenticated = false
 
-        const session = await getServerSession(authOptions)
-        if (session?.user?.id) {
+        const user = await getCurrentUser()
+        if (user?.id) {
             authenticated = true
         }
 

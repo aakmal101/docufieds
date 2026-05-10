@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -12,9 +11,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id) {
+        if (!user?.id) {
             return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
@@ -25,7 +24,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, message: 'threadId and mediaPath required' }, { status: 400 })
         }
 
-        const currentUserId = session.user.id
+        const currentUserId = user!.id
 
         // Verify participant
         const participant = await prisma.chatParticipant.findUnique({
@@ -48,7 +47,7 @@ export async function POST(request: NextRequest) {
             },
             include: {
                 senderUser: {
-                    select: { id: true, fullName: true, photoUrl: true, role: true }
+                    select: { id: true, individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true, role: true }
                 }
             }
         })
@@ -90,7 +89,7 @@ export async function POST(request: NextRequest) {
 
             return {
                 userId: op.userId,
-                title: `New voice message from ${session.user.fullName || 'User'}`,
+                title: `New voice message from User`,
                 message: '🎤 Voice message',
                 type: 'MESSAGE',
                 priority: 'NORMAL',

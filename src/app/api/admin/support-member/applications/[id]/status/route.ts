@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
         // Strict check: must be assigned to this member? Or allow if lead? 
         // This is member API, so yes.
-        if (app?.memberId !== member.id) {
+        if (app?.assignedToId !== member.id) {
             return NextResponse.json({ error: 'Not assigned' }, { status: 403 })
         }
 
@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
                 fromStatus: app.status, // Technically we should fetch prev status from App but close enough
                 toStatus: status,
                 changedByType: 'SUPPORT_MEMBER',
-                changedByMemberId: member.id,
+                changedById: member.id,
                 notes: `Status changed to ${status}`
             }
         })

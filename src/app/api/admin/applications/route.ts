@@ -1,18 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
-// Force dynamic rendering - this route uses getServerSession which requires headers/cookies
+// Force dynamic rendering - this route uses getCurrentUser which requires headers/cookies
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const fetchCache = 'force-no-store'
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -21,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     // Check if user has admin privileges
     const adminRoles = ['ADMIN', 'SUPPORT', 'LEGAL', 'ACCOUNTS', 'CASH_OFFICER']
-    if (!adminRoles.includes(session.user.role)) {
+    if (!adminRoles.includes(user!.role)) {
       return NextResponse.json(
         { success: false, message: 'Insufficient permissions' },
         { status: 403 }
@@ -61,9 +60,9 @@ export async function GET(request: NextRequest) {
         user: {
           select: {
             id: true,
-            fullName: true,
+            individualProfile: { select: { firstName: true, lastName: true, phoneNumber: true } },
             email: true,
-            phone: true,
+            
             role: true,
             memberId: true,
           },

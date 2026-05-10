@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { User, Settings, LogOut, Briefcase, ShieldCheck, Clock, XCircle, CheckCircle } from 'lucide-react'
 import {
     DropdownMenu,
@@ -26,7 +26,9 @@ export default function AgentProfileDropdown({ user }: AgentProfileDropdownProps
     const router = useRouter()
 
     const handleSignOut = async () => {
-        await signOut({ callbackUrl: '/' })
+        const supabase = createClient()
+        await supabase.auth.signOut()
+        window.location.href = '/'
     }
 
     const getStatusBadge = (status: string | null | undefined) => {

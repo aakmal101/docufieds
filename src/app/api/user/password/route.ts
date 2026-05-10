@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 import { createServiceRoleClient } from '@/lib/supabase/server'
 import bcrypt from 'bcryptjs'
@@ -14,9 +13,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -24,8 +23,8 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user!.id },
         select: {
           id: true,
           passwordHash: true,
@@ -35,23 +34,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          hasPassword: !!user?.passwordHash,
+          hasPassword: !!dbUser?.passwordHash,
         },
       })
     } catch (prismaError: any) {
       // Fallback to Supabase
       try {
         const supabase = createServiceRoleClient()
-        const { data: user } = await supabase
+        const { data: supaUser } = await supabase
           .from('users')
           .select('password_hash')
-          .eq('id', session.user.id)
+          .eq('id', user!.id)
           .single()
 
         return NextResponse.json({
           success: true,
           data: {
-            hasPassword: !!user?.password_hash,
+            hasPassword: !!supaUser?.password_hash,
           },
         })
       } catch (supabaseError: any) {
@@ -76,9 +75,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -98,7 +97,7 @@ export async function POST(request: NextRequest) {
     try {
       // Check if user has existing password (for update)
       const existingUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
+        where: { id: user!.id },
         select: {
           passwordHash: true,
         },
@@ -124,14 +123,13 @@ export async function POST(request: NextRequest) {
 
       // Update password
       const updatedUser = await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: user!.id },
         data: {
           passwordHash,
         },
         select: {
           id: true,
           email: true,
-          phone: true,
         },
       })
 
@@ -153,7 +151,7 @@ export async function POST(request: NextRequest) {
         const { data: existingUser } = await supabase
           .from('users')
           .select('password_hash')
-          .eq('id', session.user.id)
+          .eq('id', user!.id)
           .single()
 
         // If updating password, verify current password
@@ -180,7 +178,7 @@ export async function POST(request: NextRequest) {
           .update({
             password_hash: passwordHash,
           })
-          .eq('id', session.user.id)
+          .eq('id', user!.id)
           .select('id, email, phone')
           .single()
 

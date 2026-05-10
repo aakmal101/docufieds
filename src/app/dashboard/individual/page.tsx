@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useSession } from 'next-auth/react'
+
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,7 +23,6 @@ import {
 import { UserStatus, ApplicationStatus } from '@/types'
 
 export default function IndividualDashboard() {
-  const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
@@ -33,18 +32,7 @@ export default function IndividualDashboard() {
   const lastFetchTime = useRef<number>(0)
 
   useEffect(() => {
-    if (status === 'loading') return
-
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'INDIVIDUAL') {
-      router.push('/dashboard')
-      return
-    }
-
+    // Middleware handles auth gating — if we're here, user is authenticated
     // Check throttle
     const now = Date.now()
     if (now - lastFetchTime.current < 120 * 1000) {
@@ -55,7 +43,7 @@ export default function IndividualDashboard() {
 
     lastFetchTime.current = now
     fetchUserData()
-  }, [session?.user?.id, status, router])
+  }, [])
 
   const fetchUserData = async () => {
     try {

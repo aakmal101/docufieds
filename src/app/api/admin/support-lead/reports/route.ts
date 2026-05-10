@@ -42,8 +42,10 @@ export async function GET(req: Request) {
         })
 
         // 2. Fetch team performance
-        const members = await prisma.supportTeamMember.findMany({
+        const members = await prisma.user.findMany({
+            where: { role: 'SUPPORT' },
             include: {
+                individualProfile: true,
                 _count: {
                     select: {
                         assignedApplications: {
@@ -100,14 +102,14 @@ export async function GET(req: Request) {
         const avgProcessingTimeHours = timeCount > 0 ? Math.round((totalTimeMs / timeCount) / (1000 * 60 * 60)) : 0
 
         // Team Table Data
-        const teamStats = members.map(m => {
+        const teamStats = members.map((m: any) => {
             const assigned = m._count.assignedApplications
-            const active = m.assignedApplications.filter(a => a.status === 'ACTIVE').length
-            const completed = m.assignedApplications.filter(a => a.status === 'COMPLETED').length
+            const active = m.assignedApplications.filter((a: any) => a.status === 'ACTIVE').length
+            const completed = m.assignedApplications.filter((a: any) => a.status === 'COMPLETED').length
 
             return {
                 id: m.id,
-                name: m.fullName,
+                name: m.individualProfile ? `${m.individualProfile.firstName} ${m.individualProfile.lastName || ''}`.trim() : 'Support Member',
                 assigned,
                 active,
                 completed,

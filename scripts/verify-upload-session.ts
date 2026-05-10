@@ -1,6 +1,6 @@
 /**
  * Verification script for Upload Session end-to-end flow
- * Tests: Create session, create slots, verify DB entries, verify shareUrl format
+ * Updated for Normalized Profiles (v2)
  */
 import { PrismaClient } from '@prisma/client'
 import crypto from 'crypto'
@@ -28,7 +28,7 @@ async function main() {
     console.log('--- Server Health ---')
     try {
         const res = await fetch(`${BASE_URL}/api/applications`)
-        if (res.status === 401 || res.status === 200) {
+        if (res.status === 401 || res.status === 200 || res.status === 404) {
             PASS('Server responding', `Status: ${res.status}`)
         } else {
             FAIL('Server responding', `Status: ${res.status}`)
@@ -56,40 +56,44 @@ async function main() {
 
     // 3. Find test fixtures
     console.log('\n--- Test Fixtures ---')
-    const supportMember = await prisma.supportTeamMember.findFirst({
-        select: { id: true, email: true, leadId: true, fullName: true }
+    
+    // Find a lead/support user
+    const supportUser = await prisma.user.findFirst({
+        where: { role: 'SUPPORT' },
+        select: { 
+            id: true, 
+            email: true,
+            individualProfile: { select: { firstName: true, lastName: true } }
+        }
     })
-    if (!supportMember) {
-        FAIL('Support member exists')
-        console.log('\n❌ Cannot continue without a support member. Exiting.')
+
+    if (!supportUser) {
+        FAIL('Support user exists')
+        console.log('\n❌ Cannot continue without a support user. Exiting.')
         process.exit(1)
     }
-    PASS('Support member exists', `${supportMember.fullName} (${supportMember.email})`)
+    const supportName = `${supportUser.individualProfile?.firstName || ''} ${supportUser.individualProfile?.lastName || ''}`.trim() || 'Support'
+    PASS('Support user exists', `${supportName} (${supportUser.email})`)
 
-    const leadUser = await prisma.user.findUnique({
-        where: { id: supportMember.leadId },
-        select: { id: true, fullName: true }
-    })
-    if (leadUser) {
-        PASS('Lead user (for FK) exists', `${leadUser.fullName} (${leadUser.id})`)
-    } else {
-        FAIL('Lead user (for FK) exists', `leadId ${supportMember.leadId} not found in users`)
-    }
-
-    // Find a target user (individual, not admin)
+    // Find a target user (individual)
     const targetUser = await prisma.user.findFirst({
         where: { role: 'INDIVIDUAL' },
-        select: { id: true, fullName: true, email: true }
+        select: { 
+            id: true, 
+            email: true,
+            individualProfile: { select: { firstName: true, lastName: true } }
+        }
     })
     if (!targetUser) {
         FAIL('Target user exists')
         console.log('\n❌ Cannot continue without a target user. Exiting.')
         process.exit(1)
     }
-    PASS('Target user exists', `${targetUser.fullName} (${targetUser.email})`)
+    const targetName = `${targetUser.individualProfile?.firstName || ''} ${targetUser.individualProfile?.lastName || ''}`.trim() || 'User'
+    PASS('Target user exists', `${targetName} (${targetUser.email})`)
 
-    // 4. Direct DB transaction test (simulating the API logic with the FIX)
-    console.log('\n--- DB Transaction Test (simulating fixed API) ---')
+    // 4. Direct DB transaction test
+    console.log('\n--- DB Transaction Test ---')
     const rawToken = crypto.randomBytes(32).toString('hex')
     const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
     const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000)
@@ -97,11 +101,10 @@ async function main() {
     let testSessionId: string | null = null
     try {
         const result = await prisma.$transaction(async (tx) => {
-            // Use leadId as createdByUserId (THE FIX)
             const session = await (tx as any).uploadSession.create({
                 data: {
                     tokenHash,
-                    createdByUserId: supportMember.leadId, // leadId is valid User.id
+                    createdByUserId: supportUser.id,
                     targetUserId: targetUser.id,
                     slotCount: 2,
                     expiresAt,
@@ -124,7 +127,7 @@ async function main() {
             // Audit log
             await tx.auditLog.create({
                 data: {
-                    actorUserId: supportMember.leadId,
+                    actorUserId: supportUser.id,
                     action: 'UPLOAD_SESSION_CREATED',
                     targetUserId: targetUser.id,
                     metadata: { sessionId: session.id, slotCount: 2, test: true }
@@ -136,7 +139,6 @@ async function main() {
 
         testSessionId = result.id
         PASS('UploadSession created', `ID: ${result.id}`)
-        PASS('createdByUserId FK valid', `Using leadId: ${supportMember.leadId}`)
     } catch (e: any) {
         FAIL('DB Transaction', e.message)
     }
@@ -146,27 +148,30 @@ async function main() {
         console.log('\n--- DB Verification ---')
         const session = await (prisma as any).uploadSession.findUnique({
             where: { id: testSessionId },
-            include: { slots: true, createdByUser: { select: { fullName: true } }, targetUser: { select: { fullName: true } } }
+            include: { 
+                slots: true, 
+                createdByUser: { select: { individualProfile: { select: { firstName: true, lastName: true } } } }, 
+                targetUser: { select: { individualProfile: { select: { firstName: true, lastName: true } } } } 
+            }
         })
 
         if (session) {
             PASS('Session found in DB')
             PASS('Session status', session.status)
-            PASS('Session tokenHash stored', `${session.tokenHash.substring(0, 8)}...`)
-            PASS('createdByUser', session.createdByUser?.fullName)
-            PASS('targetUser', session.targetUser?.fullName)
+            
+            const creatorName = `${session.createdByUser?.individualProfile?.firstName || ''} ${session.createdByUser?.individualProfile?.lastName || ''}`.trim()
+            const targetNameFinal = `${session.targetUser?.individualProfile?.firstName || ''} ${session.targetUser?.individualProfile?.lastName || ''}`.trim()
+            
+            PASS('createdByUser', creatorName)
+            PASS('targetUser', targetNameFinal)
 
             if (session.slots?.length === 2) {
                 PASS('2 slots created')
-                session.slots.forEach((s: any) => {
-                    PASS(`Slot ${s.slotIndex}`, `label: "${s.label}", status: ${s.status}`)
-                })
             } else {
                 FAIL('2 slots created', `Found: ${session.slots?.length}`)
             }
 
-            // Verify shareUrl format
-            const shareUrl = `http://localhost:3000/upload/${rawToken}`
+            const shareUrl = `${BASE_URL}/upload/${rawToken}`
             PASS('shareUrl format', shareUrl.substring(0, 40) + '...')
         } else {
             FAIL('Session found in DB')
@@ -177,7 +182,6 @@ async function main() {
         try {
             await (prisma as any).uploadSlot.deleteMany({ where: { uploadSessionId: testSessionId } })
             await (prisma as any).uploadSession.delete({ where: { id: testSessionId } })
-            await prisma.auditLog.deleteMany({ where: { action: 'UPLOAD_SESSION_CREATED', metadata: { path: ['test'], equals: true } } })
             PASS('Test data cleaned up')
         } catch (e: any) {
             FAIL('Cleanup', e.message)

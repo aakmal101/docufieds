@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import prisma from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
@@ -8,9 +7,9 @@ export const dynamic = 'force-dynamic'
 // GET /api/agency/applications?page=1&limit=10&status=&country=&search=
 export async function GET(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions)
+        const user = await getCurrentUser()
 
-        if (!session?.user?.id || session.user.role !== 'AGENCY') {
+        if (!user?.id || user!.role !== 'AGENCY') {
             return NextResponse.json(
                 { success: false, error: 'Unauthorized' },
                 { status: 401 }
@@ -27,7 +26,7 @@ export async function GET(request: NextRequest) {
 
         // Build where clause
         const where: any = {
-            userId: session.user.id,
+            userId: user!.id,
         }
 
         if (status) where.status = status

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
 
 // Force dynamic rendering
@@ -13,9 +12,9 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -26,7 +25,7 @@ export async function GET(request: NextRequest) {
     const applicationId = searchParams.get('applicationId')
 
     const where: any = {
-      userId: session.user.id,
+      userId: user!.id,
     }
     
     if (applicationId) {
@@ -69,9 +68,9 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    const user = await getCurrentUser()
 
-    if (!session?.user?.id) {
+    if (!user?.id) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
@@ -93,7 +92,7 @@ export async function POST(request: NextRequest) {
       const application = await prisma.application.findFirst({
         where: {
           id: applicationId,
-          userId: session.user.id,
+          userId: user!.id,
         },
       })
 
@@ -109,9 +108,9 @@ export async function POST(request: NextRequest) {
     const message = await prisma.message.create({
       data: {
         applicationId: applicationId || null,
-        userId: session.user.id,
-        senderId: session.user.id,
-        senderRole: session.user.role || 'INDIVIDUAL',
+        userId: user!.id,
+        senderId: user!.id,
+        senderRole: user!.role || 'INDIVIDUAL',
         text: text.trim(),
       },
       include: {

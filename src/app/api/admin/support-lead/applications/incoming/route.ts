@@ -22,7 +22,7 @@ export async function GET(req: Request) {
         if (search) {
             whereClause.OR = [
                 { id: { contains: search, mode: 'insensitive' } },
-                { user: { fullName: { contains: search, mode: 'insensitive' } } },
+                { user: { individualProfile: { OR: [{ firstName: { contains: search, mode: 'insensitive' } }, { lastName: { contains: search, mode: 'insensitive' } }] } } },
             ]
         }
 
@@ -33,7 +33,7 @@ export async function GET(req: Request) {
             prisma.application.findMany({
                 where: whereClause,
                 include: {
-                    user: { select: { fullName: true, email: true } },
+                    user: { select: { email: true, individualProfile: { select: { firstName: true, lastName: true } } } },
                     _count: { select: { documents: true } },
                     payments: {
                         select: { status: true },

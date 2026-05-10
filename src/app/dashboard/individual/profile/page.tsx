@@ -1,6 +1,5 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,13 +20,13 @@ import {
   CreditCard
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { AppUser } from '@/types/user'
 
 export default function ProfilePage() {
-  const { data: session, status } = useSession()
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<AppUser | null>(null)
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -45,20 +44,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
-    if (status === 'loading') return
-
-    if (status === 'unauthenticated') {
-      router.push('/auth/signin')
-      return
-    }
-
-    if (session?.user?.role !== 'INDIVIDUAL') {
-      router.push('/dashboard')
-      return
-    }
-
     fetchUserData()
-  }, [session, status, router])
+  }, [])
 
   const fetchUserData = async () => {
     try {
@@ -66,25 +53,33 @@ export default function ProfilePage() {
       const response = await fetch('/api/user/profile')
       const data = await response.json()
 
-      if (data.success) {
-        setUser(data.data)
-        setFormData({
-          fullName: data.data.fullName || '',
-          email: data.data.email || '',
-          dateOfBirth: data.data.dateOfBirth ? new Date(data.data.dateOfBirth).toISOString().split('T')[0] : '',
-          placeOfBirth: data.data.placeOfBirth || '',
-          birthCertificateNumber: data.data.birthCertificateNumber || '',
-          nidNumber: data.data.nidNumber || '',
-          passportNumber: data.data.passportNumber || '',
-          presentAddress: data.data.presentAddress || '',
-          permanentAddress: data.data.permanentAddress || '',
-          photoUrl: data.data.photoUrl || ''
-        })
+      if (!response.ok || !data.success) {
+        router.push('/auth/signin')
+        return
+      }
 
-        // Set photo preview if user has existing photo
-        if (data.data.photoUrl) {
-          setPhotoPreview(data.data.photoUrl)
-        }
+      if (data.data?.role !== 'INDIVIDUAL') {
+        router.push('/dashboard')
+        return
+      }
+
+      setUser(data.data)
+      setFormData({
+        fullName: data.data.individualProfile ? `${data.data.individualProfile.firstName} ${data.data.individualProfile.lastName || ''}`.trim() : '',
+        email: data.data.email || '',
+        dateOfBirth: data.data.dateOfBirth ? new Date(data.data.dateOfBirth).toISOString().split('T')[0] : '',
+        placeOfBirth: data.data.placeOfBirth || '',
+        birthCertificateNumber: data.data.birthCertificateNumber || '',
+        nidNumber: data.data.nidNumber || '',
+        passportNumber: data.data.individualProfile?.passportNumber || '',
+        presentAddress: data.data.presentAddress || '',
+        permanentAddress: data.data.permanentAddress || '',
+        photoUrl: data.data.photoUrl || ''
+      })
+
+      // Set photo preview if user has existing photo
+      if (data.data.photoUrl) {
+        setPhotoPreview(data.data.photoUrl)
       }
     } catch (error) {
       console.error('Error fetching user data:', error)
@@ -213,7 +208,7 @@ export default function ProfilePage() {
     return Math.round((completedFields / requiredFields.length) * 100)
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -290,7 +285,7 @@ export default function ProfilePage() {
                 <div className="space-y-6">
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-1">Full Name</h4>
-                    <p className="text-gray-900 font-medium">{user?.fullName || 'Not set'}</p>
+                    <p className="text-gray-900 font-medium">{user?.individualProfile ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim() : 'Not set'}</p>
                   </div>
                   <div>
                     <h4 className="text-sm font-medium text-gray-500 mb-1">Email Address</h4>
@@ -339,7 +334,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="md:col-span-2">
                     <h4 className="text-sm font-medium text-gray-500 mb-1">Passport Number</h4>
-                    <p className="text-gray-900 font-mono">{user?.passportNumber || 'Not set'}</p>
+                    <p className="text-gray-900 font-mono">{user?.individualProfile?.passportNumber || 'Not set'}</p>
                   </div>
                 </div>
               </div>
@@ -428,7 +423,7 @@ export default function ProfilePage() {
                       <div className="flex items-center space-x-4">
                         <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200">
                           <img
-                            src={photoPreview || user?.photoUrl}
+                            src={photoPreview || user?.photoUrl || undefined}
                             alt="Profile preview"
                             className="w-full h-full object-cover"
                           />
@@ -554,19 +549,15 @@ export default function ProfilePage() {
                   variant="outline"
                   onClick={() => {
                     setIsEditing(false)
-                    // Reset form to user data if needed? 
-                    // For now, keeping form data as is allows resuming edits if they misclicked cancel.
-                    // But standard is usually to reset. 
-                    // Let's reset to ensure clean state next edit.
                     if (user) {
                       setFormData({
-                        fullName: user.fullName || '',
+                        fullName: user.individualProfile ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim() : '',
                         email: user.email || '',
                         dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : '',
                         placeOfBirth: user.placeOfBirth || '',
                         birthCertificateNumber: user.birthCertificateNumber || '',
                         nidNumber: user.nidNumber || '',
-                        passportNumber: user.passportNumber || '',
+                        passportNumber: user.individualProfile?.passportNumber || '',
                         presentAddress: user.presentAddress || '',
                         permanentAddress: user.permanentAddress || '',
                         photoUrl: user.photoUrl || ''

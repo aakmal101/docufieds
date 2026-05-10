@@ -9,17 +9,22 @@ export async function POST(req: Request) {
     try {
         const { applicationId, newMemberId, reason } = await req.json()
 
-        const member = await prisma.supportTeamMember.findUnique({
-            where: { id: newMemberId }
+        const member = await prisma.user.findFirst({
+            where: { id: newMemberId, role: 'SUPPORT' },
+            include: { individualProfile: true }
         })
         if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+
+        const memberFullName = member.individualProfile 
+            ? `${member.individualProfile.firstName} ${member.individualProfile.lastName || ''}`.trim()
+            : 'Support Member'
 
         await prisma.$transaction(async (tx) => {
             // Update assignment
             await tx.applicationAssignment.update({
                 where: { applicationId },
                 data: {
-                    memberId: newMemberId,
+                    assignedToId: newMemberId,
                     assignmentType: 'REASSIGNED',
                     notes: reason ? `Reassigned: ${reason}` : 'Reassigned manually'
                 }
@@ -29,7 +34,7 @@ export async function POST(req: Request) {
             await tx.supportMessage.create({
                 data: {
                     applicationId,
-                    content: `Application reassigned to ${member.fullName}`,
+                    content: `Application reassigned to ${memberFullName}`,
                     messageType: 'SYSTEM',
                     senderType: 'SYSTEM',
                     isInternal: true

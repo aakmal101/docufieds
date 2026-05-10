@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,16 +14,15 @@ import toast from 'react-hot-toast'
 export default function AgentApplicationDetail() {
     const params = useParams()
     const router = useRouter()
-    const { data: session } = useSession()
     const [application, setApplication] = useState<any>(null)
     const [loading, setLoading] = useState(true)
     const [sending, setSending] = useState(false)
 
     useEffect(() => {
-        if (session?.user?.id && params.id) {
+        if (params.id) {
             fetchApplication()
         }
-    }, [session, params.id])
+    }, [params.id])
 
     const fetchApplication = async () => {
         try {

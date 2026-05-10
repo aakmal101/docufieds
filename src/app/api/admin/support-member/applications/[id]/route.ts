@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
         // Verify assignment (optional: allow viewing if previously assigned or if generic 'view' permission exists)
         // Strict mode: only if currently assigned to this member
-        if (application.assignment?.memberId !== member.id) {
+        if (application.assignment?.assignedToId !== member.id) {
             // We might want to allow read-only access if we implement a 'Team View' later.
             // For now, let's enforce assignment for simplicity or return a limited view.
             return NextResponse.json({ error: 'Not assigned to you' }, { status: 403 })

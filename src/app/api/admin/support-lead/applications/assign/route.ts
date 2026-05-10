@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request) {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireSupportLead()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const body = await req.json()
@@ -15,19 +15,24 @@ export async function POST(req: Request) {
         }
 
         // Verify member exists
-        const member = await prisma.supportTeamMember.findUnique({
-            where: { id: memberId }
+        const member = await prisma.user.findFirst({
+            where: { id: memberId, role: 'SUPPORT' },
+            include: { individualProfile: true }
         })
 
         if (!member) return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+
+        const memberFullName = member.individualProfile 
+            ? `${member.individualProfile.firstName} ${member.individualProfile.lastName || ''}`.trim()
+            : 'Support Member'
 
         const result = await prisma.$transaction(async (tx) => {
             // Create assignment
             const assignment = await tx.applicationAssignment.create({
                 data: {
                     applicationId,
-                    memberId,
-                    assignedById: session.user.id, // Assuming session.user.id is accessible
+                    assignedToId: memberId,
+                    assignedById: user.id,
                     priority,
                     notes,
                     status: 'ACTIVE'
@@ -47,7 +52,7 @@ export async function POST(req: Request) {
             await tx.supportMessage.create({
                 data: {
                     applicationId,
-                    content: `Application assigned to ${member.fullName}`,
+                    content: `Application assigned to ${memberFullName}`,
                     messageType: 'SYSTEM',
                     senderType: 'SYSTEM',
                     isInternal: true
@@ -60,16 +65,16 @@ export async function POST(req: Request) {
                     applicationId,
                     fromStatus: 'PENDING_ASSIGNMENT',
                     toStatus: 'ASSIGNED',
-                    changedByType: 'SUPPORT_LEAD',
-                    changedById: session.user.id,
-                    notes: `Assigned to ${member.fullName}`
+                    changedByType: 'SUPPORT',
+                    changedById: user.id,
+                    notes: `Assigned to ${memberFullName}`
                 }
             })
 
             // Create notification for member
             await tx.notification.create({
                 data: {
-                    memberId,
+                    userId: memberId,
                     title: 'New Application Assigned',
                     message: `You have been assigned application #${applicationId} with ${priority} priority.`,
                     type: 'ASSIGNMENT',

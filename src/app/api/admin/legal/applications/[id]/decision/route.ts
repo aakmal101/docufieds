@@ -3,8 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireLegal } from '@/lib/auth/admin-guard'
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
-    const session = await requireLegal()
-    if (!session) {
+    const user = await requireLegal()
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
@@ -45,7 +45,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
                 fromStatus: 'READY_FOR_LEGAL', // Assumption
                 toStatus: newStatus,
                 changedByType: 'LEGAL',
-                changedById: session.user.id,
+                changedById: user.id,
                 notes: notes,
                 isVisibleToUser: true // User should know result
             }

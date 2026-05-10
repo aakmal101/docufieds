@@ -2,9 +2,11 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireSupportLead } from '@/lib/auth/admin-guard'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
-    const session = await requireSupportLead()
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await requireSupportLead()
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const today = new Date()
@@ -15,8 +17,12 @@ export async function GET() {
 
         const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
 
-        const members = await prisma.supportTeamMember.findMany({
+        const members = await prisma.user.findMany({
+            where: {
+                role: 'SUPPORT'
+            },
             include: {
+                individualProfile: true,
                 assignedApplications: {
                     include: {
                         application: {
@@ -31,22 +37,15 @@ export async function GET() {
                 },
                 _count: {
                     select: {
-                        messages: { where: { createdAt: { gte: today } } },
+                        sentMessages: { where: { createdAt: { gte: today } } },
                         documentRequests: { where: { requestedAt: { gte: today } } }
                     }
                 }
-            },
-            orderBy: { fullName: 'asc' }
+            }
         })
 
         // Calculate metrics
-        const workload = members.map(m => {
-            // Filter completion counts
-            // Note: m.assignedApplications contains both active (from previous include if we didn't override, wait, duplicate keys in include?)
-            // Prisma allows multiple relations. 
-            // Let's fix the query structure above: we can't include 'assignedApplications' twice with different where clauses easily in the same object key unless using select tricks.
-            // Better strategy: fetch all assignments and filter in code.
-
+        const workload = members.map((m: any) => {
             const active = m.assignedApplications.filter((a: any) => a.status === 'ACTIVE')
             const completed = m.assignedApplications.filter((a: any) => a.status === 'COMPLETED' && a.completedAt)
 
@@ -67,10 +66,10 @@ export async function GET() {
 
             return {
                 id: m.id,
-                fullName: m.fullName,
+                fullName: m.individualProfile ? `${m.individualProfile.firstName} ${m.individualProfile.lastName || ''}`.trim() : 'Support Member',
                 email: m.email,
-                photoUrl: m.photoUrl,
-                isActive: m.isActive,
+                photoUrl: m.individualProfile?.photoUrl || m.photoUrl,
+                isActive: m.status === 'ACTIVE' || m.status === 'APPROVED',
                 activeCount: active.length,
                 completedToday,
                 completedWeek,
@@ -85,8 +84,11 @@ export async function GET() {
             }
         })
 
+        workload.sort((a, b) => a.fullName.localeCompare(b.fullName))
+
         return NextResponse.json(workload)
     } catch (error) {
+        console.error(error)
         return NextResponse.json({ error: 'Failed to fetch workload' }, { status: 500 })
     }
 }

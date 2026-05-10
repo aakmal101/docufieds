@@ -1,13 +1,12 @@
 import { NextResponse, NextRequest } from 'next/server'
+import { getCurrentUser } from '@/lib/services/auth-service'
 import { prisma } from '@/lib/prisma'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const application = await prisma.application.findUnique({
@@ -15,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             select: { userId: true }
         })
 
-        if (!application || application.userId !== session.user.id) {
+        if (!application || application.userId !== user!.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -25,8 +24,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
                 isInternal: false // Exclude internal notes
             },
             include: {
-                senderUser: { select: { fullName: true, photoUrl: true } },
-                senderMember: { select: { fullName: true, photoUrl: true } }
+                senderUser: { select: { individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true } },
             },
             orderBy: { createdAt: 'asc' }
         })
@@ -48,8 +46,8 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = await getCurrentUser()
+    if (!user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
     try {
         const { content, attachmentUrl, attachmentName, messageType } = await req.json()
@@ -57,10 +55,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         // Verify ownership
         const application = await prisma.application.findUnique({
             where: { id: params.id },
-            select: { userId: true, assignment: { select: { memberId: true } } }
+            select: { userId: true, assignment: { select: { assignedToId: true } } }
         })
 
-        if (!application || application.userId !== session.user.id) {
+        if (!application || application.userId !== user!.id) {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
 
@@ -70,12 +68,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
                 content: content || '',
                 messageType: messageType || 'TEXT',
                 senderType: 'USER',
-                senderUserId: session.user.id,
+                senderUserId: user!.id,
                 attachmentUrl,
                 attachmentName
             },
             include: {
-                senderUser: { select: { fullName: true, photoUrl: true } }
+                senderUser: { select: { individualProfile: { select: { firstName: true, lastName: true } }, photoUrl: true } }
             }
         })
 

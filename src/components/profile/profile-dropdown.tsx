@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession, signOut } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
 import { User, Settings, LogOut, Mail } from 'lucide-react'
 import {
   DropdownMenu,
@@ -30,10 +30,12 @@ interface ProfileDropdownProps {
 
 export default function ProfileDropdown({ user }: ProfileDropdownProps) {
   const router = useRouter()
-  const { data: session } = useSession()
 
   const handleSignOut = async () => {
-    await signOut({ callbackUrl: '/' })
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/')
+    router.refresh()
   }
 
   const getStatusColor = (status: string | null | undefined) => {

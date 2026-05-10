@@ -15,10 +15,15 @@ export async function GET(
             include: {
                 user: {
                     select: {
-                        fullName: true,
                         email: true,
-                        phone: true,
-                        photoUrl: true
+                        photoUrl: true,
+                        individualProfile: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                phoneNumber: true,
+                            }
+                        }
                     }
                 },
                 documents: true,
@@ -29,7 +34,7 @@ export async function GET(
                 // Include assignment with member workload
                 assignment: {
                     include: {
-                        member: {
+                        assignedTo: {
                             include: {
                                 _count: {
                                     select: { assignedApplications: { where: { status: 'ACTIVE' } } }
