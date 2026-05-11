@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,16 +40,25 @@ export default function SupportProfilePage() {
 
     const fetchProfile = async () => {
         try {
-            const res = await fetch('/api/auth/support-member/me')
-            if (res.ok) {
-                const data = await res.json()
-                setProfile(data)
-                setFormData(prev => ({
-                    ...prev,
-                    fullName: data.fullName || '',
-                    phone: data.phone || ''
-                }))
+            const supabase = createClient()
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+            if (authError || !user) {
+                toast.error('Failed to load profile')
+                return
             }
+            const profileData: SupportProfile = {
+                id: user.id,
+                fullName: user.user_metadata?.full_name || user.email?.split('@')[0] || '',
+                email: user.email || '',
+                phone: user.user_metadata?.phone || null,
+                photoUrl: user.user_metadata?.photo_url || null,
+            }
+            setProfile(profileData)
+            setFormData(prev => ({
+                ...prev,
+                fullName: profileData.fullName || '',
+                phone: profileData.phone || ''
+            }))
         } catch (error) {
             toast.error('Failed to load profile')
         } finally {
@@ -66,20 +76,27 @@ export default function SupportProfilePage() {
 
         setSaving(true)
         try {
-            const res = await fetch('/api/auth/support-member/me', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fullName: formData.fullName,
+            const supabase = createClient()
+            const updatePayload: any = {
+                data: {
+                    full_name: formData.fullName,
                     phone: formData.phone,
-                    ...(formData.password ? { password: formData.password } : {})
+                },
+            }
+            if (formData.password) {
+                updatePayload.password = formData.password
+            }
+            const { data: { user: updated }, error: updateError } = await supabase.auth.updateUser(updatePayload)
+            if (updateError) throw updateError
+            if (updated) {
+                setProfile({
+                    id: updated.id,
+                    fullName: updated.user_metadata?.full_name || '',
+                    email: updated.email || '',
+                    phone: updated.user_metadata?.phone || null,
+                    photoUrl: updated.user_metadata?.photo_url || null,
                 })
-            })
-
-            if (!res.ok) throw new Error('Update failed')
-
-            const updated = await res.json()
-            setProfile(updated)
+            }
             setIsEditing(false)
             setFormData(prev => ({ ...prev, password: '', confirmPassword: '' }))
             toast.success('Profile updated successfully')

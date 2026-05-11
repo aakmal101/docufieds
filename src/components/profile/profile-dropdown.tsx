@@ -18,7 +18,10 @@ import { VerifiedBadge } from '@/components/user/VerifiedBadge'
 
 interface ProfileDropdownProps {
   user: {
-    fullName?: string | null
+    individualProfile?: {
+      firstName?: string | null
+      lastName?: string | null
+    } | null
     email?: string | null
     phone?: string | null
     photoUrl?: string | null
@@ -30,6 +33,11 @@ interface ProfileDropdownProps {
 
 export default function ProfileDropdown({ user }: ProfileDropdownProps) {
   const router = useRouter()
+
+  // Compute display name from individualProfile
+  const displayName = user?.individualProfile?.firstName
+    ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User'
 
   const handleSignOut = async () => {
     const supabase = createClient()
@@ -67,7 +75,7 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
             <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-gray-200 relative">
               <img
                 src={user.photoUrl}
-                alt={user.fullName || 'Profile'}
+                alt={displayName}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const target = e.currentTarget as HTMLImageElement
@@ -95,7 +103,7 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
               <div className="h-12 w-12 rounded-full overflow-hidden border-2 border-gray-200 relative flex-shrink-0">
                 <img
                   src={user.photoUrl}
-                  alt={user.fullName || 'Profile'}
+                  alt={displayName}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     const target = e.currentTarget as HTMLImageElement
@@ -115,7 +123,7 @@ export default function ProfileDropdown({ user }: ProfileDropdownProps) {
             )}
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1">
-                {user.fullName || 'User'}
+                {displayName}
                 <VerifiedBadge status={user.profileStatus || 'PENDING'} className="h-4 w-4" />
               </p>
               {user.email && (

@@ -38,7 +38,7 @@ export default function SupportLoginPage() {
             })
 
             if (authError) {
-                setError('Invalid Lead credentials')
+                setError(authError.message || 'Invalid Lead credentials')
                 toast.error('Login failed')
             } else {
                 toast.success('Welcome back, Lead!')
@@ -57,20 +57,23 @@ export default function SupportLoginPage() {
         setError('')
 
         try {
-            const res = await fetch('/api/auth/support-member/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(memberCreds)
+            const supabase = createClient()
+
+            const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: memberCreds.email,
+                password: memberCreds.password,
             })
 
-            const data = await res.json()
-
-            if (res.ok && data.success) {
-                toast.success(`Welcome, ${data.member.fullName}!`)
+            if (authError) {
+                setError(authError.message || 'Invalid credentials')
+                toast.error(authError.message || 'Login failed')
+            } else if (data.user) {
+                const displayName = data.user.user_metadata?.full_name || 'Team Member'
+                toast.success(`Welcome, ${displayName}!`)
                 window.location.href = '/admin/support-member' // Full reload
             } else {
-                setError(data.message || 'Login failed')
-                toast.error(data.message || 'Login failed')
+                setError('Authentication failed. Please try again.')
+                toast.error('Authentication failed')
             }
         } catch (error) {
             setError('Connection failed')

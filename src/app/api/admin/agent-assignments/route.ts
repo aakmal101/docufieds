@@ -1,11 +1,17 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/services/auth-service'
 
 export async function POST(req: NextRequest) {
     try {
+        const user = await getCurrentUser()
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
+
         const body = await req.json()
-        const { agentUserId, targetUserId, applicationId, assignedByUserId } = body
+        const { agentUserId, targetUserId, applicationId } = body
 
         if (!agentUserId || (!targetUserId && !applicationId)) {
             return NextResponse.json({ success: false, message: 'Missing required fields' }, { status: 400 })
@@ -30,7 +36,7 @@ export async function POST(req: NextRequest) {
                 agentUserId,
                 targetUserId,
                 applicationId,
-                assignedByUserId, // Should come from session in real app
+                assignedByUserId: user.id,
                 status: 'ACTIVE'
             }
         })
@@ -38,7 +44,7 @@ export async function POST(req: NextRequest) {
         // Audit Log
         await prisma.auditLog.create({
             data: {
-                actorUserId: assignedByUserId,
+                actorUserId: user.id,
                 action: 'AGENT_ASSIGNED',
                 targetUserId: agentUserId,
                 metadata: { assignmentId: assignment.id, targetUserId, applicationId }

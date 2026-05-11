@@ -1,12 +1,18 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { getCurrentUser } from '@/lib/services/auth-service'
 
 export async function POST(req: NextRequest) {
     try {
+        const user = await getCurrentUser()
+        if (!user) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
+        
         const body = await req.json()
         const { applicationId, content, messageType } = body
-        const userId = req.headers.get('x-user-id') // Mock/Session
+        const userId = user.id
 
         if (!userId || !applicationId || !content) {
             return NextResponse.json({ success: false, message: 'Missing fields' }, { status: 400 })

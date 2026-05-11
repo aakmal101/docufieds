@@ -3,19 +3,31 @@
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
-import { User, GraduationCap, Briefcase, HeartPulse, Plane } from 'lucide-react'
+import { User, GraduationCap, Briefcase, HeartPulse, Plane, Lock } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-// We'll use string literals matching the enum to avoid client-side import issues with Enums sometimes
+// Business / Work is the only active module. All others are coming soon.
 const MODULES = [
+    {
+        id: 'BUSINESS',
+        title: 'Business / Work',
+        description: 'For corporate trips, meetings, or employment opportunities.',
+        icon: Briefcase,
+        color: 'bg-purple-50 text-purple-600',
+        borderColor: 'border-purple-200',
+        comingSoon: false
+    },
+    // ── Coming Soon modules (preserved for future integration) ──
     {
         id: 'PERSONAL',
         title: 'Personal / Tourism',
         description: 'For individuals visiting for tourism, family visits, or personal reasons.',
         icon: User,
         color: 'bg-blue-50 text-blue-600',
-        borderColor: 'border-blue-200'
+        borderColor: 'border-blue-200',
+        comingSoon: true
     },
     {
         id: 'EDUCATION',
@@ -23,15 +35,8 @@ const MODULES = [
         description: 'For students applying for universities, language schools, or academic programs.',
         icon: GraduationCap,
         color: 'bg-green-50 text-green-600',
-        borderColor: 'border-green-200'
-    },
-    {
-        id: 'BUSINESS',
-        title: 'Business / Work',
-        description: 'For corporate trips, meetings, or employment opportunities.',
-        icon: Briefcase,
-        color: 'bg-purple-50 text-purple-600',
-        borderColor: 'border-purple-200'
+        borderColor: 'border-green-200',
+        comingSoon: true
     },
     {
         id: 'HEALTH',
@@ -39,7 +44,8 @@ const MODULES = [
         description: 'For patients seeking medical treatment or consultations abroad.',
         icon: HeartPulse,
         color: 'bg-red-50 text-red-600',
-        borderColor: 'border-red-200'
+        borderColor: 'border-red-200',
+        comingSoon: true
     },
     {
         id: 'TRAVEL',
@@ -47,7 +53,8 @@ const MODULES = [
         description: 'For organized tour groups or large family vacations.',
         icon: Plane,
         color: 'bg-orange-50 text-orange-600',
-        borderColor: 'border-orange-200'
+        borderColor: 'border-orange-200',
+        comingSoon: true
     }
 ]
 
@@ -55,24 +62,6 @@ export default function ModuleSelectionPage() {
     const router = useRouter()
 
     const handleSelectModule = (moduleId: string) => {
-        // Store selected module in localStorage or URL query param for the next step
-        // For simplicity and resilience, we can use a query param on the next route
-        // Or save to a context if one exists.
-        // Let's pass it via URL query param to /apply/country for now, or /apply/start
-
-        // We need to know WHERE the flow goes next. User said: 
-        // "On module select... Redirect to existing country selector page"
-        // Assuming /apply/country is that page, or /apply if that IS the country selector.
-        // Checking file structure earlier, /apply/page.tsx likely was the start.
-        // If we change /apply/page.tsx to redirect HERE, then the country selector might need to move to /apply/country
-        // OR we redirect to /apply/country?module=PERSONAL
-
-        // Strategy:
-        // 1. User visits /apply -> Redirects to /apply/module (This page).
-        // 2. User selects Module -> Redirects to /apply/country?module=PERSONAL.
-        // 3. Country page reads param.
-
-        // Redirect to the existing New Application page with the selected module
         router.push(`/dashboard/individual/new-application?module=${moduleId}`)
     }
 
@@ -88,11 +77,22 @@ export default function ModuleSelectionPage() {
                     <motion.div
                         key={module.id}
                         whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="cursor-pointer"
-                        onClick={() => handleSelectModule(module.id)}
+                        whileTap={module.comingSoon ? {} : { scale: 0.98 }}
+                        className={module.comingSoon ? 'cursor-not-allowed' : 'cursor-pointer'}
+                        onClick={() => {
+                            if (!module.comingSoon) handleSelectModule(module.id)
+                        }}
                     >
-                        <Card className={`h-full border-2 hover:border-blue-500 transition-colors ${module.borderColor} bg-white hover:shadow-lg`}>
+                        <Card className={`h-full border-2 hover:border-blue-500 transition-colors ${module.borderColor} bg-white hover:shadow-lg relative overflow-hidden`}>
+                            {/* Coming Soon badge — keeps original card colors intact */}
+                            {module.comingSoon && (
+                                <div className="absolute top-3 right-3 z-10">
+                                    <Badge className="bg-gray-800/80 text-white text-xs font-semibold gap-1 backdrop-blur-sm">
+                                        <Lock className="w-3 h-3" />
+                                        Coming Soon
+                                    </Badge>
+                                </div>
+                            )}
                             <CardHeader>
                                 <div className={`w-12 h-12 rounded-lg ${module.color} flex items-center justify-center mb-4`}>
                                     <module.icon className="w-6 h-6" />
@@ -103,9 +103,15 @@ export default function ModuleSelectionPage() {
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
-                                <Button className="w-full" variant="ghost">
-                                    Select {module.title.split('/')[0]} &rarr;
-                                </Button>
+                                {module.comingSoon ? (
+                                    <Button className="w-full" variant="ghost" disabled>
+                                        Coming Soon
+                                    </Button>
+                                ) : (
+                                    <Button className="w-full" variant="ghost">
+                                        Select {module.title.split('/')[0]} &rarr;
+                                    </Button>
+                                )}
                             </CardContent>
                         </Card>
                     </motion.div>
@@ -114,3 +120,4 @@ export default function ModuleSelectionPage() {
         </div>
     )
 }
+

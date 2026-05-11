@@ -99,8 +99,108 @@ This file serves as a log keeper of the updates done to the Docufieds project si
 
 ---
 
+### 14. Prisma v7 Upgrade & Production Certification (Golden Master Audit)
+- **Engine Compatibility (ARM64)**: Upgraded to **Prisma 7** and `@prisma/adapter-pg` to resolve runtime incompatibility on Windows ARM64 environments.
+- **Centralized Singleton**: Refactored `src/lib/prisma.ts` to utilize the new adapter-based instantiation. Verified that all database calls strictly use this centralized singleton, eliminating legacy `new PrismaClient()` calls.
+- **Auth-to-DB Sync Audit**: Verified the Supabase-to-Prisma user syncing logic in `src/lib/supabase/auth.ts`. Confirmed that user creation payloads map perfectly to the normalized `User` and `IndividualProfile` schemas with zero type mismatches.
+- **Configuration Hardening**: Resolved a `TS2353` type error in `prisma.config.ts` by removing the unsupported `directUrl` property, aligning the configuration with Prisma 7 standards.
+- **Production Validation**: 
+  - `npx tsc --noEmit`: Passed with 0 errors.
+  - `npm run build`: Successfully completed an optimized production build (74/74 static pages generated).
+- **Certification Date**: 2026-05-11 05:50:12 (UTC+6)
+
+---
+
+### 15. Identity Sync Hardening & JIT Provisioning Upgrade
+- **Primary Sync Path**: Implemented `syncUserWithPrisma()` in `src/lib/supabase/auth.ts` as the PRIMARY sync called immediately after `supabase.auth.signUp()` succeeds via the `/api/auth/register` server route.
+- **Metadata Mapping**: Maps every Supabase `user_metadata` field to the correct Prisma columns:
+  - `full_name` → `IndividualProfile.firstName` / `lastName` (via `splitFullName()` utility)
+  - `phone` → `IndividualProfile.phoneNumber`
+  - `date_of_birth` → `User.dateOfBirth`
+  - `place_of_birth` → `User.placeOfBirth`
+  - `role` → `User.role` (validated against enum whitelist)
+  - `agency_name` / `agency_license` → `AgencyProfile` (conditional on AGENCY role)
+- **JIT Fallback**: Enhanced `getCurrentUser()` in `src/lib/services/auth-service.ts` to act as the JIT fallback — if the Prisma record is missing (e.g., primary sync failed, social login, admin-created user), it provisions a **full record** using Supabase `user_metadata` so the user is never "hollow".
+- **Upsert Logic**: The sync handles both creation and update paths, using `prisma.individualProfile.upsert` for existing users to merge new metadata without overwriting existing data.
+
+---
+
+### 16. Supabase Native Auth Migration & Demo Seeding
+- **Legacy Elimination**: Removed all remaining `fetch('/api/auth/...')` dependencies, completing the migration to Supabase Native Auth (`supabase.auth.signInWithPassword`, `supabase.auth.signUp`).
+- **Sign-In Flow Fix**: Resolved routing issues post-login using `router.refresh()` for cache invalidation, ensuring seamless dashboard navigation after authentication.
+- **Demo Auth Seeder**: Created `scripts/seed-demo-auth.ts` — a secure seeding script that injects 6 role-based demo accounts into both Supabase Auth and the Prisma database for "Demo Mode" testing:
+  - Individual, Agency, Agent, Admin, Support, Legal roles
+  - Run via: `npx tsx --env-file=.env scripts/seed-demo-auth.ts`
+
+---
+
+### 17. Storage: Avatars Bucket RLS
+- **Bucket Provisioning**: Deployed Row-Level Security (RLS) policies for the `avatars` storage bucket directly within the Supabase instance.
+- **Policy Coverage**: Authenticated users can upload and read their own avatar files. Admin/Support roles have read access for review purposes.
+- **Upload Pipeline**: `src/app/api/user/profile/photo/route.ts` uploads to the `avatars` bucket with path-based user isolation and cleanup of old photos.
+
+---
+
+### 18. Dashboard Loading Skeletons & UX Polish
+- **Skeleton Loading**: Replaced the abrupt "Error loading user data" screen in `src/app/dashboard/individual/page.tsx` with a professional loading skeleton (`animate-pulse`) during initial data fetching.
+- **State Separation**: Refactored state management to distinguish between the initial loading phase (`loading` state) and actual fetch errors (`fetchError` state), ensuring the skeleton is only displayed during legitimate data retrieval.
+- **Throttled Fetching**: Implemented a 2-minute throttle (`lastFetchTime` ref) to prevent redundant API calls during re-renders and navigation.
+
+---
+
+### 19. Trade License Form Refactor (React Hook Form + Zod)
+- **Schema Validation**: Created `src/lib/schemas/trade-license.ts` with a comprehensive Zod schema (`tradeLicenseSchema`) covering all Trade License form fields with type-safe validation.
+- **Form Migration**: Refactored `src/components/applications/trade-license-form.tsx` from uncontrolled state to React Hook Form (`useForm<TradeLicenseFormData>`) with Zod resolver for compile-time type safety.
+- **Multi-Step Integration**: Preserved the existing multi-step form UX (personal info, business info, address, people, attachments) while adding field-level validation and error display.
+
+---
+
+### 20. Data Flow Audit & Critical Bug Fixes
+A comprehensive read-only data flow audit was conducted, identifying two critical bugs and a draft duplication issue. All three were fixed:
+
+#### 20a. API Crash Fix — The "Orphaned Application" Bug
+- **Root Cause**: `GET /api/applications` attempted to `select: { fullName: true, phone: true }` on the `User` model. Neither field exists in the Prisma schema, causing Prisma to throw a fatal error. The route's `catch` block silently returned an empty array `[]`, making all applications invisible on the dashboard.
+- **Fix**: Replaced the invalid fields in `src/app/api/applications/route.ts` with `individualProfile: { select: { firstName: true, lastName: true } }`.
+
+#### 20b. UI Name Disconnect Fix
+- **Root Cause**: `src/app/dashboard/individual/page.tsx` and `src/components/profile/profile-dropdown.tsx` were reading `user.fullName`, which doesn't exist on the Prisma `User` model. Names are stored as `firstName`/`lastName` inside the nested `IndividualProfile` relation.
+- **Fix**: Added a computed `displayName` variable in both components:
+  ```typescript
+  const displayName = user?.individualProfile?.firstName
+    ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User'
+  ```
+- **Profile Completion Fix**: Updated `calculateProfileCompletion()` to check `individualProfile` nested fields instead of the non-existent root-level `fullName`.
+
+#### 20c. Trade License Draft Duplication Fix
+- **Root Cause**: The `handleSubmit` for Trade License in `client-page.tsx` always used `POST /api/applications`, even when `applicationId` was already set by `onSaveDraft`, creating duplicate orphan draft entries.
+- **Fix**: Added a check for existing `applicationId` — if a draft exists, the handler uses `PATCH /api/applications/{id}` to update; otherwise, it creates via `POST`.
+
+---
+
+### 21. Module & Category Gating ("Coming Soon")
+- **Application Type Gating** (`src/app/apply/module/page.tsx`):
+  - **Business / Work** is the only active module, moved to the first position in the grid.
+  - **Personal / Tourism**, **Education / Student**, **Health / Medical**, and **Group Travel** are marked `comingSoon: true` — displayed with a dark "Coming Soon" badge, disabled button, and `cursor-not-allowed`. Original colors, icons, borders, and hover animations are fully preserved.
+- **Business Category Gating** (`src/app/dashboard/individual/new-application/client-page.tsx`):
+  - **Trade License** is the only active category.
+  - **Business Visa** and **Company Registration** are marked `comingSoon: true` — displayed with gray styling, a "Coming Soon" pill badge replacing the radio button, and clicks blocked.
+- **Future Activation**: All gated modules/categories are preserved in the codebase. Flip `comingSoon: false` to re-enable.
+
+---
+
+### 22. Admin & Agent API Security Lockdown
+- **Mock Auth Eradication**: Replaced all insecure "mock authentication" patterns across admin and agent-focused API routes with robust server-side session validation using `getCurrentUser()`.
+- **Role Guards**: Enforced strict administrative role guards (e.g., `ADMIN`, `LEGAL`, `SUPPORT`, `ACCOUNTS`, `CASH_OFFICER`) on all privileged API endpoints to ensure production-grade tenant isolation.
+- **Coverage**: All routes under `/api/admin/` now use `getCurrentUser()` with explicit role checking before processing requests.
+
+---
+
 ## 🚀 Next Steps
 
-- **Production Deployment**: The repository is now technically "Hardened" and ready for production staging.
-- **Continuous Monitoring**: Observe Supabase Auth logs and RLS advisor notices post-deployment to ensure no unauthorized access attempts are blocked or allowed incorrectly.
-- **Feature Expansion**: With the core infrastructure secured and normalized, proceed with high-level feature development (e.g., advanced analytics or multi-agency management).
+- **Production Deployment**: The repository is now technically "Hardened" and functionally operational with the Trade License flow end-to-end.
+- **Feature Expansion**: Activate additional modules (Personal/Tourism, Education/Student, Health/Medical, Group Travel) and categories (Business Visa, Company Registration) as backend integrations are completed — simply flip `comingSoon: false`.
+- **Continuous Monitoring**: Observe Supabase Auth logs and RLS advisor notices post-deployment to ensure no unauthorized access attempts.
+- **Payment Integration**: Implement payment gateway for consultancy fee collection (currently estimated as "payable later").
+- **Document Upload Pipeline**: Finalize the signed-URL-based document upload flow for submitted applications.
+

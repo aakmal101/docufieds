@@ -16,6 +16,9 @@ import { Loader2, ArrowRight, CheckCircle, Upload, FileText, Users, Building, Ma
 import { calculateTotalFee } from '@/lib/fee-calculator'
 import toast from 'react-hot-toast'
 import RequiredDocuments from '@/components/required-documents'
+import { useForm, useFieldArray, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { tradeLicenseSchema, TradeLicenseFormData } from '@/lib/schemas/trade-license'
 
 interface TradeLicenseFormProps {
     applicationId: string | null
@@ -45,49 +48,54 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
     const [subtype, setSubtype] = useState<TradeLicenseSubtype | null>(initialData?.subtype || null)
     const [partnerCount, setPartnerCount] = useState<number>(initialData?.partnerCount || 2)
 
-    const [formData, setFormData] = useState({
-        // Step 1: Business Information
-        businessNameEn: initialData?.businessNameEn || '',
-        businessNameBn: initialData?.businessNameBn || '',
-        tradeCategory: initialData?.tradeCategory || '',
-        tinNumber: initialData?.tinNumber || '',
-        binNumber: initialData?.binNumber || '',
-        establishmentDate: initialData?.establishmentDate || '',
-
-        // Step 2: People Information (Array of owners/partners/directors)
-        people: initialData?.people || [],
-
-        // Step 3: Business Premises
-        division: initialData?.division || '',
-        district: initialData?.district || '',
-        upazila: initialData?.upazila || '',
-        wardNumber: initialData?.wardNumber || '',
-        holdingNumber: initialData?.holdingNumber || '',
-        road: initialData?.road || '',
-        area: initialData?.area || '',
-        postalCode: initialData?.postalCode || '',
-        ownershipType: initialData?.ownershipType || '',
-        landlordName: initialData?.landlordName || '',
-        landlordMobile: initialData?.landlordMobile || '',
-        monthlyRent: initialData?.monthlyRent || '',
-
-        // Step 4: Financial & Employment
-        capitalInvestment: initialData?.capitalInvestment || '',
-        annualTurnover: initialData?.annualTurnover || '',
-        totalEmployees: initialData?.totalEmployees || '',
-        maleEmployees: initialData?.maleEmployees || '',
-        femaleEmployees: initialData?.femaleEmployees || '',
-
-        // Application Type
-        applicationType: initialData?.applicationType || 'NEW', // NEW, RENEWAL, AMENDMENT, DUPLICATE
-        previousLicenseNumber: initialData?.previousLicenseNumber || '',
-        previousLicenseYear: initialData?.previousLicenseYear || '',
-        processingSpeed: initialData?.processingSpeed || 'NORMAL', // NORMAL, URGENT
-
-        // Agreements
-        declared: initialData?.declared || false,
-        termsAccepted: initialData?.termsAccepted || false
+    const form = useForm<TradeLicenseFormData>({
+        resolver: zodResolver(tradeLicenseSchema) as any,
+        defaultValues: {
+            businessNameEn: initialData?.businessNameEn || '',
+            businessNameBn: initialData?.businessNameBn || '',
+            tradeCategory: initialData?.tradeCategory || '',
+            tinNumber: initialData?.tinNumber || '',
+            binNumber: initialData?.binNumber || '',
+            establishmentDate: initialData?.establishmentDate || '',
+            people: initialData?.people ? initialData.people.map((p: any) => ({
+                ...p,
+                sameAsPresent: Boolean(p.sameAsPresent)
+            })) : [],
+            division: initialData?.division || '',
+            district: initialData?.district || '',
+            upazila: initialData?.upazila || '',
+            wardNumber: initialData?.wardNumber || '',
+            holdingNumber: initialData?.holdingNumber || '',
+            road: initialData?.road || '',
+            area: initialData?.area || '',
+            postalCode: initialData?.postalCode || '',
+            ownershipType: initialData?.ownershipType || '',
+            landlordName: initialData?.landlordName || '',
+            landlordMobile: initialData?.landlordMobile || '',
+            monthlyRent: initialData?.monthlyRent || '',
+            capitalInvestment: initialData?.capitalInvestment || '',
+            annualTurnover: initialData?.annualTurnover || '',
+            totalEmployees: initialData?.totalEmployees || '',
+            maleEmployees: initialData?.maleEmployees || '',
+            femaleEmployees: initialData?.femaleEmployees || '',
+            applicationType: initialData?.applicationType || 'NEW',
+            previousLicenseNumber: initialData?.previousLicenseNumber || '',
+            previousLicenseYear: initialData?.previousLicenseYear || '',
+            processingSpeed: initialData?.processingSpeed || 'NORMAL',
+            declared: initialData?.declared || false,
+            termsAccepted: initialData?.termsAccepted || false
+        }
     })
+
+    const { register, control, handleSubmit, trigger, formState: { errors }, watch, setValue, getValues } = form;
+
+    const watchApplicationType = watch('applicationType');
+    const watchOwnershipType = watch('ownershipType');
+
+    const { fields: peopleFields, append, remove } = useFieldArray({
+        control,
+        name: 'people'
+    });
 
     const createEmptyPerson = () => ({
         id: crypto.randomUUID(),
@@ -110,47 +118,42 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
     useEffect(() => {
         if (!subtype) return;
 
-        setFormData(prev => {
-            let targetCount = 1;
-            let currentPeople = [...prev.people];
-            let defaultRole = '';
+        let targetCount = 1;
+        let currentPeople = getValues('people') || [];
+        let defaultRole = '';
 
-            if (subtype === 'SOLE_PROPRIETORSHIP') {
-                targetCount = 1;
-                defaultRole = 'Owner';
-                if (currentPeople.length > 0) {
-                    currentPeople[0] = { ...currentPeople[0], role: defaultRole };
-                }
-            } else if (subtype === 'PARTNERSHIP') {
-                targetCount = partnerCount;
-                defaultRole = 'Partner';
-                currentPeople = currentPeople.map(p => ({ ...p, role: defaultRole }));
-            } else if (subtype === 'LIMITED_COMPANY') {
-                targetCount = Math.max(1, currentPeople.length);
-                if (currentPeople.length > 0) {
-                    currentPeople[0] = { ...currentPeople[0], role: 'Managing Director' };
-                    for (let i = 1; i < currentPeople.length; i++) {
-                        currentPeople[i] = { ...currentPeople[i], role: 'Director' };
-                    }
+        if (subtype === 'SOLE_PROPRIETORSHIP') {
+            targetCount = 1;
+            defaultRole = 'Owner';
+            if (currentPeople.length > 0) {
+                currentPeople[0] = { ...currentPeople[0], role: defaultRole };
+            }
+        } else if (subtype === 'PARTNERSHIP') {
+            targetCount = partnerCount;
+            defaultRole = 'Partner';
+            currentPeople = currentPeople.map((p: any) => ({ ...p, role: defaultRole }));
+        } else if (subtype === 'LIMITED_COMPANY') {
+            targetCount = Math.max(1, currentPeople.length);
+            if (currentPeople.length > 0) {
+                currentPeople[0] = { ...currentPeople[0], role: 'Managing Director' };
+                for (let i = 1; i < currentPeople.length; i++) {
+                    currentPeople[i] = { ...currentPeople[i], role: 'Director' };
                 }
             }
+        }
 
-            // Pad or truncate the array
-            if (currentPeople.length > targetCount && subtype !== 'LIMITED_COMPANY') { // Only truncate for non-limited company
-                currentPeople = currentPeople.slice(0, targetCount);
-            } else if (currentPeople.length < targetCount) {
-                while (currentPeople.length < targetCount) {
-                    currentPeople.push(createEmptyPerson());
-                }
+        // Pad or truncate the array
+        if (currentPeople.length > targetCount && subtype !== 'LIMITED_COMPANY') {
+            currentPeople = currentPeople.slice(0, targetCount);
+        } else if (currentPeople.length < targetCount) {
+            while (currentPeople.length < targetCount) {
+                currentPeople.push(createEmptyPerson());
             }
+        }
 
-            // Only update if length or roles changed to prevent infinite loops
-            if (JSON.stringify(currentPeople) !== JSON.stringify(prev.people)) {
-                return { ...prev, people: currentPeople };
-            }
-            return prev;
-        });
-    }, [subtype, partnerCount])
+        // Only update if changes were made
+        setValue('people', currentPeople, { shouldDirty: true });
+    }, [subtype, partnerCount, setValue, getValues])
 
     // Create Draft Application immediately if we don't have an ID
     useEffect(() => {
@@ -174,17 +177,6 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
         { id: 'review', label: 'Review & Submit' }
     ]
 
-    const handleInputChange = (field: string, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }))
-    }
-
-    const handlePersonChange = (personId: string, field: string, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            people: prev.people.map((p: any) => p.id === personId ? { ...p, [field]: value } : p)
-        }))
-    }
-
     const handleNext = async () => {
         if (currentStep === 0) {
             if (!subtype) {
@@ -195,6 +187,9 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                 toast.error("Partnership requires between 2 and 10 partners.")
                 return
             }
+            
+            const isStepValid = await trigger(["applicationType", "previousLicenseNumber", "previousLicenseYear", "processingSpeed"]);
+            if (!isStepValid) return;
 
             setLoading(true)
             try {
@@ -225,6 +220,23 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
             return
         }
 
+        if (currentStep === 1) {
+            const isStepValid = await trigger(["businessNameEn", "businessNameBn", "tradeCategory", "tinNumber", "binNumber", "establishmentDate"]);
+            if (!isStepValid) return;
+        } else if (currentStep === 2) {
+            const isStepValid = await trigger(["people"]);
+            if (!isStepValid) {
+                toast.error("Please fix the errors in the People info section.");
+                return;
+            }
+        } else if (currentStep === 3) {
+            const isStepValid = await trigger(["division", "district", "upazila", "wardNumber", "holdingNumber", "road", "area", "postalCode", "ownershipType", "landlordName", "landlordMobile", "monthlyRent"]);
+            if (!isStepValid) return;
+        } else if (currentStep === 4) {
+            const isStepValid = await trigger(["capitalInvestment", "annualTurnover", "totalEmployees", "maleEmployees", "femaleEmployees"]);
+            if (!isStepValid) return;
+        }
+
         if (currentStep === 5) { // Documents step
             if (!documentsReady) {
                 toast.error("Please upload all required documents to continue.");
@@ -239,7 +251,7 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                 await fetch(`/api/applications/${applicationId}/answers`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ answers: formData })
+                    body: JSON.stringify({ answers: getValues() })
                 })
             }
             setCurrentStep(prev => Math.min(prev + 1, steps.length - 1))
@@ -255,24 +267,7 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
         setCurrentStep(prev => Math.max(prev - 1, 0))
     }
 
-    const handleSubmit = async () => {
-        // Validation: Required fields check based on step 1 & 2 basic needs
-        if (!formData.businessNameEn || !formData.businessNameBn || !formData.tinNumber) {
-            toast.error('Please complete all required business information fields (Name, TIN).')
-            return
-        }
-
-        // Validate all people
-        const invalidPerson = formData.people.find((p: any) => !p.fullNameEn || !p.fullNameBn || !p.nidNumber || !p.mobile)
-        if (invalidPerson) {
-            toast.error('Please complete all required info (Name, NID, Mobile) for all people listed.')
-            return
-        }
-
-        if (!formData.declared || !formData.termsAccepted) {
-            toast.error('Please accept the declaration and terms.')
-            return
-        }
+    const onSubmitForm = async (data: any) => {
         setLoading(true)
         try {
             // Ensure final form state is saved before submit
@@ -280,10 +275,10 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                 await fetch(`/api/applications/${applicationId}/answers`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ answers: formData })
+                    body: JSON.stringify({ answers: data })
                 })
             }
-            await onSubmit(formData)
+            await onSubmit(data)
         } catch (error) {
             console.error('Submission error:', error)
             toast.error('Failed to submit application')
@@ -348,38 +343,54 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label>Application Type</Label>
-                                    <Select value={formData.applicationType} onValueChange={(v) => handleInputChange('applicationType', v)}>
-                                        <SelectTrigger><SelectValue /></SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="NEW">New License</SelectItem>
-                                            <SelectItem value="RENEWAL">Renewal</SelectItem>
-                                            <SelectItem value="AMENDMENT">Amendment</SelectItem>
-                                            <SelectItem value="DUPLICATE">Duplicate Copy</SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                    <Controller
+                                        control={control}
+                                        name="applicationType"
+                                        render={({ field }) => (
+                                            <Select value={field.value} onValueChange={field.onChange}>
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="NEW">New License</SelectItem>
+                                                    <SelectItem value="RENEWAL">Renewal</SelectItem>
+                                                    <SelectItem value="AMENDMENT">Amendment</SelectItem>
+                                                    <SelectItem value="DUPLICATE">Duplicate Copy</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        )}
+                                    />
+                                    {errors.applicationType && <p className="text-red-500 text-xs mt-1">{errors.applicationType.message}</p>}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Processing Speed</Label>
-                                    <RadioGroup value={formData.processingSpeed} onValueChange={(v) => handleInputChange('processingSpeed', v)} className="flex space-x-4">
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="NORMAL" id="normal" />
-                                            <Label htmlFor="normal">Normal (7-14 days)</Label>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <RadioGroupItem value="URGENT" id="urgent" />
-                                            <Label htmlFor="urgent">Urgent (3-5 days)</Label>
-                                        </div>
-                                    </RadioGroup>
+                                    <Controller
+                                        control={control}
+                                        name="processingSpeed"
+                                        render={({ field }) => (
+                                            <RadioGroup value={field.value} onValueChange={field.onChange} className="flex space-x-4">
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="NORMAL" id="normal" />
+                                                    <Label htmlFor="normal">Normal (7-14 days)</Label>
+                                                </div>
+                                                <div className="flex items-center space-x-2">
+                                                    <RadioGroupItem value="URGENT" id="urgent" />
+                                                    <Label htmlFor="urgent">Urgent (3-5 days)</Label>
+                                                </div>
+                                            </RadioGroup>
+                                        )}
+                                    />
+                                    {errors.processingSpeed && <p className="text-red-500 text-xs mt-1">{errors.processingSpeed.message}</p>}
                                 </div>
-                                {formData.applicationType !== 'NEW' && (
+                                {watchApplicationType !== 'NEW' && (
                                     <>
                                         <div className="space-y-2">
                                             <Label>Previous License Number</Label>
-                                            <Input value={formData.previousLicenseNumber} onChange={(e) => handleInputChange('previousLicenseNumber', e.target.value)} />
+                                            <Input {...register('previousLicenseNumber')} />
+                                            {errors.previousLicenseNumber && <p className="text-red-500 text-xs mt-1">{errors.previousLicenseNumber.message}</p>}
                                         </div>
                                         <div className="space-y-2">
                                             <Label>License Year</Label>
-                                            <Input value={formData.previousLicenseYear} onChange={(e) => handleInputChange('previousLicenseYear', e.target.value)} />
+                                            <Input {...register('previousLicenseYear')} />
+                                            {errors.previousLicenseYear && <p className="text-red-500 text-xs mt-1">{errors.previousLicenseYear.message}</p>}
                                         </div>
                                     </>
                                 )}
@@ -393,47 +404,59 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Business Name (English) *</Label>
-                                <Input value={formData.businessNameEn} onChange={(e) => handleInputChange('businessNameEn', e.target.value)} required />
+                                <Input {...register('businessNameEn')} />
+                                {errors.businessNameEn && <p className="text-red-500 text-xs mt-1">{errors.businessNameEn.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Business Name (Bengali) *</Label>
-                                <Input value={formData.businessNameBn} onChange={(e) => handleInputChange('businessNameBn', e.target.value)} required />
+                                <Input {...register('businessNameBn')} />
+                                {errors.businessNameBn && <p className="text-red-500 text-xs mt-1">{errors.businessNameBn.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Trade Category</Label>
-                                <Select value={formData.tradeCategory} onValueChange={(v) => handleInputChange('tradeCategory', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="GENERAL_TRADING">General Trading/Retail</SelectItem>
-                                        <SelectItem value="WHOLESALE">Wholesale</SelectItem>
-                                        <SelectItem value="MANUFACTURING">Manufacturing/Factory</SelectItem>
-                                        <SelectItem value="IT">IT/Software/Technology</SelectItem>
-                                        <SelectItem value="CONSTRUCTION">Construction/Real Estate</SelectItem>
-                                        <SelectItem value="HEALTHCARE">Healthcare/Pharmacy</SelectItem>
-                                        <SelectItem value="EDUCATION">Education/Coaching</SelectItem>
-                                        <SelectItem value="FOOD">Food & Restaurant</SelectItem>
-                                        <SelectItem value="TRANSPORT">Transport/Logistics</SelectItem>
-                                        <SelectItem value="AGRICULTURE">Agriculture/Agro-based</SelectItem>
-                                        <SelectItem value="GARMENTS">Garments/Textile</SelectItem>
-                                        <SelectItem value="IMPORT_EXPORT">Import/Export</SelectItem>
-                                        <SelectItem value="FINANCIAL">Financial Services</SelectItem>
-                                        <SelectItem value="CONSULTING">Consulting/Professional Services</SelectItem>
-                                        <SelectItem value="TOURISM">Hotel/Tourism</SelectItem>
-                                        <SelectItem value="OTHER">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Controller
+                                    control={control}
+                                    name="tradeCategory"
+                                    render={({ field }) => (
+                                        <Select value={field.value} onValueChange={field.onChange}>
+                                            <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="GENERAL_TRADING">General Trading/Retail</SelectItem>
+                                                <SelectItem value="WHOLESALE">Wholesale</SelectItem>
+                                                <SelectItem value="MANUFACTURING">Manufacturing/Factory</SelectItem>
+                                                <SelectItem value="IT">IT/Software/Technology</SelectItem>
+                                                <SelectItem value="CONSTRUCTION">Construction/Real Estate</SelectItem>
+                                                <SelectItem value="HEALTHCARE">Healthcare/Pharmacy</SelectItem>
+                                                <SelectItem value="EDUCATION">Education/Coaching</SelectItem>
+                                                <SelectItem value="FOOD">Food & Restaurant</SelectItem>
+                                                <SelectItem value="TRANSPORT">Transport/Logistics</SelectItem>
+                                                <SelectItem value="AGRICULTURE">Agriculture/Agro-based</SelectItem>
+                                                <SelectItem value="GARMENTS">Garments/Textile</SelectItem>
+                                                <SelectItem value="IMPORT_EXPORT">Import/Export</SelectItem>
+                                                <SelectItem value="FINANCIAL">Financial Services</SelectItem>
+                                                <SelectItem value="CONSULTING">Consulting/Professional Services</SelectItem>
+                                                <SelectItem value="TOURISM">Hotel/Tourism</SelectItem>
+                                                <SelectItem value="OTHER">Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                                {errors.tradeCategory && <p className="text-red-500 text-xs mt-1">{errors.tradeCategory.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>TIN Number (12-digit) *</Label>
-                                <Input value={formData.tinNumber} onChange={(e) => handleInputChange('tinNumber', e.target.value)} maxLength={12} required />
+                                <Input {...register('tinNumber')} maxLength={12} />
+                                {errors.tinNumber && <p className="text-red-500 text-xs mt-1">{errors.tinNumber.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>BIN Number (Optional)</Label>
-                                <Input value={formData.binNumber} onChange={(e) => handleInputChange('binNumber', e.target.value)} />
+                                <Input {...register('binNumber')} />
+                                {errors.binNumber && <p className="text-red-500 text-xs mt-1">{errors.binNumber.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Date of Establishment</Label>
-                                <Input type="date" value={formData.establishmentDate} onChange={(e) => handleInputChange('establishmentDate', e.target.value)} />
+                                <Input type="date" {...register('establishmentDate')} />
+                                {errors.establishmentDate && <p className="text-red-500 text-xs mt-1">{errors.establishmentDate.message}</p>}
                             </div>
                         </div>
                     </div>
@@ -441,20 +464,17 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
             case 2: // People Info
                 return (
                     <div className="space-y-8">
-                        {formData.people.map((person: any, index: number) => (
+                        {peopleFields.map((person, index) => (
                             <div key={person.id} className="p-6 border rounded-lg bg-white shadow-sm space-y-4">
                                 <div className="flex justify-between items-center border-b pb-4 mb-4">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        {person.role} {subtype === 'PARTNERSHIP' ? index + 1 : ''} Details
+                                        {getValues(`people.${index}.role`)} {subtype === 'PARTNERSHIP' ? index + 1 : ''} Details
                                     </h3>
                                     {subtype === 'LIMITED_COMPANY' && index > 0 && (
                                         <Button
                                             variant="destructive"
                                             size="sm"
-                                            onClick={() => setFormData(prev => ({
-                                                ...prev,
-                                                people: prev.people.filter((p: any) => p.id !== person.id)
-                                            }))}
+                                            onClick={() => remove(index)}
                                         >
                                             Remove Person
                                         </Button>
@@ -463,69 +483,92 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Full Name (English) *</Label>
-                                        <Input value={person.fullNameEn || ''} onChange={(e) => handlePersonChange(person.id, 'fullNameEn', e.target.value)} required />
+                                        <Input {...register(`people.${index}.fullNameEn` as const)} />
+                                        {errors.people?.[index]?.fullNameEn && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.fullNameEn?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Full Name (Bengali) *</Label>
-                                        <Input value={person.fullNameBn || ''} onChange={(e) => handlePersonChange(person.id, 'fullNameBn', e.target.value)} required />
+                                        <Input {...register(`people.${index}.fullNameBn` as const)} />
+                                        {errors.people?.[index]?.fullNameBn && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.fullNameBn?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Father&apos;s / Husband&apos;s Name</Label>
-                                        <Input value={person.fatherName || ''} onChange={(e) => handlePersonChange(person.id, 'fatherName', e.target.value)} />
+                                        <Input {...register(`people.${index}.fatherName` as const)} />
+                                        {errors.people?.[index]?.fatherName && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.fatherName?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Mother&apos;s Name</Label>
-                                        <Input value={person.motherName || ''} onChange={(e) => handlePersonChange(person.id, 'motherName', e.target.value)} />
+                                        <Input {...register(`people.${index}.motherName` as const)} />
+                                        {errors.people?.[index]?.motherName && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.motherName?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>NID Number *</Label>
-                                        <Input value={person.nidNumber || ''} onChange={(e) => handlePersonChange(person.id, 'nidNumber', e.target.value)} required />
+                                        <Input {...register(`people.${index}.nidNumber` as const)} />
+                                        {errors.people?.[index]?.nidNumber && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.nidNumber?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Date of Birth</Label>
-                                        <Input type="date" value={person.dob || ''} onChange={(e) => handlePersonChange(person.id, 'dob', e.target.value)} />
+                                        <Input type="date" {...register(`people.${index}.dob` as const)} />
+                                        {errors.people?.[index]?.dob && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.dob?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Gender</Label>
-                                        <Select value={person.gender || ''} onValueChange={(v) => handlePersonChange(person.id, 'gender', v)}>
-                                            <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="MALE">Male</SelectItem>
-                                                <SelectItem value="FEMALE">Female</SelectItem>
-                                                <SelectItem value="OTHER">Other</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                        <Controller
+                                            control={control}
+                                            name={`people.${index}.gender` as const}
+                                            render={({ field }) => (
+                                                <Select value={field.value} onValueChange={field.onChange}>
+                                                    <SelectTrigger><SelectValue placeholder="Select Gender" /></SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="MALE">Male</SelectItem>
+                                                        <SelectItem value="FEMALE">Female</SelectItem>
+                                                        <SelectItem value="OTHER">Other</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            )}
+                                        />
+                                        {errors.people?.[index]?.gender && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.gender?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Mobile Number *</Label>
-                                        <Input value={person.mobile || ''} onChange={(e) => handlePersonChange(person.id, 'mobile', e.target.value)} required />
+                                        <Input {...register(`people.${index}.mobile` as const)} />
+                                        {errors.people?.[index]?.mobile && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.mobile?.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Email Address</Label>
-                                        <Input type="email" value={person.email || ''} onChange={(e) => handlePersonChange(person.id, 'email', e.target.value)} />
+                                        <Input type="email" {...register(`people.${index}.email` as const)} />
+                                        {errors.people?.[index]?.email && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.email?.message}</p>}
                                     </div>
                                 </div>
                                 <Separator className="my-4" />
                                 <div className="space-y-4">
                                     <div className="space-y-2">
                                         <Label>Present Address</Label>
-                                        <Textarea value={person.presentAddress || ''} onChange={(e) => handlePersonChange(person.id, 'presentAddress', e.target.value)} />
+                                        <Textarea {...register(`people.${index}.presentAddress` as const)} />
+                                        {errors.people?.[index]?.presentAddress && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.presentAddress?.message}</p>}
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <Checkbox
-                                            id={`sameAsPresent-${person.id}`}
-                                            checked={person.sameAsPresent}
-                                            onCheckedChange={(c) => {
-                                                handlePersonChange(person.id, 'sameAsPresent', c)
-                                                if (c) handlePersonChange(person.id, 'permanentAddress', person.presentAddress)
-                                            }}
+                                        <Controller
+                                            control={control}
+                                            name={`people.${index}.sameAsPresent` as const}
+                                            render={({ field }) => (
+                                                <Checkbox
+                                                    id={`sameAsPresent-${person.id}`}
+                                                    checked={field.value}
+                                                    onCheckedChange={(c: boolean) => {
+                                                        field.onChange(c)
+                                                        if (c) setValue(`people.${index}.permanentAddress`, getValues(`people.${index}.presentAddress`))
+                                                    }}
+                                                />
+                                            )}
                                         />
                                         <Label htmlFor={`sameAsPresent-${person.id}`}>Permanent Address is same as Present Address</Label>
                                     </div>
-                                    {!person.sameAsPresent && (
+                                    {!watch(`people.${index}.sameAsPresent`) && (
                                         <div className="space-y-2">
                                             <Label>Permanent Address</Label>
-                                            <Textarea value={person.permanentAddress || ''} onChange={(e) => handlePersonChange(person.id, 'permanentAddress', e.target.value)} />
+                                            <Textarea {...register(`people.${index}.permanentAddress` as const)} />
+                                            {errors.people?.[index]?.permanentAddress && <p className="text-red-500 text-xs mt-1">{errors.people[index]?.permanentAddress?.message}</p>}
                                         </div>
                                     )}
                                 </div>
@@ -538,15 +581,17 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                                 variant="outline"
                                 className="w-full border-dashed py-8 mt-4"
                                 onClick={() => {
-                                    setFormData(prev => ({
-                                        ...prev,
-                                        people: [...prev.people, {
-                                            id: crypto.randomUUID(),
-                                            fullNameEn: '',
-                                            fullNameBn: '',
-                                            role: 'Director'
-                                        }]
-                                    }))
+                                    append(createEmptyPerson());
+                                    // Assign default role to the appended item. It will be peopleFields.length index.
+                                    // Let's do it slightly safely. Wait for next render or just let useEffect handle?
+                                    // Actually the generic logic sets it, but better to set explicitly since subtype is limited
+                                    setTimeout(() => {
+                                        const currentPeople = getValues('people');
+                                        const newIndex = currentPeople.length - 1;
+                                        if (newIndex >= 0) {
+                                            setValue(`people.${newIndex}.role`, 'Director');
+                                        }
+                                    }, 0);
                                 }}
                             >
                                 + Add Another Director
@@ -560,64 +605,82 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Division</Label>
-                                <Input value={formData.division} onChange={(e) => handleInputChange('division', e.target.value)} />
+                                <Input {...register('division')} />
+                                {errors.division && <p className="text-red-500 text-xs mt-1">{errors.division.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>District</Label>
-                                <Input value={formData.district} onChange={(e) => handleInputChange('district', e.target.value)} />
+                                <Input {...register('district')} />
+                                {errors.district && <p className="text-red-500 text-xs mt-1">{errors.district.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Upazila / City Corporation</Label>
-                                <Input value={formData.upazila} onChange={(e) => handleInputChange('upazila', e.target.value)} />
+                                <Input {...register('upazila')} />
+                                {errors.upazila && <p className="text-red-500 text-xs mt-1">{errors.upazila.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Ward Number</Label>
-                                <Input value={formData.wardNumber} onChange={(e) => handleInputChange('wardNumber', e.target.value)} />
+                                <Input {...register('wardNumber')} />
+                                {errors.wardNumber && <p className="text-red-500 text-xs mt-1">{errors.wardNumber.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Holding / Plot Number</Label>
-                                <Input value={formData.holdingNumber} onChange={(e) => handleInputChange('holdingNumber', e.target.value)} />
+                                <Input {...register('holdingNumber')} />
+                                {errors.holdingNumber && <p className="text-red-500 text-xs mt-1">{errors.holdingNumber.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Road / Street</Label>
-                                <Input value={formData.road} onChange={(e) => handleInputChange('road', e.target.value)} />
+                                <Input {...register('road')} />
+                                {errors.road && <p className="text-red-500 text-xs mt-1">{errors.road.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Area / Mohalla</Label>
-                                <Input value={formData.area} onChange={(e) => handleInputChange('area', e.target.value)} />
+                                <Input {...register('area')} />
+                                {errors.area && <p className="text-red-500 text-xs mt-1">{errors.area.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Postal Code</Label>
-                                <Input value={formData.postalCode} onChange={(e) => handleInputChange('postalCode', e.target.value)} />
+                                <Input {...register('postalCode')} />
+                                {errors.postalCode && <p className="text-red-500 text-xs mt-1">{errors.postalCode.message}</p>}
                             </div>
                         </div>
                         <Separator />
                         <div className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Premises Ownership</Label>
-                                <Select value={formData.ownershipType} onValueChange={(v) => handleInputChange('ownershipType', v)}>
-                                    <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="OWN">Own</SelectItem>
-                                        <SelectItem value="RENTED">Rented</SelectItem>
-                                        <SelectItem value="LEASED">Leased</SelectItem>
-                                        <SelectItem value="GOVT_ALLOCATED">Government Allocated</SelectItem>
-                                    </SelectContent>
-                                </Select>
+                                <Controller
+                                    control={control}
+                                    name="ownershipType"
+                                    render={({ field }) => (
+                                        <Select value={field.value} onValueChange={field.onChange}>
+                                            <SelectTrigger><SelectValue placeholder="Select Ownership" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="OWN">Own</SelectItem>
+                                                <SelectItem value="RENTED">Rented</SelectItem>
+                                                <SelectItem value="LEASED">Leased</SelectItem>
+                                                <SelectItem value="GOVT_ALLOCATED">Government Allocated</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                />
+                                {errors.ownershipType && <p className="text-red-500 text-xs mt-1">{errors.ownershipType.message}</p>}
                             </div>
-                            {(formData.ownershipType === 'RENTED' || formData.ownershipType === 'LEASED') && (
+                            {(watchOwnershipType === 'RENTED' || watchOwnershipType === 'LEASED') && (
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="space-y-2">
                                         <Label>Landlord Name</Label>
-                                        <Input value={formData.landlordName} onChange={(e) => handleInputChange('landlordName', e.target.value)} />
+                                        <Input {...register('landlordName')} />
+                                        {errors.landlordName && <p className="text-red-500 text-xs mt-1">{errors.landlordName.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Landlord Mobile</Label>
-                                        <Input value={formData.landlordMobile} onChange={(e) => handleInputChange('landlordMobile', e.target.value)} />
+                                        <Input {...register('landlordMobile')} />
+                                        {errors.landlordMobile && <p className="text-red-500 text-xs mt-1">{errors.landlordMobile.message}</p>}
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Monthly Rent (৳)</Label>
-                                        <Input type="number" value={formData.monthlyRent} onChange={(e) => handleInputChange('monthlyRent', e.target.value)} />
+                                        <Input type="number" {...register('monthlyRent')} />
+                                        {errors.monthlyRent && <p className="text-red-500 text-xs mt-1">{errors.monthlyRent.message}</p>}
                                     </div>
                                 </div>
                             )}
@@ -630,26 +693,31 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Total Capital Investment (৳)</Label>
-                                <Input type="number" value={formData.capitalInvestment} onChange={(e) => handleInputChange('capitalInvestment', e.target.value)} required />
+                                <Input type="number" {...register('capitalInvestment')} />
                                 <p className="text-xs text-muted-foreground">Fee depends on this amount.</p>
+                                {errors.capitalInvestment && <p className="text-red-500 text-xs mt-1">{errors.capitalInvestment.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Estimated Annual Turnover (৳)</Label>
-                                <Input type="number" value={formData.annualTurnover} onChange={(e) => handleInputChange('annualTurnover', e.target.value)} />
+                                <Input type="number" {...register('annualTurnover')} />
+                                {errors.annualTurnover && <p className="text-red-500 text-xs mt-1">{errors.annualTurnover.message}</p>}
                             </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div className="space-y-2">
                                 <Label>Total Employees</Label>
-                                <Input type="number" value={formData.totalEmployees} onChange={(e) => handleInputChange('totalEmployees', e.target.value)} />
+                                <Input type="number" {...register('totalEmployees')} />
+                                {errors.totalEmployees && <p className="text-red-500 text-xs mt-1">{errors.totalEmployees.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Male Employees</Label>
-                                <Input type="number" value={formData.maleEmployees} onChange={(e) => handleInputChange('maleEmployees', e.target.value)} />
+                                <Input type="number" {...register('maleEmployees')} />
+                                {errors.maleEmployees && <p className="text-red-500 text-xs mt-1">{errors.maleEmployees.message}</p>}
                             </div>
                             <div className="space-y-2">
                                 <Label>Female Employees</Label>
-                                <Input type="number" value={formData.femaleEmployees} onChange={(e) => handleInputChange('femaleEmployees', e.target.value)} />
+                                <Input type="number" {...register('femaleEmployees')} />
+                                {errors.femaleEmployees && <p className="text-red-500 text-xs mt-1">{errors.femaleEmployees.message}</p>}
                             </div>
                         </div>
                     </div>
@@ -681,15 +749,19 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                     </div>
                 )
             case 6: // Review
+                const businessName = watch('businessNameEn');
+                const tin = watch('tinNumber');
+                const peopleCount = watch('people')?.length || 0;
+                
                 return (
                     <div className="space-y-6">
                         <div className="bg-muted p-4 rounded-lg">
                             <h3 className="font-semibold text-lg mb-4">Application Summary</h3>
                             <div className="space-y-2 text-sm text-gray-700">
                                 <p><strong>License Type:</strong> {subtype?.replace('_', ' ')}</p>
-                                <p><strong>Business Name:</strong> {formData.businessNameEn}</p>
-                                <p><strong>TIN:</strong> {formData.tinNumber}</p>
-                                <p><strong>Total Owners/Directors:</strong> {formData.people.length}</p>
+                                <p><strong>Business Name:</strong> {businessName}</p>
+                                <p><strong>TIN:</strong> {tin}</p>
+                                <p><strong>Total Owners/Directors:</strong> {peopleCount}</p>
                                 <Separator className="my-2" />
                                 <p className="text-xs text-muted-foreground mt-2">* Click Submit to complete the application process.</p>
                             </div>
@@ -697,17 +769,31 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
 
                         <div className="space-y-4">
                             <div className="flex items-start space-x-2">
-                                <Checkbox id="declared" checked={formData.declared} onCheckedChange={(c) => handleInputChange('declared', c)} />
+                                <Controller
+                                    control={control}
+                                    name="declared"
+                                    render={({ field }) => (
+                                        <Checkbox id="declared" checked={field.value} onCheckedChange={field.onChange} />
+                                    )}
+                                />
                                 <Label htmlFor="declared" className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     I hereby declare that all information provided in this application is true and correct to the best of my knowledge.
                                 </Label>
                             </div>
+                            {errors.declared && <p className="text-red-500 text-xs mt-1">{errors.declared.message}</p>}
                             <div className="flex items-start space-x-2">
-                                <Checkbox id="terms" checked={formData.termsAccepted} onCheckedChange={(c) => handleInputChange('termsAccepted', c)} />
+                                <Controller
+                                    control={control}
+                                    name="termsAccepted"
+                                    render={({ field }) => (
+                                        <Checkbox id="terms" checked={field.value} onCheckedChange={field.onChange} />
+                                    )}
+                                />
                                 <Label htmlFor="terms" className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                                     I agree to the Terms and Conditions and Privacy Policy.
                                 </Label>
                             </div>
+                            {errors.termsAccepted && <p className="text-red-500 text-xs mt-1">{errors.termsAccepted.message}</p>}
                         </div>
                     </div>
                 )
@@ -738,7 +824,7 @@ export default function TradeLicenseForm({ applicationId, initialData, onSaveDra
                 </div>
             </CardHeader>
             <CardContent className="pt-6">
-                <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                <form onSubmit={handleSubmit(onSubmitForm)}>
                     {renderStepContent()}
 
                     <div className="flex justify-between items-center mt-8 pt-6 border-t">

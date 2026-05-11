@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,28 +23,14 @@ export default function SupportLogin() {
         e.preventDefault()
         setLoading(true)
         setError('')
-
         try {
-            const res = await fetch('/api/auth/support-member/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            })
-
-            const data = await res.json()
-
-            if (data.success) {
-                toast.success('Login successful')
-                router.push('/admin/support-member')
-                router.refresh()
-            } else {
-                setError(data.message || 'Login failed')
-            }
-        } catch (err) {
-            setError('Something went wrong. Please try again.')
-        } finally {
-            setLoading(false)
-        }
+            const supabase = createClient()
+            const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+            if (authError) { setError(authError.message || 'Login failed'); return }
+            if (data.user) { toast.success('Login successful'); router.push('/admin/support-member'); router.refresh() }
+            else { setError('Authentication failed.') }
+        } catch (err) { setError('Something went wrong.') }
+        finally { setLoading(false) }
     }
 
     return (
@@ -51,68 +38,27 @@ export default function SupportLogin() {
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
                     <Link href="/" className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4 transition-colors">
-                        <ArrowLeft className="h-4 w-4 mr-2" />
-                        Back to Home
+                        <ArrowLeft className="h-4 w-4 mr-2" />Back to Home
                     </Link>
                     <div className="flex justify-center mb-4">
-                        <div className="bg-purple-100 p-3 rounded-full">
-                            <ShieldCheck className="h-8 w-8 text-purple-600" />
-                        </div>
+                        <div className="bg-purple-100 p-3 rounded-full"><ShieldCheck className="h-8 w-8 text-purple-600" /></div>
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900">Support Team Portal</h1>
                     <p className="text-gray-600">Secure access for authorized team members</p>
                 </div>
-
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Sign In</CardTitle>
-                        <CardDescription>Enter your team credentials to continue</CardDescription>
-                    </CardHeader>
+                    <CardHeader><CardTitle>Sign In</CardTitle><CardDescription>Enter your team credentials to continue</CardDescription></CardHeader>
                     <CardContent>
-                        {error && (
-                            <Alert variant="destructive" className="mb-4">
-                                <AlertCircle className="h-4 w-4" />
-                                <AlertDescription>{error}</AlertDescription>
-                            </Alert>
-                        )}
-
+                        {error && (<Alert variant="destructive" className="mb-4"><AlertCircle className="h-4 w-4" /><AlertDescription>{error}</AlertDescription></Alert>)}
                         <form onSubmit={handleLogin} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="name@docufieds.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Password</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                            </div>
-
+                            <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" placeholder="name@docufieds.com" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
+                            <div className="space-y-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
                             <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700" disabled={loading}>
-                                {loading ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Authenticating...
-                                    </>
-                                ) : (
-                                    'Sign In'
-                                )}
+                                {loading ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Authenticating...</>) : 'Sign In'}
                             </Button>
                         </form>
                     </CardContent>
                 </Card>
-
                 <p className="text-center mt-6 text-sm text-gray-500">
                     Support Group Leads should login via the <Link href="/auth/signin" className="text-purple-600 font-medium hover:underline">Admin Portal</Link>
                 </p>

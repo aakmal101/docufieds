@@ -24,6 +24,7 @@ import toast from 'react-hot-toast'
 
 export default function SignInPage() {
   const [loading, setLoading] = useState(false)
+  const [loadingRole, setLoadingRole] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loginMode, setLoginMode] = useState<'password' | 'demo'>('password')
   const [credentials, setCredentials] = useState({
@@ -50,7 +51,7 @@ export default function SignInPage() {
       if (authError) {
         console.error('Sign in error:', authError.message)
         setError(authError.message || 'Login failed. Please check your credentials.')
-        toast.error('Login failed. Please check your credentials.')
+        toast.error(authError.message || 'Login failed.')
         setLoading(false)
         return
       }
@@ -64,8 +65,10 @@ export default function SignInPage() {
 
       toast.success('Signed in successfully!')
 
-      // Redirect to the requested page or dashboard (role routing handled by /dashboard page)
-      window.location.href = next
+      // Invalidate the Next.js server component cache so middleware
+      // sees the fresh Supabase cookies, then navigate.
+      router.refresh()
+      router.push(next)
     } catch (error: any) {
       console.error('Login error:', error)
       const errorMessage = error?.message || 'Something went wrong. Please try again.'
@@ -78,6 +81,7 @@ export default function SignInPage() {
 
   const handleRoleLogin = async (role: string) => {
     setLoading(true)
+    setLoadingRole(role)
     setError('')
 
     try {
@@ -86,38 +90,46 @@ export default function SignInPage() {
       // Demo login — use the role-specific demo email
       const identifier = `${role.toLowerCase()}@demo.com`
 
+      console.log(`[Demo Login] Attempting: ${identifier}`)
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: identifier,
-        password: 'demo123456', // Standard demo password
+        password: 'demo123456',
       })
 
       if (authError) {
-        console.error('Demo sign in error:', authError.message)
+        console.error('Demo sign in error:', authError.message, authError)
         setError(authError.message || 'Demo login failed. Please try again.')
-        toast.error('Demo login failed. Please try again.')
+        toast.error(authError.message || 'Demo login failed.')
         setLoading(false)
+        setLoadingRole(null)
         return
       }
 
       if (!data.user) {
+        console.error('Demo login: no user returned despite no error')
         setError('Demo session not created. Please try again.')
-        toast.error('Demo session not created. Please try again.')
+        toast.error('Demo session not created.')
         setLoading(false)
+        setLoadingRole(null)
         return
       }
 
+      console.log(`[Demo Login] Success: ${data.user.email} (${data.user.id})`)
       toast.success(`Signed in as ${role}!`)
 
-      // Redirect to /dashboard — the server-side dashboard router
-      // will read the user's role and redirect to the correct sub-dashboard.
-      window.location.href = '/dashboard'
+      // Invalidate the Next.js server component cache so middleware
+      // and the /dashboard server component see the fresh session cookies.
+      router.refresh()
+      router.push('/dashboard')
     } catch (error: any) {
-      console.error('Login error:', error)
+      console.error('Demo login unexpected error:', error)
       const errorMessage = error?.message || 'Something went wrong. Please try again.'
       setError(errorMessage)
       toast.error(errorMessage)
     } finally {
       setLoading(false)
+      setLoadingRole(null)
     }
   }
 
@@ -303,15 +315,16 @@ export default function SignInPage() {
                     disabled={loading}
                   >
                     <div className={`${button.textColor}`}>
-                      {button.icon}
+                      {loadingRole === button.role ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      ) : (
+                        button.icon
+                      )}
                     </div>
                     <div className="text-center">
                       <h3 className="font-semibold text-gray-900">{button.title}</h3>
                       <p className="text-sm text-gray-600 mt-1">{button.description}</p>
                     </div>
-                    {loading && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
                   </Button>
                 ))}
               </div>

@@ -78,7 +78,8 @@ export default function AccountsDashboard() {
   }
 
   const handleSignOut = async () => {
-    await fetch('/api/auth/signout', { method: 'POST' })
+    const supabase = (await import('@/lib/supabase/client')).createClient()
+    await supabase.auth.signOut()
     window.location.href = '/auth/signin'
   }
 

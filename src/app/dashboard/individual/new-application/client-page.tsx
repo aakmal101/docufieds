@@ -148,9 +148,10 @@ function NewApplicationContent() {
   ]
 
   const BUSINESS_CATEGORIES = [
-    { id: 'TRADE_LICENSE', label: 'Trade License', description: 'Apply for a new trade license or renew existing one' },
-    { id: 'BUSINESS_VISA', label: 'Business Visa', description: 'Visa for business travel and meetings' },
-    { id: 'COMPANY_REGISTRATION', label: 'Company Registration', description: 'Register a new company (Ltd, Partnership, etc.)' },
+    { id: 'TRADE_LICENSE', label: 'Trade License', description: 'Apply for a new trade license or renew existing one', comingSoon: false },
+    // ── Coming Soon categories (preserved for future integration) ──
+    { id: 'BUSINESS_VISA', label: 'Business Visa', description: 'Visa for business travel and meetings', comingSoon: true },
+    { id: 'COMPANY_REGISTRATION', label: 'Company Registration', description: 'Register a new company (Ltd, Partnership, etc.)', comingSoon: true },
   ]
 
   useEffect(() => {
@@ -417,34 +418,28 @@ function NewApplicationContent() {
       setLoading(true)
       setError('')
       try {
-        const response = await fetch('/api/applications', {
-          method: 'POST',
+        // If a draft already exists (from onSaveDraft), update it instead of creating a duplicate
+        const isUpdate = !!applicationId
+        const url = isUpdate ? `/api/applications/${applicationId}` : '/api/applications'
+        const method = isUpdate ? 'PATCH' : 'POST'
+
+        const response = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            country: 'Bangladesh', // Implicit for Trade License
+            country: 'Bangladesh',
             processType: 'TRADE_LICENSE',
-            profession: 'BUSINESS_OWNER', // Implicit
-            consultancyFee: 500, // Or calculated fee?? The form handles fee calculation display, but API needs fee.
-            // Actually, we should probably send the calculated fee or let backend calculate.
-            // For now, let's send 0 or standard and update later?
-            // The requirement said "Estimated Government Fee... payable later".
-            // So initial consultancy fee might be separate or 0? 
-            // Let's assume standard consultancy fee applies or 0.
-            // User request: "Submit button (no payment gateway)... Estimated fee... payable later"
-            // So we create app with status PENDING, and fee details.
+            profession: 'BUSINESS_OWNER',
+            consultancyFee: 500,
             module: 'BUSINESS',
-            answers: submitData // Pass all the form data as answers/metadata
+            answers: submitData,
+            status: 'UNDER_REVIEW', // Mark as submitted
           })
         })
         const data = await response.json()
         if (data.success) {
-          // Show confirmation screen
-          // We can reuse 'call' step or a new 'confirmation' step.
-          // Requirement: Show confirmation screen with Tracking ID, Agent call msg, etc.
           setApplicationId(data.data.id)
-          setStep('call') // reusing call phase screen which has similar info? 
-          // Or we might need a custom confirmation screen for Trade License.
-          // Let's use 'call' for now as it shows "Application Submitted" and "Agent will call".
+          setStep('call')
         } else {
           toast.error(data.message || 'Failed to submit')
         }
@@ -674,20 +669,29 @@ function NewApplicationContent() {
                     {BUSINESS_CATEGORIES.map((cat) => (
                       <div
                         key={cat.id}
-                        className={`p-4 border rounded-lg transition-colors cursor-pointer ${formData.processType === cat.id
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                          }`}
-                        onClick={() => setFormData(prev => ({ ...prev, processType: cat.id }))}
+                        className={`p-4 border rounded-lg transition-colors relative ${
+                          cat.comingSoon
+                            ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-50'
+                            : formData.processType === cat.id
+                              ? 'cursor-pointer border-blue-500 bg-blue-50'
+                              : 'cursor-pointer border-gray-200 hover:border-gray-300'
+                        }`}
+                        onClick={() => {
+                          if (!cat.comingSoon) setFormData(prev => ({ ...prev, processType: cat.id }))
+                        }}
                       >
                         <div className="flex items-center gap-4">
                           <div className="flex-1">
-                            <h3 className="font-medium">{cat.label}</h3>
-                            <p className="text-sm text-gray-500">{cat.description}</p>
+                            <h3 className={`font-medium ${cat.comingSoon ? 'text-gray-400' : ''}`}>{cat.label}</h3>
+                            <p className={`text-sm ${cat.comingSoon ? 'text-gray-300' : 'text-gray-500'}`}>{cat.description}</p>
                           </div>
-                          <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${formData.processType === cat.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
-                            {formData.processType === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
-                          </div>
+                          {cat.comingSoon ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold bg-gray-200 text-gray-500 px-2.5 py-1 rounded-full whitespace-nowrap">Coming Soon</span>
+                          ) : (
+                            <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${formData.processType === cat.id ? 'border-blue-600 bg-blue-600' : 'border-gray-300'}`}>
+                              {formData.processType === cat.id && <div className="h-2.5 w-2.5 rounded-full bg-white" />}
+                            </div>
+                          )}
                         </div>
                       </div>
                     ))}
