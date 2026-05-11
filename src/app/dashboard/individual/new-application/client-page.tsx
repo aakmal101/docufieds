@@ -407,8 +407,8 @@ function NewApplicationContent() {
 
 
   const getCurrentFee = () => {
-    // Standard 500 BDT fee for all modules and process types
-    return 500
+    // Standard 2000 BDT fee for all modules and process types
+    return 2000
   }
 
   const handleSubmit = async (submitData?: any) => {
@@ -430,7 +430,7 @@ function NewApplicationContent() {
             country: 'Bangladesh',
             processType: 'TRADE_LICENSE',
             profession: 'BUSINESS_OWNER',
-            consultancyFee: 500,
+            consultancyFee: 2000,
             module: 'BUSINESS',
             answers: submitData,
             status: 'UNDER_REVIEW', // Mark as submitted
@@ -486,7 +486,7 @@ function NewApplicationContent() {
             // Use 'standard' or similar default for module-based apps if processType is skipped
             processType: selectedModule ? 'standard' : formData.processType,
             profession: formData.profession,
-            consultancyFee: 500, // Standard 500 BDT fee
+            consultancyFee: 2000, // Standard 2000 BDT fee
             module: selectedModule // Singular
           }),
         })
@@ -580,7 +580,7 @@ function NewApplicationContent() {
                       businessCategory: 'TRADE_LICENSE',
                       module: 'BUSINESS',
                       status: 'DRAFT', // Explicitly marking as draft
-                      consultancyFee: 500, // Explicitly provide required fee for API validaiton
+                      consultancyFee: 2000, // Explicitly provide required fee for API validation
                       answers: submitData
                     })
                   })
