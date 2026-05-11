@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
@@ -20,6 +21,8 @@ export default function SignUpPage() {
     fullName: '',
     phone: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     dateOfBirth: '',
     placeOfBirth: '',
     role: 'INDIVIDUAL' as UserRoleEnum,
@@ -33,23 +36,90 @@ export default function SignUpPage() {
     setLoading(true)
     setError('')
 
+    // Client-side validation
+    if (!formData.email) {
+      setError('Email is required for account creation.')
+      setLoading(false)
+      return
+    }
+
+    if (!formData.password || formData.password.length < 6) {
+      setError('Password must be at least 6 characters.')
+      setLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match.')
+      setLoading(false)
+      return
+    }
+
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      const supabase = createClient()
+
+      const { data, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.fullName,
+            phone: formData.phone,
+            date_of_birth: formData.dateOfBirth,
+            place_of_birth: formData.placeOfBirth,
+            role: formData.role,
+            agency_name: formData.agencyName || undefined,
+            agency_license: formData.agencyLicense || undefined,
+          },
+        },
       })
 
-      const data = await response.json()
+      if (authError) {
+        setError(authError.message)
+        toast.error(authError.message)
+        return
+      }
 
-      if (data.success) {
+      if (data.user) {
+        // ── PRIMARY SYNC: Create Prisma User record BEFORE redirect ──
+        try {
+          const syncRes = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              supabaseUserId: data.user.id,
+              email: formData.email,
+              metadata: {
+                full_name: formData.fullName,
+                phone: formData.phone,
+                date_of_birth: formData.dateOfBirth,
+                place_of_birth: formData.placeOfBirth,
+                role: formData.role,
+                agency_name: formData.agencyName || undefined,
+                agency_license: formData.agencyLicense || undefined,
+              },
+            }),
+          })
+
+          if (!syncRes.ok) {
+            const body = await syncRes.json().catch(() => ({}))
+            console.warn('[Signup] Prisma sync returned non-OK:', body)
+            // Don't block — JIT fallback will cover this
+          }
+        } catch (syncErr) {
+          // Network error calling our own API — log and continue
+          console.warn('[Signup] Prisma sync call failed:', syncErr)
+        }
+
         toast.success('Registration successful! You can now sign in.')
         router.push('/auth/signin')
       } else {
-        setError(data.message || 'Registration failed')
+        setError('Registration failed. Please try again.')
       }
-    } catch (error) {
-      setError('Something went wrong. Please try again.')
+    } catch (err: any) {
+      const message = err?.message || 'Something went wrong. Please try again.'
+      setError(message)
+      toast.error(message)
     } finally {
       setLoading(false)
     }
@@ -133,13 +203,40 @@ export default function SignUpPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email (Optional)</Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   placeholder="your@email.com"
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Minimum 6 characters"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  placeholder="Re-enter your password"
+                  value={formData.confirmPassword}
+                  onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                  required
+                  minLength={6}
                 />
               </div>
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import { Bell } from 'lucide-react'
 import { useSupportNotifications } from '@/lib/supabase/realtime-support'
 import { Button } from '@/components/ui/button'
@@ -46,8 +47,9 @@ export function SupportNotificationBell() {
     const [memberId, setMemberId] = useState<string | undefined>()
 
     useEffect(() => {
-        fetch('/api/auth/support-member/me').then(res => res.json()).then(data => {
-            if (data.id) setMemberId(data.id)
+        const supabase = createClient()
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            if (user?.id) setMemberId(user.id)
         })
     }, [])
 

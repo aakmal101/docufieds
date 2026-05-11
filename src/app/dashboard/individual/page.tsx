@@ -15,7 +15,6 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Loader2,
   Calendar,
   ShieldCheck,
   XCircle
@@ -27,15 +26,21 @@ export default function IndividualDashboard() {
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
   const [applications, setApplications] = useState<any[]>([])
+  const [fetchError, setFetchError] = useState(false)
+
+  // Compute display name from individualProfile (fullName does not exist on User model)
+  const displayName = user?.individualProfile?.firstName
+    ? `${user.individualProfile.firstName} ${user.individualProfile.lastName || ''}`.trim()
+    : user?.email?.split('@')[0] || 'User'
 
   // Throttle fetching: prevent fetch if last one was < 2 minutes ago
   const lastFetchTime = useRef<number>(0)
 
   useEffect(() => {
     // Middleware handles auth gating — if we're here, user is authenticated
-    // Check throttle
+    // Check throttle — but only skip if we already have user data
     const now = Date.now()
-    if (now - lastFetchTime.current < 120 * 1000) {
+    if (user && now - lastFetchTime.current < 120 * 1000) {
       // Data is fresh enough
       setLoading(false)
       return
@@ -46,12 +51,15 @@ export default function IndividualDashboard() {
   }, [])
 
   const fetchUserData = async () => {
+    setFetchError(false)
     try {
       const response = await fetch('/api/user/profile')
       const data = await response.json()
 
       if (data.success) {
         setUser(data.data)
+      } else {
+        setFetchError(true)
       }
 
       const appsResponse = await fetch('/api/applications')
@@ -62,6 +70,7 @@ export default function IndividualDashboard() {
       }
     } catch (error) {
       console.error('Error fetching user data:', error)
+      setFetchError(true)
     } finally {
       setLoading(false)
     }
@@ -125,37 +134,95 @@ export default function IndividualDashboard() {
   const calculateProfileCompletion = () => {
     if (!user) return 0
 
-    const requiredFields = [
-      'fullName', 'dateOfBirth', 'placeOfBirth', 'photoUrl',
-      'birthCertificateNumber', 'nidNumber', 'passportNumber',
+    // Check both User-level fields and nested individualProfile fields
+    const userFields = [
+      'dateOfBirth', 'placeOfBirth', 'photoUrl',
+      'birthCertificateNumber', 'nidNumber',
       'presentAddress', 'permanentAddress'
     ]
+    const profileFields = ['firstName', 'passportNumber']
+    const totalRequired = userFields.length + profileFields.length
 
-    const completedFields = requiredFields.filter(field => {
+    let completedCount = userFields.filter(field => {
       const value = user[field]
       return value && (typeof value !== 'object' || Object.keys(value).length > 0)
     }).length
 
-    return Math.round((completedFields / requiredFields.length) * 100)
+    completedCount += profileFields.filter(field => {
+      const value = user?.individualProfile?.[field]
+      return value && value.toString().trim() !== ''
+    }).length
+
+    return Math.round((completedCount / totalRequired) * 100)
   }
 
-  if (loading) {
+  // Show skeleton while loading OR while user data hasn't arrived yet (throttle edge-case)
+  if (loading || (!user && !fetchError)) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Loading your dashboard...</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-pulse">
+        {/* Welcome skeleton */}
+        <div className="mb-8">
+          <div className="h-8 w-72 bg-gray-200 rounded-md mb-2" />
+          <div className="h-4 w-96 bg-gray-100 rounded-md" />
         </div>
+
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg border border-gray-100 p-6">
+              <div className="flex items-center">
+                <div className="h-8 w-8 bg-gray-200 rounded-md" />
+                <div className="ml-4 flex-1">
+                  <div className="h-6 w-12 bg-gray-200 rounded-md mb-1" />
+                  <div className="h-3 w-24 bg-gray-100 rounded-md" />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Applications skeleton */}
+        <div className="bg-white rounded-lg border border-gray-100 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div>
+              <div className="h-5 w-44 bg-gray-200 rounded-md mb-2" />
+              <div className="h-3 w-64 bg-gray-100 rounded-md" />
+            </div>
+            <div className="h-9 w-32 bg-gray-200 rounded-md" />
+          </div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="border border-gray-100 rounded-lg p-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="h-5 w-48 bg-gray-200 rounded-md mb-3" />
+                    <div className="flex items-center space-x-6">
+                      <div className="h-3 w-24 bg-gray-100 rounded-md" />
+                      <div className="h-3 w-20 bg-gray-100 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="h-8 w-24 bg-gray-100 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-gray-400 mt-6">Loading your applications...</p>
       </div>
     )
   }
 
-  if (!user) {
+  // Only show error after fetch has definitively failed
+  if (fetchError && !user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-4" />
-          <p>Error loading user data</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="w-full bg-gray-50 rounded-lg border border-gray-100 p-12 flex flex-col items-center justify-center text-center">
+          <AlertCircle className="h-8 w-8 text-gray-400 mb-4" />
+          <p className="text-gray-600 mb-4">Unable to load your dashboard data</p>
+          <Button variant="outline" onClick={() => { setLoading(true); fetchUserData() }}>
+            Try Again
+          </Button>
         </div>
       </div>
     )
@@ -168,7 +235,7 @@ export default function IndividualDashboard() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <h1 className="text-3xl font-bold text-gray-900">
-              Welcome back, {user.fullName}!
+              Welcome back, {displayName}!
             </h1>
             {user.profileStatus === 'APPROVED' && (
               <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200 gap-1">

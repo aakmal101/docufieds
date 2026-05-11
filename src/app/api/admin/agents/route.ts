@@ -2,14 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { createClient } from '@supabase/supabase-js'
-
-// Using service role for admin actions if needed, or just prisma
-// ideally we use the logged in user's session to verify they are ADMIN or AGENCY
+import { requireSupportLead } from '@/lib/auth/admin-guard'
 
 export async function POST(req: NextRequest) {
     try {
-        // 1. Auth Check (Mock/Simplification for now - in real app, check session)
-        // const session = await auth() ... 
+        const session = await requireSupportLead()
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
 
         const body = await req.json()
         const { email, fullName, phone, agencyId, password } = body
@@ -79,10 +79,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    const searchParams = req.nextUrl.searchParams
-    const agencyId = searchParams.get('agencyId')
-
     try {
+        const session = await requireSupportLead()
+        if (!session) {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
+
+        const searchParams = req.nextUrl.searchParams
+        const agencyId = searchParams.get('agencyId')
         const agents = await prisma.user.findMany({
             where: {
                 role: 'AGENT',

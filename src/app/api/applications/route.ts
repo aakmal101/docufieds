@@ -35,10 +35,14 @@ export async function GET(request: NextRequest) {
         include: {
           user: { // Include user details for support view
             select: {
-              fullName: true,
               email: true,
-              phone: true,
-              memberId: true
+              memberId: true,
+              individualProfile: {
+                select: {
+                  firstName: true,
+                  lastName: true,
+                }
+              }
             }
           },
           documents: {

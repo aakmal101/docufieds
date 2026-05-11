@@ -82,11 +82,11 @@ export async function POST(request: NextRequest) {
       if (oldPhoto?.photoUrl && oldPhoto.photoUrl.includes('supabase.co')) {
         // Extract file path from URL if it's a Supabase URL
         try {
-          const urlParts = oldPhoto.photoUrl.split('/storage/v1/object/public/documents/')
+          const urlParts = oldPhoto.photoUrl.split('/storage/v1/object/public/avatars/')
           if (urlParts.length > 1) {
             const oldPath = urlParts[1]
             await supabase.storage
-              .from('documents')
+              .from('avatars')
               .remove([oldPath])
           }
         } catch (error) {
@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 
     // Upload new photo
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('documents')
+      .from('avatars')
       .upload(fileName, fileBuffer, {
         contentType: file.type,
         upsert: true, // Replace if exists
@@ -135,14 +135,14 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const { getSignedDocumentUrl } = await import('@/lib/utils/storage');
-    const signedUrl = await getSignedDocumentUrl(internalPath) || internalPath;
+    const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(internalPath)
+    const publicUrl = publicUrlData.publicUrl
 
     return NextResponse.json({
       success: true,
       message: 'Profile photo uploaded successfully',
       data: {
-        photoUrl: signedUrl,
+        photoUrl: publicUrl,
         user: updatedUser,
       },
     })

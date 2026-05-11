@@ -105,7 +105,7 @@ export default function SupportLeadLayout({
                 <Button
                     variant="outline"
                     className="w-full text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                    onClick={async () => { await fetch('/api/auth/signout', { method: 'POST' }); window.location.href = '/auth/signin' }}
+                    onClick={async () => { const supabase = (await import('@/lib/supabase/client')).createClient(); await supabase.auth.signOut(); window.location.href = '/auth/signin' }}
                 >
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
